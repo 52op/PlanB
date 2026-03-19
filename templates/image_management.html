@@ -1,0 +1,436 @@
+{% extends "admin.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lightgallery.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-zoom.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-rotate.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-thumbnail.min.css" />
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">图片管理</div>
+    <div class="card-body">
+        <div id="image-gallery" class="image-gallery">
+            <!-- Images will be loaded here by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<style>
+.image-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+}
+.image-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+}
+.image-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+.image-card a {
+    display: block;
+    position: relative;
+    width: 100%;
+    padding-top: 100%; /* 1:1 Aspect Ratio */
+    background-color: #f0f0f0;
+    overflow: hidden;
+}
+.image-card img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.image-info {
+    padding: 12px;
+    border-top: 1px solid #eee;
+}
+.image-info .filename {
+    font-size: 13px;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    margin-bottom: 8px;
+}
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.status-text {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 3px 6px;
+    border-radius: 4px;
+    color: #fff;
+}
+.status-in-use { background-color: #2ecc71; } /* Green */
+.status-not-in-use { background-color: #e74c3c; } /* Red */
+.status-orphan { background-color: #3498db; } /* Blue */
+
+/* LightGallery Customizations */
+.lg-counter {
+    display: none !important;
+}
+.lg-custom-toolbar {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1100;
+    pointer-events: auto;
+}
+.lg-custom-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    backdrop-filter: blur(14px);
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    color: #e2e8f0;
+}
+.lg-custom-count {
+    min-width: 84px;
+    justify-content: center;
+    letter-spacing: 0.04em;
+}
+.lg-custom-watermark {
+    color: #e2e8f0;
+}
+.lg-custom-watermark::before {
+    content: '';
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.07);
+}
+.lg-status-in-use {
+    color: #4ade80;
+}
+.lg-status-not-in-use {
+    color: #f87171;
+}
+.lg-status-orphan {
+    color: #60a5fa;
+}
+.lg-status-db-only {
+    color: #fbbf24;
+}
+.lg-custom-delete {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 16px 0 14px;
+    border: 1px solid rgba(248, 113, 113, 0.45);
+    border-radius: 999px;
+    background: rgba(127, 29, 29, 0.14);
+    color: #fecaca;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+.lg-custom-delete:hover {
+    transform: translateY(-1px);
+    background: rgba(153, 27, 27, 0.24);
+    border-color: rgba(252, 165, 165, 0.68);
+    color: #fff;
+}
+.lg-custom-delete:active {
+    transform: translateY(0);
+}
+.lg-custom-delete svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+}
+.lg-custom-delete-label {
+    white-space: nowrap;
+}
+@media (max-width: 768px) {
+    .lg-custom-toolbar {
+        top: 14px;
+        left: 14px;
+    }
+    .lg-custom-pill,
+    .lg-custom-delete {
+        height: 38px;
+        padding: 0 13px 0 12px;
+        font-size: 12px;
+    }
+    .lg-custom-toolbar {
+        gap: 8px;
+        flex-wrap: wrap;
+        max-width: calc(100vw - 92px);
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/lightgallery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/zoom/lg-zoom.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/rotate/lg-rotate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/thumbnail/lg-thumbnail.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const gallery = document.getElementById('image-gallery');
+    const csrfToken = "{{ csrf_token() }}";
+    let lightGalleryInstance = null;
+
+    function deleteImage(unique_filename, status, options = {}) {
+        const fromPreview = Boolean(options.fromPreview);
+        fetch(`/api/images/delete/${encodeURIComponent(unique_filename)}?status=${encodeURIComponent(status)}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (fromPreview && lightGalleryInstance && document.querySelector('.lg-outer')) {
+                        const currentIndex = lightGalleryInstance.index;
+                        
+                        const deletedCard = gallery.querySelector(`a[data-unique-filename="${unique_filename}"]`)?.closest('.image-card');
+                        if (deletedCard) {
+                            deletedCard.remove();
+                        }
+                        
+                        const remainingImages = gallery.querySelectorAll('a');
+                        if (remainingImages.length > 0) {
+                            lightGalleryInstance.destroy();
+
+                            lightGalleryInstance = lightGallery(gallery, {
+                                plugins: [lgZoom, lgRotate, lgThumbnail],
+                                speed: 500,
+                                selector: 'a',
+                                download: false,
+                                mobileSettings: { showCloseButton: true }
+                            });
+
+                            bindGalleryEvents();
+
+                            let newIndex = currentIndex;
+                            if (currentIndex >= remainingImages.length) {
+                                newIndex = remainingImages.length - 1;
+                            }
+
+                            setTimeout(() => {
+                                lightGalleryInstance.openGallery(newIndex);
+                            }, 100);
+                        } else {
+                            lightGalleryInstance.closeGallery();
+                            window.location.reload();
+                        }
+                    } else {
+                        const deletedCard = gallery.querySelector(`a[data-unique-filename="${unique_filename}"]`)?.closest('.image-card');
+                        if (deletedCard) {
+                            deletedCard.remove();
+                        }
+                    }
+                } else {
+                    alert('删除失败：' + data.error);
+                }
+            })
+            .catch(error => console.error('Error deleting image:', error));
+    }
+
+    function createImageCard(image) {
+        const card = document.createElement('div');
+        card.className = 'image-card';
+
+        let statusText = '未使用';
+        let statusClass = 'status-not-in-use';
+        if (image.status === 'orphan') {
+            statusText = '孤立文件';
+            statusClass = 'status-orphan';
+        } else if (image.is_referenced) {
+            statusText = '使用中';
+            statusClass = 'status-in-use';
+        }
+
+        const link = document.createElement('a');
+        link.href = image.url;
+        link.dataset.lgId = image.unique_filename;
+        link.dataset.status = statusText;
+        link.dataset.uniqueFilename = image.unique_filename;
+        link.dataset.rawStatus = image.status;
+
+        const img = document.createElement('img');
+        img.src = image.url;
+        img.alt = image.filename;
+        link.appendChild(img);
+
+        const info = document.createElement('div');
+        info.className = 'image-info';
+
+        const filename = document.createElement('span');
+        filename.className = 'filename';
+        filename.title = image.filename;
+        filename.textContent = image.filename;
+
+        const statusBar = document.createElement('div');
+        statusBar.className = 'status-bar';
+
+        const status = document.createElement('span');
+        status.className = `status-text ${statusClass}`;
+        status.textContent = statusText;
+
+        const button = document.createElement('button');
+        button.className = 'btn btn-sm btn-danger';
+        button.type = 'button';
+        button.textContent = '删除';
+        button.addEventListener('click', function () {
+            deleteImage(image.unique_filename, image.status, { fromPreview: false });
+        });
+
+        statusBar.appendChild(status);
+        statusBar.appendChild(button);
+        info.appendChild(filename);
+        info.appendChild(statusBar);
+        card.appendChild(link);
+        card.appendChild(info);
+        return card;
+    }
+
+    function getStatusMeta(rawStatus, statusText) {
+        if (rawStatus === 'orphan') {
+            return { className: 'lg-status-orphan', label: statusText || '孤立文件' };
+        }
+        if (rawStatus === 'db_only') {
+            return { className: 'lg-status-db-only', label: statusText || '仅数据库记录' };
+        }
+        if (statusText === '使用中') {
+            return { className: 'lg-status-in-use', label: statusText };
+        }
+        return { className: 'lg-status-not-in-use', label: statusText || '未使用' };
+    }
+
+    function mountPreviewDecorations(currentItem) {
+        document.querySelectorAll('.lg-custom-toolbar').forEach(el => el.remove());
+
+        if (!currentItem) return;
+
+        const statusText = currentItem.dataset.status || '未使用';
+        const uniqueFilename = currentItem.dataset.uniqueFilename;
+        const rawStatus = currentItem.dataset.rawStatus || '';
+        const statusMeta = getStatusMeta(rawStatus, statusText);
+        const outer = document.querySelector('.lg-outer');
+        const galleryItems = gallery.querySelectorAll('a');
+        const currentIndex = Array.from(galleryItems).indexOf(currentItem);
+
+        if (!outer || !uniqueFilename) return;
+
+        const customToolbar = document.createElement('div');
+        customToolbar.className = 'lg-custom-toolbar';
+
+        const countPill = document.createElement('div');
+        countPill.className = 'lg-custom-pill lg-custom-count';
+        countPill.textContent = `${currentIndex + 1} / ${galleryItems.length}`;
+
+        const watermark = document.createElement('div');
+        watermark.className = `lg-custom-pill lg-custom-watermark ${statusMeta.className}`;
+        watermark.textContent = statusMeta.label;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'lg-custom-delete';
+        deleteBtn.title = `删除图片 ${uniqueFilename}`;
+        deleteBtn.setAttribute('aria-label', `删除图片 ${uniqueFilename}`);
+        deleteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 7h2v7h-2v-7Zm4 0h2v7h-2v-7ZM7 10h2v7H7v-7Zm-1 10h12l1-13H5l1 13Z" fill="currentColor"/>
+            </svg>
+            <span class="lg-custom-delete-label">删除图片</span>
+        `;
+        deleteBtn.onclick = () => {
+            if (confirm(`确定要删除这张图片吗？ (${uniqueFilename})`)) {
+                deleteImage(uniqueFilename, rawStatus, { fromPreview: true });
+            }
+        };
+
+        customToolbar.appendChild(countPill);
+        customToolbar.appendChild(watermark);
+        customToolbar.appendChild(deleteBtn);
+        outer.appendChild(customToolbar);
+    }
+
+    function bindGalleryEvents() {
+        gallery.addEventListener('lgAfterSlide', (event) => {
+            const { index } = event.detail;
+            const galleryItems = gallery.querySelectorAll('a');
+            const currentItem = galleryItems[index];
+            mountPreviewDecorations(currentItem);
+        });
+
+        gallery.addEventListener('lgAfterOpen', () => {
+            const firstItem = gallery.querySelector('a');
+            mountPreviewDecorations(firstItem);
+        });
+
+        gallery.addEventListener('lgBeforeClose', () => {
+            document.querySelectorAll('.lg-custom-toolbar').forEach(el => el.remove());
+        });
+    }
+
+    function renderGallery(images) {
+        gallery.innerHTML = '';
+        images.forEach(image => {
+            gallery.appendChild(createImageCard(image));
+        });
+
+        // Destroy previous instance if it exists
+        if (lightGalleryInstance) {
+            lightGalleryInstance.destroy();
+        }
+
+        lightGalleryInstance = lightGallery(gallery, {
+            plugins: [lgZoom, lgRotate, lgThumbnail],
+            speed: 500,
+            selector: 'a',
+            download: false,
+            mobileSettings: { showCloseButton: true }
+        });
+
+        bindGalleryEvents();
+    }
+
+    function fetchAndRenderImages() {
+        fetch('/api/images/all')
+            .then(response => response.json())
+            .then(data => renderGallery(data.images))
+            .catch(error => console.error('Error fetching images:', error));
+    }
+
+    fetchAndRenderImages();
+});
+</script>
+{% endblock %}

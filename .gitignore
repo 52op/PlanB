@@ -1,0 +1,7 @@
+venv/
+docs/
+jobs/
+instance/
+__pycache__/
+blueprints/__pycache__/
+blog/

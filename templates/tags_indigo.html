@@ -1,0 +1,161 @@
+{% extends 'blog_base_indigo.html' %}
+
+{% block page_header %}
+<div class="page-header">
+    <h1>标签</h1>
+    <p>按标签浏览文章</p>
+    <div class="page-header-meta">
+        <div class="page-header-meta-item">
+            <i data-lucide="tag"></i>
+            <span>{{ tags|length if tags else 0 }} 个标签</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if tags %}
+<div class="tags-layout">
+    <!-- Main Content Area -->
+    <div class="tags-main">
+        <div class="tags-content-header">
+            <h2 class="tags-content-title">
+                <i data-lucide="tag"></i>
+                <span id="currentTagName">{{ tags[0].name if tags else '全部' }}</span>
+                <span class="tags-content-count" id="currentTagCount">({{ tags[0].count if tags else 0 }} 篇)</span>
+            </h2>
+        </div>
+        
+        <!-- Posts List -->
+        <div class="tag-post-list" id="tagPostsList">
+            <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                <i data-lucide="loader" style="width: 24px; height: 24px; animation: spin 1s linear infinite;"></i>
+                <p style="margin-top: 12px;">加载中...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tags Sidebar -->
+    <aside class="tags-sidebar">
+        <div class="tags-sidebar-inner">
+            <div class="tags-sidebar-title">所有标签</div>
+            <div class="tags-list">
+                {% for tag in tags %}
+                <a href="javascript:void(0)" 
+                   class="tag-item {% if loop.first %}active{% endif %}" 
+                   data-tag="{{ tag.name }}"
+                   data-count="{{ tag.count }}"
+                   onclick="loadTagPosts('{{ tag.name }}', {{ tag.count }}, this)">
+                    <span>{{ tag.name }}</span>
+                    <span class="tag-count">{{ tag.count }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </aside>
+</div>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+// Load posts for a specific tag
+async function loadTagPosts(tagName, count, element) {
+    // Update active state
+    document.querySelectorAll('.tag-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    element.classList.add('active');
+    
+    // Update header
+    document.getElementById('currentTagName').textContent = tagName;
+    document.getElementById('currentTagCount').textContent = '(' + count + ' 篇)';
+    
+    // Show loading
+    const postsList = document.getElementById('tagPostsList');
+    postsList.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+            <i data-lucide="loader" style="width: 24px; height: 24px; animation: spin 1s linear infinite;"></i>
+            <p style="margin-top: 12px;">加载中...</p>
+        </div>
+    `;
+    
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
+    try {
+        // Fetch posts for this tag
+        const response = await fetch(`{{ url_for('main.tag', tag_name='__TAG__') }}`.replace('__TAG__', encodeURIComponent(tagName)));
+        const html = await response.text();
+        
+        // Parse the response to extract post items
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const posts = doc.querySelectorAll('.post-item');
+        
+        if (posts.length > 0) {
+            postsList.innerHTML = '';
+            posts.forEach(post => {
+                postsList.appendChild(post.cloneNode(true));
+            });
+        } else {
+            postsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <p class="empty-state-text">该标签下暂无文章</p>
+                </div>
+            `;
+        }
+        
+        // Re-initialize icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // Update URL without reload
+        history.pushState({tag: tagName}, '', `{{ url_for('main.tag', tag_name='__TAG__') }}`.replace('__TAG__', encodeURIComponent(tagName)));
+        
+    } catch (error) {
+        console.error('Error loading posts:', error);
+        postsList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <p class="empty-state-text">加载失败，请刷新页面重试</p>
+            </div>
+        `;
+    }
+}
+
+// Load first tag's posts on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const firstTag = document.querySelector('.tag-item.active');
+    if (firstTag) {
+        const tagName = firstTag.dataset.tag;
+        const count = firstTag.dataset.count;
+        loadTagPosts(tagName, count, firstTag);
+    }
+});
+
+// Handle browser back/forward
+window.addEventListener('popstate', function(event) {
+    if (event.state && event.state.tag) {
+        const tagElement = document.querySelector(`.tag-item[data-tag="${event.state.tag}"]`);
+        if (tagElement) {
+            loadTagPosts(event.state.tag, tagElement.dataset.count, tagElement);
+        }
+    }
+});
+</script>
+
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon">🏷️</div>
+    <p class="empty-state-text">还没有标签</p>
+</div>
+{% endif %}
+{% endblock %}

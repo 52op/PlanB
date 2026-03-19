@@ -1,0 +1,60 @@
+{% extends "admin.html" %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-header">通知日志</div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.notification_logs') }}" class="filter-form">
+                <select name="event_type">
+                    <option value="all" {% if event_type == 'all' %}selected{% endif %}>全部事件</option>
+                    <option value="register_code" {% if event_type == 'register_code' %}selected{% endif %}>注册验证码</option>
+                    <option value="account_verify" {% if event_type == 'account_verify' %}selected{% endif %}>邮箱验证</option>
+                    <option value="change_email_code" {% if event_type == 'change_email_code' %}selected{% endif %}>改邮箱验证码</option>
+                    <option value="comment_reply" {% if event_type == 'comment_reply' %}selected{% endif %}>评论回复</option>
+                    <option value="comment_mention" {% if event_type == 'comment_mention' %}selected{% endif %}>评论提及</option>
+                    <option value="comment_approved" {% if event_type == 'comment_approved' %}selected{% endif %}>审核通过</option>
+                    <option value="comment_rejected" {% if event_type == 'comment_rejected' %}selected{% endif %}>审核拒绝</option>
+                </select>
+                <input type="text" name="q" value="{{ keyword or '' }}" placeholder="搜索目标邮箱/对象">
+                <button class="btn" type="submit">筛选</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>事件类型</th>
+                        <th>目标</th>
+                        <th>时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs.items %}
+                    <tr>
+                        <td>{{ log.id }}</td>
+                        <td>{{ log.event_type }}</td>
+                        <td>{{ log.target }}</td>
+                        <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="empty-state">暂无通知日志</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if logs.pages > 1 %}
+            <div class="pagination">
+                {% if logs.has_prev %}
+                <a class="btn" href="{{ url_for('admin.notification_logs', page=logs.prev_num, event_type=event_type, q=keyword) }}">上一页</a>
+                {% endif %}
+                <span>{{ logs.page }} / {{ logs.pages }}</span>
+                {% if logs.has_next %}
+                <a class="btn" href="{{ url_for('admin.notification_logs', page=logs.next_num, event_type=event_type, q=keyword) }}">下一页</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

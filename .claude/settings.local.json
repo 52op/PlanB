@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python download_vendors.py)",
+      "Bash(curl -L \"https://unpkg.com/lucide-static@0.263.1/font/lucide.js\" -o static/vendor/lucide/lucide.min.js)",
+      "Bash(curl -L \"https://cdn.jsdelivr.net/npm/lucide@0.263.1/dist/umd/lucide.min.js\" -o static/vendor/lucide/lucide.min.js)",
+      "Bash(grep -n \"unpkg.com/lucide\\\\|cdn.jsdelivr.net.*lucide\" templates/*.html)",
+      "Bash(grep -r \"unpkg.com\\\\|cdn.jsdelivr.net\\\\|cdnjs.cloudflare.com\\\\|uicdn.toast.com\" templates/*.html)",
+      "Bash(ls -la *.md)",
+      "Bash(python -m compileall \"e:/letvar/works/python_app/planning/blueprints\" \"e:/letvar/works/python_app/planning/services\")",
+      "Bash(python \"e:/letvar/works/python_app/planning/app.py\")",
+      "Bash(python -m pip install -r \"e:/letvar/works/python_app/planning/requirements.txt\")",
+      "WebFetch(domain:127.0.0.1)",
+      "Bash(curl -I -L \"http://127.0.0.1:5002/docs\")",
+      "Bash(curl -I -L \"http://127.0.0.1:5002/posts\")",
+      "Bash(curl -I -L \"http://127.0.0.1:5002/archive\")",
+      "Bash(curl -I \"http://127.0.0.1:5002/doc/test.md\")",
+      "Bash(curl -I \"http://127.0.0.1:5002/dir/test\")",
+      "Bash(curl -I \"http://127.0.0.1:5002/rss.xml\")",
+      "Bash(curl -I \"http://127.0.0.1:5002/sitemap.xml\")",
+      "Bash(python -:*)",
+      "Bash(curl -I -L \"http://127.0.0.1:5002/doc/test.md\")",
+      "Bash(curl -I -L \"http://127.0.0.1:5002/dir/test\")",
+      "Bash(curl -I -L \"http://127.0.0.1:5002/\")",
+      "Bash(curl -I -L \"http://127.0.0.1:5002/search?q=test\")",
+      "Bash(curl -L \"http://127.0.0.1:5002/\")",
+      "Bash(curl -L \"http://127.0.0.1:5002/posts\")",
+      "Bash(curl -L \"http://127.0.0.1:5002/archive\")",
+      "Bash(curl -L \"http://127.0.0.1:5002/docs\")",
+      "Bash(python -m compileall \"e:/letvar/works/python_app/planning/blueprints\" \"e:/letvar/works/python_app/planning/templates\")",
+      "Bash(python -m compileall \"e:/letvar/works/python_app/planning/blueprints\")",
+      "Bash(python -m py_compile \"e:/letvar/works/python_app/planning/app.py\" \"e:/letvar/works/python_app/planning/models.py\")",
+      "Bash(python -m py_compile \"e:/letvar/works/python_app/planning/app.py\" \"e:/letvar/works/python_app/planning/blueprints/main.py\")",
+      "Bash(python -m py_compile \"e:/letvar/works/python_app/planning/static/js/modules/theme-manager.js\")"
+    ]
+  }
+}

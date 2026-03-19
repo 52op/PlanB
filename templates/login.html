@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      data-default-theme="{{ site_settings.default_theme_color if site_settings else 'blue' }}"
+      data-default-mode="{{ site_settings.default_theme_mode if site_settings else 'light' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - {{ site_settings.site_name if site_settings else 'Planning' }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}" />
+
+    <script>
+      (function () {
+        try {
+          var color = localStorage.getItem('theme_color');
+          var mode = localStorage.getItem('theme_mode');
+          if (color) document.documentElement.setAttribute('data-theme-color', color);
+          if (mode) document.documentElement.setAttribute('data-theme', mode);
+        } catch (e) {}
+        // 防止刷新重复提交表单
+        if (window.history.replaceState) {
+          window.history.replaceState(null, null, window.location.href);
+        }
+      })();
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: linear-gradient(180deg, #f4f6f9, #e8ecf1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+            padding: 20px 0;
+        }
+        .login-box {
+            background: #ffffff;
+            padding: 42px 34px 34px;
+            border-radius: 12px;
+            border: 1px solid #e6ebf1;
+            box-shadow: 0 8px 24px rgba(15, 79, 168, 0.08);
+            width: 100%;
+            max-width: 500px;
+        }
+        .login-box h2 {
+            margin-top: 0;
+            text-align: center;
+            color: #0f4fa8;
+            margin-bottom: 24px;
+            letter-spacing: 0.5px;
+        }
+        .sub-title {
+            text-align: center;
+            font-size: 13px;
+            color: #6c757d;
+            margin-top: -12px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #17324d;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 13px 14px;
+            border: 1px solid #d8dee6;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 15px;
+            background: #fff;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #0f4fa8;
+            box-shadow: 0 0 0 3px rgba(15, 79, 168, 0.1);
+        }
+        .btn {
+            width: 100%;
+            padding: 11px;
+            background-color: #0056b3;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover:not(:disabled) {
+            background-color: #004494;
+            box-shadow: 0 4px 12px rgba(0, 86, 179, 0.25);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .flash-messages {
+            color: #d73a49;
+            margin-bottom: 16px;
+            text-align: center;
+            list-style: none;
+            padding: 0;
+            font-size: 14px;
+        }
+        .tab-header {
+            display: flex;
+            background: #f0f4f8;
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .tab-button {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 11px 8px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #495057;
+            transition: background-color 0.2s, color 0.2s;
+            white-space: nowrap;
+            min-width: 80px;
+        }
+        .tab-button.active {
+            background-color: #0056b3;
+            color: #fff;
+        }
+        .tab-panel {
+            display: none;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+        .tab-title {
+            margin: 0 0 6px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #17324d;
+        }
+        .tab-desc {
+            margin: 0 0 16px;
+            font-size: 13px;
+            color: #6c757d;
+            line-height: 1.5;
+        }
+        .public-entry {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px dashed #dbe1e7;
+            text-align: center;
+        }
+        .inline-action {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+        .inline-action input {
+            flex: 1;
+        }
+        .public-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            background: #eaf4ff;
+            color: #0056b3;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        .public-link:hover {
+            background: #d6ebff;
+        }
+        .switch-link {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #6c757d;
+        }
+        .switch-link a {
+            color: #0056b3;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .switch-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>{{ site_settings.site_name if site_settings else 'Planning' }}</h2>
+        <p class="sub-title">{{ site_settings.site_tagline if site_settings else '轻量 Markdown 内容站' }}</p>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="flash-messages">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        {# 固定密码模式 #}
+        {% if access_mode == 'password_only' %}
+            <div class="tab-header">
+                {% if from_docs %}
+                <button type="button" class="tab-button {% if default_tab == 'visitor' %}active{% endif %}" data-tab="visitor">访客访问</button>
+                {% endif %}
+                <button type="button" class="tab-button {% if default_tab == 'login' %}active{% endif %}" data-tab="login">登录</button>
+                <button type="button" class="tab-button {% if default_tab == 'register' %}active{% endif %}" data-tab="register">注册</button>
+            </div>
+
+            {% if from_docs %}
+            <div class="tab-panel {% if default_tab == 'visitor' %}active{% endif %}" id="tab-visitor">
+                <h3 class="tab-title">访客访问</h3>
+                <p class="tab-desc">请输入站点访问密码，验证通过后即可浏览文档内容。</p>
+
+                {% if has_global_access %}
+                <div style="background:#f1f3f5; color:#495057; padding:10px 12px; border-radius:6px; font-size:13px; margin-bottom:12px;">
+                    已通过全局访问密码验证，无需重复输入。可直接返回或退出全局登录。
+                </div>
+                <div style="display:flex; gap:10px; margin-bottom:12px;">
+                    <a class="btn" style="flex:1; background:#6c757d;" href="{{ back_url or url_for('main.index') }}">返回</a>
+                    <a class="btn" style="flex:1; background:#d9534f;" href="{{ url_for('auth.logout') }}">退出全局登录</a>
+                </div>
+                {% else %}
+                <form method="POST" action="{{ url_for('auth.login') }}" onsubmit="return validateForm(this)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action_type" value="global_password">
+                    <div class="form-group">
+                        <label>访问密码</label>
+                        <input type="password" name="password" required placeholder="请输入全局访问密码">
+                    </div>
+                    <button type="submit" class="btn">开始访问</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="tab-panel {% if default_tab == 'login' %}active{% endif %}" id="tab-login">
+                <h3 class="tab-title">登录账号</h3>
+                <p class="tab-desc">使用用户名/邮箱和密码登录，或使用邮箱验证码登录。</p>
+                
+                <!-- 登录方式切换 -->
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; gap: 8px; background: #f8f9fa; padding: 4px; border-radius: 8px;">
+                        <button type="button" class="login-mode-btn active" data-mode="password" style="flex: 1; padding: 8px; border: none; background: #0056b3; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">密码登录</button>
+                        <button type="button" class="login-mode-btn" data-mode="code" style="flex: 1; padding: 8px; border: none; background: transparent; color: #495057; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">验证码登录</button>
+                    </div>
+                </div>
+
+                <!-- 密码登录表单 -->
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="passwordLoginForm" onsubmit="return validateForm(this)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action_type" value="user_login">
+                    <div class="form-group">
+                        <label>用户名 / 邮箱</label>
+                        <input type="text" name="username" required placeholder="请输入用户名或邮箱" value="{{ form_data.get('login_username', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" name="password" required placeholder="请输入密码">
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn" style="flex: 1;">登录</button>
+                        <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn" style="flex: 1; background: #6c757d; text-align: center; line-height: 1; display: flex; align-items: center; justify-content: center; text-decoration: none;">取消</a>
+                    </div>
+                </form>
+
+                <!-- 验证码登录表单 -->
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="codeLoginForm" style="display: none;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action_type" value="email_login">
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" name="email" required placeholder="请输入注册邮箱" value="{{ form_data.get('login_email', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>验证码</label>
+                        <div class="inline-action">
+                            <input type="text" name="verification_code" required placeholder="请输入验证码" style="flex:1;">
+                            <button class="btn" type="button" id="sendLoginCodeBtn" {% if not mailer_ready %}disabled{% endif %} style="width:auto; white-space:nowrap;">发送验证码</button>
+                        </div>
+                    </div>
+                    {% if not mailer_ready %}
+                    <div style="font-size:13px; color:#b45309; margin-bottom:12px;">管理员尚未配置邮件服务器，暂时无法发送验证码。</div>
+                    {% endif %}
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn" style="flex: 1;">登录</button>
+                        <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn" style="flex: 1; background: #6c757d; text-align: center; line-height: 1; display: flex; align-items: center; justify-content: center; text-decoration: none;">取消</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="tab-panel {% if default_tab == 'register' %}active{% endif %}" id="tab-register">
+                <h3 class="tab-title">注册账号</h3>
+                <p class="tab-desc">注册后默认进入访客组，需完成邮箱验证后才可发表评论。</p>
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="registerForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action_type" value="register_user" id="registerActionType">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" name="username" required placeholder="请输入用户名" value="{{ form_data.get('register_username', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" name="email" required placeholder="请输入邮箱地址" value="{{ form_data.get('register_email', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" name="password" required placeholder="请输入密码">
+                    </div>
+                    <div class="form-group">
+                        <label>确认密码</label>
+                        <input type="password" name="confirm_password" required placeholder="请再次输入密码">
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱验证码</label>
+                        <div class="inline-action">
+                            <input type="text" name="verification_code" required placeholder="请输入验证码" style="flex:1;">
+                            <button class="btn" type="button" id="sendCodeBtn" {% if not mailer_ready %}disabled{% endif %} style="width:auto; white-space:nowrap;">发送验证码</button>
+                        </div>
+                    </div>
+                    {% if not mailer_ready %}
+                    <div style="font-size:13px; color:#b45309; margin-bottom:12px;">管理员尚未配置邮件服务器，暂时无法发送验证码。</div>
+                    {% endif %}
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn" style="flex: 1;">注册并登录</button>
+                        <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn" style="flex: 1; background: #6c757d; text-align: center; line-height: 1; display: flex; align-items: center; justify-content: center; text-decoration: none;">取消</a>
+                    </div>
+                </form>
+            </div>
+        {% else %}
+            {# 其他模式 #}
+            <div class="tab-header">
+                <button type="button" class="tab-button {% if default_tab not in ['register'] %}active{% endif %}" data-tab="login-plain">登录</button>
+                <button type="button" class="tab-button {% if default_tab == 'register' %}active{% endif %}" data-tab="register-plain">注册</button>
+            </div>
+
+            <div class="tab-panel {% if default_tab not in ['register'] %}active{% endif %}" id="tab-login-plain">
+                <h3 class="tab-title">登录账号</h3>
+                <p class="tab-desc">使用用户名/邮箱和密码登录，或使用邮箱验证码登录。</p>
+                
+                <!-- 登录方式切换 -->
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; gap: 8px; background: #f8f9fa; padding: 4px; border-radius: 8px;">
+                        <button type="button" class="login-mode-btn-plain active" data-mode="password" style="flex: 1; padding: 8px; border: none; background: #0056b3; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">密码登录</button>
+                        <button type="button" class="login-mode-btn-plain" data-mode="code" style="flex: 1; padding: 8px; border: none; background: transparent; color: #495057; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">验证码登录</button>
+                    </div>
+                </div>
+
+                <!-- 密码登录表单 -->
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="passwordLoginFormPlain" onsubmit="return validateForm(this)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action_type" value="user_login">
+                    <div class="form-group">
+                        <label>用户名 / 邮箱</label>
+                        <input type="text" name="username" required placeholder="请输入用户名或邮箱" value="{{ form_data.get('login_username', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" name="password" required placeholder="请输入密码">
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn" style="flex: 1;">登录</button>
+                        <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn" style="flex: 1; background: #6c757d; text-align: center; line-height: 1; display: flex; align-items: center; justify-content: center; text-decoration: none;">取消</a>
+                    </div>
+                </form>
+
+                <!-- 验证码登录表单 -->
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="codeLoginFormPlain" style="display: none;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action_type" value="email_login">
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" name="email" required placeholder="请输入注册邮箱" value="{{ form_data.get('login_email', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>验证码</label>
+                        <div class="inline-action">
+                            <input type="text" name="verification_code" required placeholder="请输入验证码" style="flex:1;">
+                            <button class="btn" type="button" id="sendLoginCodeBtnPlain" {% if not mailer_ready %}disabled{% endif %} style="width:auto; white-space:nowrap;">发送验证码</button>
+                        </div>
+                    </div>
+                    {% if not mailer_ready %}
+                    <div style="font-size:13px; color:#b45309; margin-bottom:12px;">管理员尚未配置邮件服务器，暂时无法发送验证码。</div>
+                    {% endif %}
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn" style="flex: 1;">登录</button>
+                        <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn" style="flex: 1; background: #6c757d; text-align: center; line-height: 1; display: flex; align-items: center; justify-content: center; text-decoration: none;">取消</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="tab-panel {% if default_tab == 'register' %}active{% endif %}" id="tab-register-plain">
+                <h3 class="tab-title">注册账号</h3>
+                <p class="tab-desc">注册后默认进入访客组，需完成邮箱验证后才可发表评论。</p>
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="registerFormPlain">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action_type" value="register_user" id="registerActionTypePlain">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" name="username" required placeholder="请输入用户名" value="{{ form_data.get('register_username', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" name="email" required placeholder="请输入邮箱地址" value="{{ form_data.get('register_email', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" name="password" required placeholder="请输入密码">
+                    </div>
+                    <div class="form-group">
+                        <label>确认密码</label>
+                        <input type="password" name="confirm_password" required placeholder="请再次输入密码">
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱验证码</label>
+                        <div class="inline-action">
+                            <input type="text" name="verification_code" required placeholder="请输入验证码" style="flex:1;">
+                            <button class="btn" type="button" id="sendCodeBtnPlain" {% if not mailer_ready %}disabled{% endif %} style="width:auto; white-space:nowrap;">发送验证码</button>
+                        </div>
+                    </div>
+                    {% if not mailer_ready %}
+                    <div style="font-size:13px; color:#b45309; margin-bottom:12px;">管理员尚未配置邮件服务器，暂时无法发送验证码。</div>
+                    {% endif %}
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn" style="flex: 1;">注册并登录</button>
+                        <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn" style="flex: 1; background: #6c757d; text-align: center; line-height: 1; display: flex; align-items: center; justify-content: center; text-decoration: none;">取消</a>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+        
+        <div class="public-entry">
+            <div style="font-size:13px; color:#6c757d; margin-bottom:10px;">无需登录也可浏览已公开发布的文章。</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <a class="public-link" href="{{ url_for('main.posts') }}">进入公开文章(博客)</a>
+                {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}
+                <a class="public-link" href="{{ url_for('main.docs_home') }}" style="background:#eaf4ff; color:#0056b3;">进入文档系统</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 防止表单重复提交
+        function validateForm(form) {
+            var submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn && submitBtn.dataset.submitting === '1') {
+                return false;
+            }
+            if (submitBtn) {
+                submitBtn.dataset.submitting = '1';
+                submitBtn.disabled = true;
+                var originalText = submitBtn.textContent;
+                submitBtn.textContent = '提交中...';
+                setTimeout(function() {
+                    submitBtn.disabled = false;
+                    submitBtn.dataset.submitting = '0';
+                    submitBtn.textContent = originalText;
+                }, 3000);
+            }
+            return true;
+        }
+        
+        document.addEventListener('DOMContentLoaded', function () {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const allPanels = document.querySelectorAll('.tab-panel');
+            
+            // Tab切换
+            tabButtons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const target = this.getAttribute('data-tab');
+                    tabButtons.forEach(function (b) { b.classList.remove('active'); });
+                    this.classList.add('active');
+                    allPanels.forEach(function (panel) {
+                        panel.classList.toggle('active', panel.id === 'tab-' + target);
+                    });
+                });
+            });
+            
+            // 登录方式切换（固定密码模式）
+            const loginModeBtns = document.querySelectorAll('.login-mode-btn');
+            const passwordForm = document.getElementById('passwordLoginForm');
+            const codeForm = document.getElementById('codeLoginForm');
+            
+            loginModeBtns.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const mode = this.getAttribute('data-mode');
+                    loginModeBtns.forEach(function(b) {
+                        b.classList.remove('active');
+                        b.style.background = 'transparent';
+                        b.style.color = '#495057';
+                    });
+                    this.classList.add('active');
+                    this.style.background = '#0056b3';
+                    this.style.color = 'white';
+                    
+                    if (mode === 'password') {
+                        if (passwordForm) passwordForm.style.display = 'block';
+                        if (codeForm) codeForm.style.display = 'none';
+                    } else {
+                        if (passwordForm) passwordForm.style.display = 'none';
+                        if (codeForm) codeForm.style.display = 'block';
+                    }
+                });
+            });
+            
+            // 登录方式切换（其他模式）
+            const loginModeBtnsPlain = document.querySelectorAll('.login-mode-btn-plain');
+            const passwordFormPlain = document.getElementById('passwordLoginFormPlain');
+            const codeFormPlain = document.getElementById('codeLoginFormPlain');
+            
+            loginModeBtnsPlain.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const mode = this.getAttribute('data-mode');
+                    loginModeBtnsPlain.forEach(function(b) {
+                        b.classList.remove('active');
+                        b.style.background = 'transparent';
+                        b.style.color = '#495057';
+                    });
+                    this.classList.add('active');
+                    this.style.background = '#0056b3';
+                    this.style.color = 'white';
+                    
+                    if (mode === 'password') {
+                        if (passwordFormPlain) passwordFormPlain.style.display = 'block';
+                        if (codeFormPlain) codeFormPlain.style.display = 'none';
+                    } else {
+                        if (passwordFormPlain) passwordFormPlain.style.display = 'none';
+                        if (codeFormPlain) codeFormPlain.style.display = 'block';
+                    }
+                });
+            });
+            
+            // 链接切换
+            document.querySelectorAll('[data-switch]').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = this.getAttribute('data-switch');
+                    const targetBtn = document.querySelector('[data-tab="' + target + '"]');
+                    if (targetBtn) targetBtn.click();
+                });
+            });
+
+            // 倒计时函数
+            function startCooldown(button) {
+                if (!button) return;
+                let seconds = 60;
+                button.disabled = true;
+                button.dataset.cooldown = '1';
+                button.style.opacity = '0.6';
+                button.textContent = seconds + 's 后重试';
+                
+                const endTime = Date.now() + seconds * 1000;
+                localStorage.setItem('verifyCodeCooldown_' + button.id, endTime);
+                
+                const timer = window.setInterval(function () {
+                    seconds -= 1;
+                    if (seconds <= 0) {
+                        window.clearInterval(timer);
+                        button.disabled = false;
+                        button.dataset.cooldown = '0';
+                        button.style.opacity = '1';
+                        button.textContent = '发送验证码';
+                        localStorage.removeItem('verifyCodeCooldown_' + button.id);
+                        return;
+                    }
+                    button.textContent = seconds + 's 后重试';
+                }, 1000);
+            }
+            
+            // 恢复倒计时
+            function restoreCooldown(button) {
+                if (!button) return;
+                const endTime = localStorage.getItem('verifyCodeCooldown_' + button.id);
+                if (endTime) {
+                    const remaining = Math.ceil((parseInt(endTime) - Date.now()) / 1000);
+                    if (remaining > 0) {
+                        button.disabled = true;
+                        button.dataset.cooldown = '1';
+                        button.style.opacity = '0.6';
+                        button.textContent = remaining + 's 后重试';
+                        
+                        const timer = window.setInterval(function () {
+                            const newRemaining = Math.ceil((parseInt(endTime) - Date.now()) / 1000);
+                            if (newRemaining <= 0) {
+                                window.clearInterval(timer);
+                                button.disabled = false;
+                                button.dataset.cooldown = '0';
+                                button.style.opacity = '1';
+                                button.textContent = '发送验证码';
+                                localStorage.removeItem('verifyCodeCooldown_' + button.id);
+                                return;
+                            }
+                            button.textContent = newRemaining + 's 后重试';
+                        }, 1000);
+                    } else {
+                        localStorage.removeItem('verifyCodeCooldown_' + button.id);
+                    }
+                }
+            }
+            
+            // 发送验证码通用函数
+            function setupSendCode(button, getForm, actionType) {
+                if (!button) return;
+                
+                restoreCooldown(button);
+                
+                button.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (button.dataset.cooldown === '1' || button.disabled) return;
+                    
+                    const form = typeof getForm === 'function' ? getForm() : getForm;
+                    if (!form) return;
+                    
+                    const emailInput = form.querySelector('input[name="email"]');
+                    if (!emailInput || !emailInput.value.trim()) {
+                        alert('请先输入邮箱地址');
+                        return;
+                    }
+                    
+                    const originalText = button.textContent;
+                    button.disabled = true;
+                    button.textContent = '发送中...';
+                    button.style.opacity = '0.6';
+                    
+                    const formData = new FormData();
+                    formData.append('csrf_token', form.querySelector('input[name="csrf_token"]').value);
+                    formData.append('action_type', actionType);
+                    formData.append('email', emailInput.value.trim());
+                    
+                    fetch('{{ url_for("auth.login") }}', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(function(response) { return response.text(); })
+                    .then(function(html) {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const flashMessages = doc.querySelector('.flash-messages');
+                        const message = flashMessages ? flashMessages.textContent.trim() : '';
+                        
+                        if (message.includes('验证码已发送')) {
+                            // 成功：不弹窗，直接开始倒计时
+                            startCooldown(button);
+                        } else {
+                            // 失败：恢复按钮并弹窗提示
+                            button.disabled = false;
+                            button.textContent = originalText;
+                            button.style.opacity = '1';
+                            alert(message || '发送失败，请重试');
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('发送验证码失败:', error);
+                        button.disabled = false;
+                        button.textContent = originalText;
+                        button.style.opacity = '1';
+                        alert('网络错误，请检查连接后重试');
+                    });
+                });
+            }
+            
+            // 注册验证码
+            const registerForms = [
+                { form: document.getElementById('registerForm'), btn: document.getElementById('sendCodeBtn') },
+                { form: document.getElementById('registerFormPlain'), btn: document.getElementById('sendCodeBtnPlain') }
+            ];
+            
+            registerForms.forEach(function(entry) {
+                if (entry.form && entry.btn) {
+                    setupSendCode(entry.btn, entry.form, 'send_register_code');
+                }
+            });
+            
+            // 登录验证码 - 使用函数获取当前显示的表单
+            const sendLoginCodeBtn = document.getElementById('sendLoginCodeBtn');
+            if (sendLoginCodeBtn) {
+                setupSendCode(sendLoginCodeBtn, function() {
+                    return document.getElementById('codeLoginForm');
+                }, 'send_login_code');
+            }
+            
+            const sendLoginCodeBtnPlain = document.getElementById('sendLoginCodeBtnPlain');
+            if (sendLoginCodeBtnPlain) {
+                setupSendCode(sendLoginCodeBtnPlain, function() {
+                    return document.getElementById('codeLoginFormPlain');
+                }, 'send_login_code');
+            }
+        });
+    </script>
+</body>
+</html>

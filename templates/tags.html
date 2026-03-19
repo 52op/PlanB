@@ -1,0 +1,22 @@
+{% extends 'blog_base.html' %}
+
+{% block content %}
+<div class="tags-container">
+    <h2 class="tags-title">标签云</h2>
+    
+    {% if tags %}
+    <div class="tags-cloud">
+        {% for tag in tags %}
+        <a href="{{ url_for('main.tag', tag_name=tag.name) }}" class="tag-item">
+            <span>{{ tag.name }}</span>
+            <span class="tag-count">({{ tag.count }})</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>还没有标签</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

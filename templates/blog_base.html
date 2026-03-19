@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% set base_site_name = site_settings.site_name if site_settings and site_settings.site_name else 'Planning' %}
+    {% set raw_title = page_meta.title if page_meta and page_meta.title else (page_title if page_title else base_site_name) %}
+    {% set meta_title = raw_title ~ ' - ' ~ base_site_name if raw_title != base_site_name else base_site_name %}
+    {% set meta_description = page_description if page_description else (page_meta.summary if page_meta and page_meta.summary else (site_settings.site_tagline if site_settings else 'Planning')) %}
+    {% set meta_image = page_meta.cover if page_meta and page_meta.cover else '' %}
+    <title>{{ meta_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:title" content="{{ meta_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:site_name" content="{{ base_site_name }}">
+    {% if meta_image %}<meta property="og:image" content="{{ absolute_url(meta_image) }}">{% endif %}
+    <link rel="canonical" href="{{ request.url }}">
+    <link rel="alternate" type="application/rss+xml" title="{{ base_site_name }}" href="{{ url_for('main.rss_feed') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/blog-typecho.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="site-header">
+        <div class="header-inner">
+            <h1 class="site-title">
+                <a href="{{ url_for('main.index') }}">{{ base_site_name }}</a>
+            </h1>
+            <nav class="site-nav">
+                <a href="{{ url_for('main.index') }}" class="{{ 'active' if request.endpoint == 'main.index' else '' }}">首页</a>
+                <a href="{{ url_for('main.archive') }}" class="{{ 'active' if request.endpoint == 'main.archive' else '' }}">归档</a>
+                <a href="{{ url_for('main.tags_page') }}" class="{{ 'active' if request.endpoint == 'main.tags_page' else '' }}">标签</a>
+                {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}
+                <a href="{{ url_for('main.docs_home') }}">文档</a>
+                {% endif %}
+                <button type="button" class="theme-toggle" id="themeToggle" title="切换主题">
+                    <svg class="icon-sun" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <svg class="icon-moon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+                {% if current_user.is_authenticated %}
+                <div class="header-user-dropdown">
+                    <button type="button" class="header-user-btn" onclick="toggleUserMenu()">
+                        {% if current_user.avatar_url %}
+                        <img src="{{ current_user.avatar_url }}" alt="Avatar" class="user-avatar">
+                        {% else %}
+                        <div class="user-avatar-fallback">{{ (current_user.nickname or current_user.username)[:1]|upper }}</div>
+                        {% endif %}
+                        <span class="user-name">{{ current_user.nickname or current_user.username }}</span>
+                        <svg class="dropdown-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <a href="{{ url_for('auth.account') }}" class="dropdown-item">
+                            <i data-lucide="user"></i>
+                            <span>用户中心</span>
+                        </a>
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('admin.admin_dashboard') }}" class="dropdown-item">
+                            <i data-lucide="settings"></i>
+                            <span>后台管理</span>
+                        </a>
+                        {% endif %}
+                        <div class="dropdown-divider"></div>
+                        <a href="{{ url_for('auth.logout') }}" class="dropdown-item">
+                            <i data-lucide="log-out"></i>
+                            <span>退出登录</span>
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}">登录</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <div class="site-main">
+        <main class="site-content">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                <div style="margin-bottom: 20px;">
+                    {% for message in messages %}
+                    <div style="padding: 10px 15px; background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; margin-bottom: 10px;">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <aside class="site-sidebar">
+            {% block sidebar %}
+            <!-- Search Widget -->
+            <div class="widget">
+                <h3 class="widget-title">搜索</h3>
+                <form method="GET" action="{{ url_for('main.search') }}">
+                    <input type="text" name="q" placeholder="输入关键词..." value="{{ search_query or '' }}" style="width: 100%; padding: 8px; border: 1px solid var(--border-color);">
+                </form>
+            </div>
+
+            {% if tags %}
+            <!-- Tags Widget -->
+            <div class="widget">
+                <h3 class="widget-title">标签</h3>
+                <div class="tag-cloud">
+                    {% for tag in tags[:15] %}
+                    <a href="{{ url_for('main.tag', tag_name=tag.name) }}">{{ tag.name }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if archive_groups %}
+            <!-- Archive Widget -->
+            <div class="widget">
+                <h3 class="widget-title">归档</h3>
+                <ul>
+                    {% for group in archive_groups[:8] %}
+                    <li>
+                        <a href="{{ url_for('main.archive') }}#archive-{{ group.label|replace(' ', '-') }}">{{ group.label }} ({{ group.count }})</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <p>&copy; <span id="footerYear"></span> {{ base_site_name }}</p>
+            {% if site_settings.footer_html %}
+            <p>{{ site_settings.footer_html|safe }}</p>
+            {% else %}
+            <p>Powered by Flask · Simple and Powerful</p>
+            {% endif %}
+        </div>
+    </footer>
+
+    <!-- Back to Top Button -->
+    <button type="button" class="back-to-top" id="backToTop" title="返回顶部">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+        </svg>
+    </button>
+
+    <script src="{{ url_for('static', filename='vendor/lucide/lucide.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/blog-theme.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            document.getElementById('footerYear').textContent = new Date().getFullYear();
+        });
+
+        function toggleUserMenu() {
+            const menu = document.getElementById('userDropdownMenu');
+            menu.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.querySelector('.header-user-dropdown');
+            if (dropdown && !dropdown.contains(event.target)) {
+                const menu = document.getElementById('userDropdownMenu');
+                if (menu) menu.classList.remove('show');
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

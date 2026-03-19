@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      data-default-theme="{{ site_settings.default_theme_color if site_settings else 'blue' }}"
+      data-default-mode="{{ site_settings.default_theme_mode if site_settings else 'light' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% set base_site_name = site_settings.site_name if site_settings and site_settings.site_name else 'Planning' %}
+    <title>{{ (page_title or '个人中心') }} - {{ base_site_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}" />
+
+    <script>
+      (function () {
+        try {
+          var color = localStorage.getItem('theme_color');
+          var mode = localStorage.getItem('theme_mode');
+          if (color) document.documentElement.setAttribute('data-theme-color', color);
+          if (mode) document.documentElement.setAttribute('data-theme', mode);
+        } catch (e) {
+          // ignore
+        }
+      })();
+    </script>
+
+    <style>
+        body { margin: 0; font-family: "Segoe UI", "PingFang SC", sans-serif; background: linear-gradient(180deg, #f4f6f9, #e8ecf1); color: #243446; }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 18px; }
+        .hero, .card { background: #ffffff; border: 1px solid #e6ebf1; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 79, 168, 0.08); }
+        .hero { padding: 24px 26px; margin-bottom: 20px; }
+        .hero h1 { margin: 0 0 8px; color: #0f4fa8; }
+        .hero p { margin: 0; color: #6b7280; }
+        .nav { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .nav a { padding: 9px 14px; border-radius: 8px; background: #eaf4ff; color: #0056b3; text-decoration: none; font-weight: 600; transition: background-color 0.2s; }
+        .nav a:hover { background: #d6ebff; }
+        .grid { display: grid; grid-template-columns: 340px minmax(0,1fr); gap: 20px; }
+        .card { padding: 20px; }
+        .card h2 { margin-top: 0; font-size: 20px; color: #17324d; }
+        .meta-row { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px dashed #dbe1e7; }
+        .meta-row:last-child { border-bottom: none; }
+        .avatar-preview { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid #e6ebf1; }
+        .status-ok { color: #0f766e; font-weight: 700; }
+        .status-warn { color: #b45309; font-weight: 700; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #475569; }
+        .form-group input { width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 8px; border: 1px solid #d8dee6; font: inherit; }
+        .form-group input:focus { outline: none; border-color: #0f4fa8; box-shadow: 0 0 0 3px rgba(15, 79, 168, 0.1); }
+        .btn { display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: #0056b3; color: #fff; padding: 11px 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, box-shadow 0.2s; }
+        .btn:hover { background: #004494; box-shadow: 0 4px 12px rgba(0, 86, 179, 0.25); }
+        .flash { margin-bottom: 16px; padding: 12px 14px; border-radius: 8px; background: #fff5eb; color: #9a3412; }
+        .comment-list { display: grid; gap: 14px; }
+        .comment-item { padding: 16px; border: 1px solid #e8edf3; border-radius: 12px; background: #fff; }
+        .comment-meta { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; color: #64748b; font-size: 13px; flex-wrap: wrap; }
+        .comment-body { color: #334155; line-height: 1.8; white-space: pre-wrap; }
+        .badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .badge.approved { background: #eef7f5; color: #0f766e; }
+        .badge.pending { background: #fff7ed; color: #b45309; }
+        .badge.deleted { background: #fff1f2; color: #be123c; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="hero">
+            <h1>个人中心</h1>
+            <p>查看账号状态、修改密码，并管理自己发表的评论。</p>
+            <div class="nav">
+                <a href="{{ url_for('main.index') }}">返回首页</a>
+                <a href="{{ url_for('main.posts') }}">公开文章</a>
+                {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}<a href="{{ url_for('main.docs_home') }}">文档系统</a>{% endif %}
+                {% if current_user.role == 'admin' %}<a href="{{ url_for('admin.admin_dashboard') }}">后台管理</a>{% endif %}
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash">{% for message in messages %}<div>{{ message }}</div>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="grid">
+            <section class="card">
+                <h2>账号信息</h2>
+                <form method="POST" action="{{ url_for('auth.update_profile') }}" enctype="multipart/form-data" style="margin-bottom:18px; display:grid; gap:10px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                        {% if current_user.avatar_url %}<img class="avatar-preview" id="avatarPreview" src="{{ current_user.avatar_url }}" alt="avatar">{% else %}<div class="avatar-preview" id="avatarFallback" style="display:flex; align-items:center; justify-content:center; background:#fff1e5; color:#b85c38; font-weight:800;">{{ (current_user.nickname or current_user.username)[0]|upper }}</div><img class="avatar-preview" id="avatarPreview" src="" alt="avatar" style="display:none;">{% endif %}
+                        <div style="flex:1; min-width:220px; display:grid; gap:10px;">
+                            <input type="text" name="nickname" value="{{ current_user.nickname or '' }}" placeholder="设置昵称" style="padding:11px 12px; border-radius:12px; border:1px solid #d9e1ea; font:inherit;">
+                            <input type="file" id="avatarInput" name="avatar" accept="image/*" style="font:inherit;">
+                        </div>
+                    </div>
+                    <div><button type="submit" class="btn">保存昵称/头像</button></div>
+                </form>
+                <div class="meta-row"><span>用户名</span><strong>{{ current_user.username }}</strong></div>
+                <div class="meta-row"><span>昵称</span><strong>{{ current_user.nickname or '-' }}</strong></div>
+                <div class="meta-row"><span>角色</span><strong>{{ current_user.role }}</strong></div>
+                <div class="meta-row"><span>邮箱</span><strong>{{ current_user.email or '-' }}</strong></div>
+                <div class="meta-row">
+                    <span>邮箱验证</span>
+                    <strong>
+                        {% if current_user.email_verified %}
+                        <span class="status-ok">已验证</span>
+                        {% else %}
+                        <span class="status-warn">未验证</span>
+                        {% endif %}
+                    </strong>
+                </div>
+                <div class="meta-row"><span>评论权限</span><strong>{% if current_user.can_comment %}<span class="status-ok">允许</span>{% else %}<span class="status-warn">禁止</span>{% endif %}</strong></div>
+            </section>
+
+            <section class="card">
+                {% if current_user.email and not current_user.email_verified %}
+                <h2>邮箱验证</h2>
+                <p style="color:#6c757d; font-size:14px; margin-bottom:15px;">你的邮箱尚未验证，验证后才能发表评论。</p>
+                <form method="POST" action="{{ url_for('auth.verify_account_email') }}" style="display:grid; gap:12px; margin-bottom:20px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group">
+                        <label>验证码</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" name="verification_code" required placeholder="请输入验证码" style="flex:1;">
+                            <button type="button" id="sendVerifyBtn" class="btn" style="white-space:nowrap;">发送验证码</button>
+                        </div>
+                    </div>
+                    <div><button type="submit" class="btn">验证邮箱</button></div>
+                </form>
+                <hr style="margin:18px 0; border:none; border-top:1px solid #eef2f7;">
+                {% endif %}
+
+                <h2>修改邮箱</h2>
+                <p style="color:#6c757d; font-size:14px; margin-bottom:15px;">修改邮箱后需要重新验证。</p>
+                <form method="POST" action="{{ url_for('auth.change_email') }}" style="display:grid; gap:12px; margin-bottom:20px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group">
+                        <label>新邮箱</label>
+                        <input type="email" name="new_email" required placeholder="请输入新邮箱地址">
+                    </div>
+                    <div class="form-group">
+                        <label>验证码</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" name="verification_code" required placeholder="请输入验证码" style="flex:1;">
+                            <button type="button" id="sendChangeEmailBtn" class="btn" style="white-space:nowrap;">发送验证码</button>
+                        </div>
+                    </div>
+                    <div><button type="submit" class="btn">更新邮箱</button></div>
+                </form>
+                <hr style="margin:18px 0; border:none; border-top:1px solid #eef2f7;">
+
+                <h2>修改密码</h2>
+                <form method="POST" action="{{ url_for('auth.change_password') }}" style="display:grid; gap:12px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group">
+                        <label>当前密码</label>
+                        <input type="password" name="current_password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>新密码</label>
+                        <input type="password" name="new_password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>确认新密码</label>
+                        <input type="password" name="confirm_password" required>
+                    </div>
+                    <div><button type="submit" class="btn">更新密码</button></div>
+                </form>
+
+                <hr style="margin:18px 0; border:none; border-top:1px solid #eef2f7;">
+                <a href="{{ url_for('auth.logout') }}" class="btn" style="background:#dc3545;">退出登录</a>
+
+                {% if not allow_user_theme_override %}
+                <div class="flash" style="margin-top:12px; background:#eef2ff; color:#3730a3;">当前站点已关闭用户自定义主题。</div>
+                {% endif %}
+            </section>
+        </div>
+
+        {% if comments is defined %}
+        <section class="card" style="margin-top:20px;">
+            <h2>我的评论</h2>
+            {% if comments %}
+            <div class="comment-list">
+                {% for comment in comments %}
+                <div class="comment-item">
+                    <div class="comment-meta">
+                        <span>{{ comment.created_at }}</span>
+                        <span>
+                            {% if comment.status == 'approved' %}<span class="badge approved">已通过</span>{% elif comment.status == 'pending' %}<span class="badge pending">待审核</span>{% else %}<span class="badge deleted">已隐藏</span>{% endif %}
+                        </span>
+                    </div>
+                    <div class="comment-body">{{ comment.content }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="color:#64748b;">你还没有发表评论。</div>
+            {% endif %}
+        </section>
+        {% endif %}
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 头像预览
+        const avatarInput = document.getElementById('avatarInput');
+        const avatarPreview = document.getElementById('avatarPreview');
+        const avatarFallback = document.getElementById('avatarFallback');
+        
+        if (avatarInput) {
+            avatarInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        avatarPreview.src = e.target.result;
+                        avatarPreview.style.display = 'block';
+                        if (avatarFallback) avatarFallback.style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // 验证码发送功能
+        function setupSendCodeButton(buttonId, formAction, emailGetter) {
+            const button = document.getElementById(buttonId);
+            if (!button) return;
+
+            // 恢复倒计时
+            const endTime = localStorage.getItem('accountCodeCooldown_' + buttonId);
+            if (endTime) {
+                const remaining = Math.ceil((parseInt(endTime) - Date.now()) / 1000);
+                if (remaining > 0) {
+                    startCooldown(button, remaining);
+                }
+            }
+
+            button.addEventListener('click', function() {
+                if (button.disabled) return;
+
+                const email = emailGetter();
+                if (!email) {
+                    alert('请先输入邮箱地址');
+                    return;
+                }
+
+                const originalText = button.textContent;
+                button.disabled = true;
+                button.textContent = '发送中...';
+                button.style.opacity = '0.6';
+
+                const formData = new FormData();
+                formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+                
+                // 如果是修改邮箱，需要传递 new_email 参数
+                if (buttonId === 'sendChangeEmailBtn') {
+                    formData.append('new_email', email);
+                }
+                
+                fetch(formAction, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const flashMessages = doc.querySelector('.flash');
+                    const message = flashMessages ? flashMessages.textContent.trim() : '';
+
+                    if (message.includes('已发送') || message.includes('验证邮件')) {
+                        startCooldown(button, 60);
+                    } else {
+                        button.disabled = false;
+                        button.textContent = originalText;
+                        button.style.opacity = '1';
+                        alert(message || '发送失败，请重试');
+                    }
+                })
+                .catch(error => {
+                    console.error('发送验证码失败:', error);
+                    button.disabled = false;
+                    button.textContent = originalText;
+                    button.style.opacity = '1';
+                    alert('网络错误，请检查连接后重试');
+                });
+            });
+        }
+
+        function startCooldown(button, seconds) {
+            button.disabled = true;
+            button.style.opacity = '0.6';
+            button.textContent = seconds + 's 后重试';
+
+            const endTime = Date.now() + seconds * 1000;
+            localStorage.setItem('accountCodeCooldown_' + button.id, endTime);
+
+            const timer = setInterval(function() {
+                seconds -= 1;
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    button.disabled = false;
+                    button.style.opacity = '1';
+                    button.textContent = '发送验证码';
+                    localStorage.removeItem('accountCodeCooldown_' + button.id);
+                    return;
+                }
+                button.textContent = seconds + 's 后重试';
+            }, 1000);
+        }
+
+        // 设置邮箱验证按钮
+        setupSendCodeButton('sendVerifyBtn', '{{ url_for("auth.send_account_verification") }}', function() {
+            return '{{ current_user.email }}';
+        });
+
+        // 设置修改邮箱验证按钮
+        setupSendCodeButton('sendChangeEmailBtn', '{{ url_for("auth.send_email_change_code") }}', function() {
+            const input = document.querySelector('input[name="new_email"]');
+            return input ? input.value.trim() : '';
+        });
+    });
+    </script>
+</body>
+</html>

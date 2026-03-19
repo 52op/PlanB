@@ -1,0 +1,365 @@
+{% extends 'blog_base.html' %}
+
+{% block og_type %}article{% endblock %}
+
+{% block sidebar %}
+<!-- TOC Container (hidden by default, shown when article has headings) -->
+<div class="toc-container" id="tocContainer" style="display: none;">
+    <div class="widget">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 class="widget-title" style="margin: 0; padding: 0; border: none;">目录</h3>
+            <button type="button" class="toc-toggle-btn" onclick="toggleSidebarMode()" title="切换到侧边栏">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+        </div>
+        <nav class="toc-nav" id="tocNav"></nav>
+    </div>
+</div>
+
+<!-- Original Sidebar (shown by default) -->
+<div class="original-sidebar" id="originalSidebar">
+    <div style="margin-bottom: 15px;">
+        <button type="button" class="toc-toggle-btn" onclick="toggleSidebarMode()" title="切换到目录" id="showTocBtn" style="display: none;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+            </svg>
+            <span>显示目录</span>
+        </button>
+    </div>
+    {{ super() }}
+</div>
+{% endblock %}
+
+{% block content %}
+{% set comment_page_value = request.args.get('comment_page', type=int) %}
+{% set comment_return_to = url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_page_value) if comment_page_value and comment_page_value > 1 else url_for('main.post_detail', slug=page_meta.slug) %}
+{% set comment_total = comment_pagination.total if comment_pagination else (comments|length if comments else 0) %}
+
+{% macro render_comment(comment, depth=0) %}
+<div class="comment-item" style="margin-left: {{ depth * 20 }}px;">
+    {% if comment.user and comment.user.avatar_url %}
+    <img src="{{ comment.user.avatar_url }}" alt="Avatar" class="comment-avatar">
+    {% else %}
+    <div class="comment-avatar-fallback">{{ (comment.user.nickname or comment.user.username)[:1]|upper if comment.user else '?' }}</div>
+    {% endif %}
+    <div class="comment-content-wrapper">
+        <div class="comment-header">
+            <span class="comment-author">
+                {{ comment.user.nickname or comment.user.username if comment.user else '匿名' }}
+                {% if comment.user and comment.user.role == 'admin' %}
+                <span style="display: inline-block; padding: 2px 6px; background: var(--link-color); color: white; font-size: 11px; margin-left: 5px; border-radius: 3px;">管理员</span>
+                {% endif %}
+            </span>
+            <span class="comment-time">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '' }}</span>
+        </div>
+        <div class="comment-body">{{ comment.rendered_content|safe }}</div>
+        <div style="margin-top: 10px;">
+            {% if current_user.is_authenticated and current_user.email_verified %}
+            <button type="button" onclick="toggleReplyForm('reply-{{ comment.id }}')" style="padding: 4px 10px; background: var(--bg-gray); border: 1px solid var(--border-color); cursor: pointer; font-size: 12px;">回复</button>
+            {% endif %}
+            {% if can_delete_comment(comment, current_user) %}
+            <form method="POST" action="{{ url_for('main.remove_comment', comment_id=comment.id) }}" style="display: inline; margin-left: 10px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+                <button type="submit" style="padding: 4px 10px; background: #fee; border: 1px solid #fcc; color: #c33; cursor: pointer; font-size: 12px;">删除</button>
+            </form>
+            {% endif %}
+        </div>
+        
+        {% if current_user.is_authenticated and current_user.email_verified %}
+        <form id="reply-{{ comment.id }}" style="display: none; margin-top: 15px;" method="POST" action="{{ url_for('main.post_comment', filename=current_file) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="parent_id" value="{{ comment.id }}">
+            <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+            <textarea name="content" placeholder="回复 {{ comment.user.nickname or comment.user.username if comment.user else '这条评论' }}" required style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); font-family: inherit;"></textarea>
+            <div style="margin-top: 10px;">
+                <button type="submit" class="btn">提交</button>
+                <button type="button" onclick="toggleReplyForm('reply-{{ comment.id }}')" style="padding: 8px 20px; background: var(--bg-gray); border: 1px solid var(--border-color); cursor: pointer; font-size: 13px; margin-left: 10px;">取消</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if comment.visible_replies %}
+    {% for reply in comment.visible_replies %}
+    {{ render_comment(reply, depth + 1) }}
+    {% endfor %}
+{% endif %}
+{% endmacro %}
+
+<!-- Article -->
+<article>
+    <header class="article-header">
+        <h1 class="article-title">{{ page_meta.title }}</h1>
+        <div class="article-meta">
+            {% if page_meta.date_display %}
+            <span>发布于 {{ page_meta.date_display }}</span>
+            {% endif %}
+            {% if page_meta.updated_display %}
+            <span>更新于 {{ page_meta.updated_display }}</span>
+            {% endif %}
+            {% if page_meta.category_name %}
+            <span>分类: <a href="{{ url_for('main.category', dirname=page_meta.category_path) }}">{{ page_meta.category_name }}</a></span>
+            {% endif %}
+            {% if page_meta.view_count %}
+            <span>{{ page_meta.view_count }} 次浏览</span>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="article-content">
+        {{ content|safe }}
+    </div>
+
+    {% if page_meta.tags %}
+    <div class="article-tags">
+        标签:
+        {% for tag in page_meta.tags %}
+        <a href="{{ url_for('main.tag', tag_name=tag) }}">{{ tag }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</article>
+
+<!-- Post Navigation -->
+{% if previous_post or next_post %}
+<nav class="post-nav">
+    {% if previous_post %}
+    <a href="{{ previous_post.url }}">« {{ previous_post.title }}</a>
+    {% else %}
+    <span style="color: var(--text-light);">没有了</span>
+    {% endif %}
+
+    {% if next_post %}
+    <a href="{{ next_post.url }}">{{ next_post.title }} »</a>
+    {% else %}
+    <span style="color: var(--text-light);">没有了</span>
+    {% endif %}
+</nav>
+{% endif %}
+
+<!-- Comments -->
+{% if comments_enabled_flag %}
+<section class="comments-section" id="comments">
+    <h3 class="comments-title">评论 ({{ comment_total }})</h3>
+
+    {% if current_user.is_authenticated %}
+        {% if current_user.email_verified %}
+        <form class="comment-form" method="POST" action="{{ url_for('main.post_comment', filename=current_file) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+            <textarea name="content" placeholder="写下你的评论，支持 Markdown 语法..." required></textarea>
+            <div class="comment-form-footer">
+                <span style="font-size: 12px; color: var(--text-light);">当前身份：{{ current_user.username }}</span>
+                <button type="submit" class="btn">发表评论</button>
+            </div>
+        </form>
+        {% else %}
+        <div style="padding: 15px; background: var(--bg-gray); border: 1px solid var(--border-color); text-align: center; color: var(--text-light);">
+            请先完成邮箱验证后再参与评论
+        </div>
+        {% endif %}
+    {% else %}
+    <div style="padding: 15px; background: var(--bg-gray); border: 1px solid var(--border-color); text-align: center; color: var(--text-light);">
+        请先 <a href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}">登录</a> 后再参与评论
+    </div>
+    {% endif %}
+
+    <div class="comment-list">
+        {% for comment in comments %}
+        {{ render_comment(comment) }}
+        {% else %}
+        <div class="empty-state">
+            <p>还没有评论，来留下第一条吧</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if comment_pagination and comment_pagination.total_pages > 1 %}
+    <nav class="pagination">
+        {% if comment_pagination.has_prev %}
+        <a href="{{ url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_pagination.prev_page) }}#comments" class="page-link">« 上一页</a>
+        {% endif %}
+        <span class="page-number current">{{ comment_pagination.page }} / {{ comment_pagination.total_pages }}</span>
+        {% if comment_pagination.has_next %}
+        <a href="{{ url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_pagination.next_page) }}#comments" class="page-link">下一页 »</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endif %}
+
+<script>
+function toggleReplyForm(id) {
+    const form = document.getElementById(id);
+    if (form.style.display === 'none' || !form.style.display) {
+        form.style.display = 'block';
+    } else {
+        form.style.display = 'none';
+    }
+}
+
+// TOC Generation and Management
+(function() {
+    // Generate TOC from article headings
+    function generateTOC() {
+        const article = document.querySelector('.article-content');
+        const tocNav = document.getElementById('tocNav');
+        const tocContainer = document.getElementById('tocContainer');
+        const originalSidebar = document.getElementById('originalSidebar');
+        const showTocBtn = document.getElementById('showTocBtn');
+        
+        if (!article || !tocNav) return;
+        
+        // Find all headings (h1-h6)
+        const headings = article.querySelectorAll('h1, h2, h3, h4, h5, h6');
+        
+        if (headings.length === 0) {
+            // No headings, keep original sidebar visible
+            return;
+        }
+        
+        // Generate TOC HTML
+        let tocHTML = '<ul class="toc-list">';
+        let currentLevel = 0;
+        
+        headings.forEach((heading, index) => {
+            const level = parseInt(heading.tagName.substring(1));
+            const text = heading.textContent;
+            const id = `heading-${index}`;
+            
+            // Add ID to heading for anchor links
+            heading.id = id;
+            
+            // Handle nesting
+            if (level > currentLevel) {
+                for (let i = currentLevel; i < level; i++) {
+                    tocHTML += '<ul class="toc-list">';
+                }
+            } else if (level < currentLevel) {
+                for (let i = level; i < currentLevel; i++) {
+                    tocHTML += '</ul></li>';
+                }
+            } else if (currentLevel > 0) {
+                tocHTML += '</li>';
+            }
+            
+            tocHTML += `<li><a href="#${id}" class="toc-link" data-target="${id}">${text}</a>`;
+            currentLevel = level;
+        });
+        
+        // Close remaining tags
+        for (let i = 0; i < currentLevel; i++) {
+            tocHTML += '</li></ul>';
+        }
+        
+        tocNav.innerHTML = tocHTML;
+        
+        // Check if on PC (screen width > 768px)
+        if (window.innerWidth > 768) {
+            // Auto-hide original sidebar and show TOC on PC
+            originalSidebar.style.display = 'none';
+            tocContainer.style.display = 'block';
+            showTocBtn.style.display = 'flex';
+        } else {
+            // On mobile, keep original sidebar
+            showTocBtn.style.display = 'flex';
+        }
+        
+        // Add click handlers for smooth scrolling
+        const tocLinks = tocNav.querySelectorAll('.toc-link');
+        tocLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('data-target');
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Update active state
+                    tocLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                }
+            });
+        });
+        
+        // Highlight current section on scroll
+        let ticking = false;
+        window.addEventListener('scroll', function() {
+            if (!ticking) {
+                window.requestAnimationFrame(function() {
+                    updateActiveTocLink();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
+        
+        function updateActiveTocLink() {
+            const scrollPos = window.scrollY + 100;
+            let currentHeading = null;
+            
+            headings.forEach(heading => {
+                if (heading.offsetTop <= scrollPos) {
+                    currentHeading = heading;
+                }
+            });
+            
+            if (currentHeading) {
+                tocLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('data-target') === currentHeading.id) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+        }
+    }
+    
+    // Toggle between TOC and original sidebar
+    window.toggleSidebarMode = function() {
+        const tocContainer = document.getElementById('tocContainer');
+        const originalSidebar = document.getElementById('originalSidebar');
+        
+        if (tocContainer.style.display === 'none') {
+            // Show TOC, hide sidebar
+            tocContainer.style.display = 'block';
+            originalSidebar.style.display = 'none';
+        } else {
+            // Show sidebar, hide TOC
+            tocContainer.style.display = 'none';
+            originalSidebar.style.display = 'block';
+        }
+    };
+    
+    // Initialize on page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', generateTOC);
+    } else {
+        generateTOC();
+    }
+    
+    // Re-check on window resize
+    window.addEventListener('resize', function() {
+        const tocContainer = document.getElementById('tocContainer');
+        const originalSidebar = document.getElementById('originalSidebar');
+        const showTocBtn = document.getElementById('showTocBtn');
+        const tocNav = document.getElementById('tocNav');
+        
+        if (tocNav && tocNav.innerHTML.trim() !== '') {
+            if (window.innerWidth <= 768) {
+                // On mobile, show original sidebar by default
+                if (tocContainer.style.display === 'block' && originalSidebar.style.display === 'none') {
+                    // Keep current state
+                } else {
+                    originalSidebar.style.display = 'block';
+                    tocContainer.style.display = 'none';
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

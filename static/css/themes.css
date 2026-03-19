@@ -1,0 +1,91 @@
+/**
+ * Theme System - CSS Custom Properties
+ * Provides centralized color management for all themes and modes
+ */
+
+/* Base light theme variables */
+:root {
+  /* Color palette */
+  --color-primary: #0056b3;
+  --color-primary-dark: #004494;
+  --color-primary-light: #eaf4ff;
+  --color-primary-medium: #d6ebff;
+
+  /* Semantic colors */
+  --color-background: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-border: #e6ebf1;
+  --color-shadow: rgba(15, 79, 168, 0.08);
+
+  /* Component-specific */
+  --border-radius: 12px;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] {
+  --color-background: #1a1a1a;
+  --color-surface: #2d2d2d;
+  --color-text: #e5e5e5;
+  --color-text-muted: #a0a0a0;
+  --color-border: #404040;
+  --color-shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* Color scheme presets */
+[data-theme-color="blue"] {
+  --color-primary: #0056b3;
+  --color-primary-dark: #004494;
+  --color-primary-light: #eaf4ff;
+  --color-primary-medium: #d6ebff;
+}
+
+[data-theme-color="green"] {
+  --color-primary: #059669;
+  --color-primary-dark: #047857;
+  --color-primary-light: #d1fae5;
+  --color-primary-medium: #a7f3d0;
+}
+
+[data-theme-color="purple"] {
+  --color-primary: #7c3aed;
+  --color-primary-dark: #6d28d9;
+  --color-primary-light: #ede9fe;
+  --color-primary-medium: #ddd6fe;
+}
+
+[data-theme-color="orange"] {
+  --color-primary: #ea580c;
+  --color-primary-dark: #c2410c;
+  --color-primary-light: #ffedd5;
+  --color-primary-medium: #fed7aa;
+}
+
+[data-theme-color="rose"] {
+  --color-primary: #e11d48;
+  --color-primary-dark: #be123c;
+  --color-primary-light: #ffe4e6;
+  --color-primary-medium: #fecdd3;
+}
+
+/* Dark mode adjustments for shadows */
+[data-theme="dark"][data-theme-color="blue"] {
+  --color-shadow: rgba(0, 86, 179, 0.2);
+}
+
+[data-theme="dark"][data-theme-color="green"] {
+  --color-shadow: rgba(5, 150, 105, 0.2);
+}
+
+[data-theme="dark"][data-theme-color="purple"] {
+  --color-shadow: rgba(124, 58, 237, 0.2);
+}
+
+[data-theme="dark"][data-theme-color="orange"] {
+  --color-shadow: rgba(234, 88, 12, 0.2);
+}
+
+[data-theme="dark"][data-theme-color="rose"] {
+  --color-shadow: rgba(225, 29, 72, 0.2);
+}

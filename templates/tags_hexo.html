@@ -1,0 +1,36 @@
+{% extends 'blog_base_hexo.html' %}
+
+{% block hero %}
+<div class="hero-banner">
+    <div class="hero-content">
+        <h1 class="hero-title">标签云</h1>
+        <p class="hero-subtitle">浏览所有标签</p>
+        <div class="hero-meta">
+            <div class="hero-meta-item">
+                <i data-lucide="tag"></i>
+                <span>{{ tags|length if tags else 0 }} 个标签</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if tags %}
+    <div style="background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 40px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+            {% for tag in tags %}
+            <a href="{{ url_for('main.tag', tag_name=tag.name) }}" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(73, 177, 245, 0.1); color: var(--primary); border-radius: 12px; transition: all var(--transition);">
+                <span>{{ tag.name }}</span>
+                <span style="font-size: 12px; opacity: 0.7;">({{ tag.count }})</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🏷️</div>
+        <p class="empty-state-text">还没有标签</p>
+    </div>
+{% endif %}
+{% endblock %}

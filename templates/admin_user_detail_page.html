@@ -1,0 +1,397 @@
+{% extends "admin.html" %}
+
+{% block head %}
+<style>
+    .user-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    .user-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        font-weight: 600;
+        color: #6c757d;
+    }
+    .user-basic {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .user-name {
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0 0 5px 0;
+    }
+    .user-meta {
+        color: #6c757d;
+        font-size: 14px;
+    }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .info-card {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    .info-card label {
+        display: block;
+        font-size: 12px;
+        color: #6c757d;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+    .info-card .value {
+        font-size: 16px;
+        color: #2c3e50;
+        font-weight: 500;
+    }
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .badge-admin { background: #e3f2fd; color: #1976d2; }
+    .badge-regular { background: #f3e5f5; color: #7b1fa2; }
+    .badge-guest { background: #fff3e0; color: #f57c00; }
+    .badge-verified { background: #e8f5e9; color: #388e3c; }
+    .badge-unverified { background: #ffebee; color: #d32f2f; }
+    .badge-pending { background: #fff9c4; color: #f57f17; }
+    .badge-approved { background: #e8f5e9; color: #388e3c; }
+    .badge-deleted { background: #ffebee; color: #d32f2f; }
+    .comment-item {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        border-left: 3px solid #dee2e6;
+    }
+    .comment-item.pending { border-left-color: #ffc107; }
+    .comment-item.approved { border-left-color: #28a745; }
+    .comment-item.deleted { border-left-color: #dc3545; }
+    .comment-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: #6c757d;
+    }
+    .comment-content {
+        color: #333;
+        line-height: 1.6;
+        margin-bottom: 10px;
+        word-wrap: break-word;
+    }
+    .comment-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .tab-nav {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .tab-nav button {
+        padding: 10px 20px;
+        background: none;
+        border: none;
+        color: #6c757d;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 15px;
+    }
+    .tab-nav button:hover {
+        color: #2c3e50;
+    }
+    .tab-nav button.active {
+        color: #0056b3;
+        border-bottom-color: #0056b3;
+        font-weight: 600;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .permission-section {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    .permission-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        background: #fff;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+    .permission-toggle input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+    .permission-toggle label {
+        margin: 0;
+        cursor: pointer;
+        font-size: 15px;
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="user-detail-header">
+    <h2 style="margin: 0;">用户详情</h2>
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('admin.admin_users') }}" class="btn" style="text-decoration: none; background: #6c757d;">返回用户列表</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="user-basic">
+            <div class="user-avatar">
+                {% if user.avatar_url %}
+                <img src="{{ user.avatar_url }}" alt="{{ user.username }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                {% else %}
+                {{ user.username[0].upper() }}
+                {% endif %}
+            </div>
+            <div>
+                <h3 class="user-name">{{ user.username }}</h3>
+                <div class="user-meta">
+                    <span class="badge badge-{{ user.role }}">{{ user.role }}</span>
+                    {% if user.email_verified %}
+                    <span class="badge badge-verified">邮箱已验证</span>
+                    {% else %}
+                    <span class="badge badge-unverified">邮箱未验证</span>
+                    {% endif %}
+                    {% if user.can_comment %}
+                    <span class="badge badge-approved">可评论</span>
+                    {% else %}
+                    <span class="badge badge-deleted">禁止评论</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <label>用户 ID</label>
+                <div class="value">{{ user.id }}</div>
+            </div>
+            <div class="info-card">
+                <label>昵称</label>
+                <div class="value">{{ user.nickname or '-' }}</div>
+            </div>
+            <div class="info-card">
+                <label>邮箱</label>
+                <div class="value">{{ user.email or '-' }}</div>
+            </div>
+            <div class="info-card">
+                <label>评论总数</label>
+                <div class="value">{{ comments|length }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-nav">
+    <button class="tab-btn active" data-tab="info">基本信息</button>
+    <button class="tab-btn" data-tab="permissions">评论权限</button>
+    <button class="tab-btn" data-tab="comments">用户评论 ({{ comments|length }})</button>
+</div>
+
+<div class="tab-content active" id="tab-info">
+    <div class="card">
+        <div class="card-header">编辑用户信息</div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin.admin_update_user_info', user_id=user.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" name="username" value="{{ user.username }}" required>
+                </div>
+                <div class="form-group">
+                    <label>昵称</label>
+                    <input type="text" name="nickname" value="{{ user.nickname or '' }}" placeholder="可选">
+                </div>
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input type="email" name="email" value="{{ user.email or '' }}" placeholder="user@example.com">
+                    <small style="color:#6c757d;">修改邮箱后会自动标记为未验证状态</small>
+                </div>
+                <div class="form-group">
+                    <label>角色</label>
+                    <select name="role" {% if user.username == 'admin' %}disabled{% endif %}>
+                        <option value="guest" {% if user.role == 'guest' %}selected{% endif %}>访客 (guest)</option>
+                        <option value="regular" {% if user.role == 'regular' %}selected{% endif %}>普通用户 (regular)</option>
+                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>管理员 (admin)</option>
+                    </select>
+                    {% if user.username == 'admin' %}
+                    <small style="color:#6c757d;">admin 账号角色不可修改</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label>新密码（留空表示不修改）</label>
+                    <input type="password" name="new_password" placeholder="输入新密码">
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="submit" class="btn">保存修改</button>
+                    {% if not user.email_verified and user.email %}
+                    <button type="button" class="btn" style="background: #28a745;" onclick="document.getElementById('verifyEmailForm').submit();">标记邮箱已验证</button>
+                    {% endif %}
+                    {% if user.username != 'admin' %}
+                    <button type="button" class="btn btn-danger" onclick="if(confirm('确定删除该用户吗？此操作不可恢复！')) document.getElementById('deleteUserForm').submit();">删除用户</button>
+                    {% endif %}
+                </div>
+            </form>
+            
+            <!-- 独立的验证邮箱表单 -->
+            {% if not user.email_verified and user.email %}
+            <form method="POST" action="{{ url_for('admin.admin_verify_user_email_page', user_id=user.id) }}" id="verifyEmailForm" style="display: none;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            </form>
+            {% endif %}
+            
+            <!-- 独立的删除用户表单 -->
+            {% if user.username != 'admin' %}
+            <form method="POST" action="{{ url_for('admin.admin_delete_user_page', user_id=user.id) }}" id="deleteUserForm" style="display: none;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-permissions">
+    <div class="card">
+        <div class="card-header">评论权限控制</div>
+        <div class="card-body">
+            <div class="permission-section">
+                <h4 style="margin-top: 0;">全局评论权限</h4>
+                <form method="POST" action="{{ url_for('admin.admin_toggle_comment_permission', user_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="permission-toggle">
+                        <input type="checkbox" name="can_comment" id="can_comment" {% if user.can_comment %}checked{% endif %} onchange="this.form.submit()">
+                        <label for="can_comment">允许该用户发表评论</label>
+                    </div>
+                </form>
+                <small style="color:#6c757d;">关闭后，该用户将无法在任何文章下发表评论</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-comments">
+    <div class="card">
+        <div class="card-header">用户评论管理</div>
+        <div class="card-body">
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-sm filter-btn active" data-filter="all">全部 ({{ comments|length }})</button>
+                <button class="btn btn-sm filter-btn" data-filter="pending">待审核 ({{ comments|selectattr('status', 'equalto', 'pending')|list|length }})</button>
+                <button class="btn btn-sm filter-btn" data-filter="approved">已通过 ({{ comments|selectattr('status', 'equalto', 'approved')|list|length }})</button>
+                <button class="btn btn-sm filter-btn" data-filter="deleted">已删除 ({{ comments|selectattr('status', 'equalto', 'deleted')|list|length }})</button>
+            </div>
+
+            <div id="comments-container">
+                {% for c in comments %}
+                <div class="comment-item {{ c.status }}" data-status="{{ c.status }}">
+                    <div class="comment-meta">
+                        <div>
+                            <strong>{{ c.filename }}</strong>
+                            <span class="badge badge-{{ c.status }}">{{ c.status }}</span>
+                        </div>
+                        <span>{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div class="comment-content">{{ c.content }}</div>
+                    <div class="comment-actions">
+                        {% if c.status == 'pending' %}
+                        <form method="POST" action="{{ url_for('admin.admin_approve_comment_page', comment_id=c.id) }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <button type="submit" class="btn btn-sm" style="background: #28a745;">通过</button>
+                        </form>
+                        {% endif %}
+                        {% if c.status != 'deleted' %}
+                        <form method="POST" action="{{ url_for('admin.admin_delete_comment_page', comment_id=c.id) }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                        {% endif %}
+                        <a href="{{ url_for('main.docs_doc', filename=c.filename) }}" class="btn btn-sm" style="background: #6c757d; text-decoration: none;">查看文章</a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">该用户暂无评论</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab 切换
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+            
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            
+            this.classList.add('active');
+            document.getElementById('tab-' + targetTab).classList.add('active');
+        });
+    });
+    
+    // 评论筛选
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const comments = document.querySelectorAll('.comment-item');
+    
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            
+            filterBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            comments.forEach(comment => {
+                if (filter === 'all' || comment.dataset.status === filter) {
+                    comment.style.display = 'block';
+                } else {
+                    comment.style.display = 'none';
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

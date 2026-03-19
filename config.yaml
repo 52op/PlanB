@@ -1,0 +1,22 @@
+# 服务器端口
+port: 5002
+
+# 调试模式
+# true: 使用 Flask 开发服务器（慢，仅开发用）
+# false: 使用 Waitress 生产服务器（快，推荐）
+debug: true
+
+# 数据库路径
+database_path: "sqlite:///app.db"
+
+# 强制外部 URL 使用 HTTPS
+force_https_for_external_urls: true
+
+# 密钥（生产环境必须配置，用于 session 加密）
+secret_key: "your-secret-key-here"
+
+# 博客主题
+# indigo: 新的 Indigo 风格（参照 yscoder.github.io）
+# hexo: Hexo 简洁风格
+# default: 原有的默认风格
+blog_theme: "default"

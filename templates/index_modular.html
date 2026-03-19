@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% set meta_title = page_meta.title if page_meta and page_meta.title else (page_title if page_title else (site_settings.site_name if site_settings else 'Planning')) %}
+    {% set meta_description = page_description if page_description else (page_meta.summary if page_meta and page_meta.summary else (site_settings.site_tagline if site_settings else 'Planning')) %}
+    {% set meta_image = page_meta.cover if page_meta and page_meta.cover else '' %}
+    <title>{{ meta_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{{ meta_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
+    <meta property="og:url" content="{{ request.url }}">
+    {% if meta_image %}<meta property="og:image" content="{{ meta_image }}">{% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ meta_title }}">
+    <meta name="twitter:description" content="{{ meta_description }}">
+    {% if meta_image %}<meta name="twitter:image" content="{{ meta_image }}">{% endif %}
+    <link rel="canonical" href="{{ request.url }}">
+    {% if page_mode == 'doc' and page_meta and page_meta.template == 'post' %}
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": {{ meta_title|tojson }},
+            "description": {{ meta_description|tojson }},
+            "mainEntityOfPage": {{ request.url|tojson }},
+            "datePublished": {{ (page_meta.date or '')|tojson }},
+            "dateModified": {{ (page_meta.updated or page_meta.date or '')|tojson }},
+            "author": {
+                "@type": "Organization",
+                "name": {{ (site_settings.site_name if site_settings else 'Planning')|tojson }}
+            }{% if meta_image %},
+            "image": [{{ absolute_url(meta_image)|tojson }}]{% endif %}
+        }
+    </script>
+    {% endif %}
+    <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lightgallery.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-zoom.min.css" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-rotate.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-thumbnail.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals.css') }}" />
+    <script src="{{ url_for("static", filename="vendor/lucide/lucide.min.js") }}" defer"></script>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="current-file" content="{{ current_file or '' }}">
+    <meta name="current-dir" content="{{ current_dir or '' }}">
+    <style>
+        /* Keep existing CSS styles here - they remain the same */
+        /* ... (all the existing CSS from the original template) ... */
+    </style>
+</head>
+
+<body>
+    <!-- Keep all the existing HTML structure here -->
+    <!-- ... (all the existing HTML body content) ... -->
+
+    <!-- Toast notification container -->
+    <div class="app-toast" id="appToast"></div>
+
+    <!-- Context menu -->
+    <div class="context-menu" id="treeContextMenu">
+        <button type="button" data-action="create-doc"><i data-lucide="file-plus-2" class="icon-inline"></i> 新建文档</button>
+        <button type="button" data-action="upload-doc"><i data-lucide="upload" class="icon-inline"></i> 上传文档</button>
+        <button type="button" data-action="rename"><i data-lucide="square-pen" class="icon-inline"></i> 重命名</button>
+        <button type="button" data-action="delete"><i data-lucide="trash-2" class="icon-inline"></i> 删除</button>
+    </div>
+
+    <!-- External Dependencies -->
+    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/lightgallery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/zoom/lg-zoom.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/rotate/lg-rotate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/thumbnail/lg-thumbnail.min.js"></script>
+
+    <!-- Modular JavaScript -->
+    <script src="{{ url_for('static', filename='js/modules/ui-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/editor-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/file-operations.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/upload-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/front-matter-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/image-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/context-menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/search-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+    <script>
+        // Minimal inline JavaScript for basic UI functionality
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize Lucide icons
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+
+            // Set footer year
+            const yearNode = document.getElementById('footerYear');
+            if (yearNode) {
+                yearNode.textContent = String(new Date().getFullYear());
+            }
+
+            // Basic sidebar and TOC toggle functionality
+            const leftBtn = document.getElementById('leftMenuBtn');
+            const rightBtn = document.getElementById('rightMenuBtn');
+            const sidebar = document.getElementById('sidebar');
+            const tocBox = document.getElementById('tocBox');
+            const backdrop = document.getElementById('backdrop');
+
+            function closeAll() {
+                if (sidebar) sidebar.classList.remove('show');
+                if (tocBox) tocBox.classList.remove('show');
+                if (backdrop) backdrop.classList.remove('show');
+            }
+
+            if (leftBtn && sidebar && backdrop) {
+                leftBtn.addEventListener('click', function () {
+                    sidebar.classList.add('show');
+                    backdrop.classList.add('show');
+                });
+            }
+
+            if (rightBtn && tocBox && backdrop) {
+                rightBtn.addEventListener('click', function () {
+                    tocBox.classList.add('show');
+                    backdrop.classList.add('show');
+                });
+            }
+
+            if (backdrop) {
+                backdrop.addEventListener('click', closeAll);
+            }
+
+            // Directory tree toggle functionality
+            const STORAGE_KEY = 'docsTreeOpenDirs';
+
+            function loadOpenDirs() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (!raw) return new Set();
+                    const arr = JSON.parse(raw);
+                    if (!Array.isArray(arr)) return new Set();
+                    return new Set(arr);
+                } catch (e) {
+                    return new Set();
+                }
+            }
+
+            function saveOpenDirs(set) {
+                try {
+                    const arr = Array.from(set);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            const openDirs = loadOpenDirs();
+
+            function setDirOpenState(dirItem, open) {
+                if (!dirItem) return;
+                const path = dirItem.getAttribute('data-dir-path') || '';
+                const childrenContainer = dirItem.nextElementSibling;
+
+                if (open) {
+                    dirItem.classList.add('open');
+                    if (childrenContainer && childrenContainer.classList.contains('dir-children')) {
+                        childrenContainer.classList.add('open');
+                    }
+                    if (path) openDirs.add(path);
+                } else {
+                    dirItem.classList.remove('open');
+                    if (childrenContainer && childrenContainer.classList.contains('dir-children')) {
+                        childrenContainer.classList.remove('open');
+                    }
+                    if (path) openDirs.delete(path);
+                }
+            }
+
+            // Directory toggle event handlers
+            document.querySelectorAll('.toggle-icon').forEach(function(icon) {
+                icon.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dirItem = this.closest('.dir-item');
+                    if (!dirItem) return;
+                    const isOpen = dirItem.classList.contains('open');
+                    setDirOpenState(dirItem, !isOpen);
+                    saveOpenDirs(openDirs);
+                });
+            });
+
+            // Expand/collapse all buttons
+            const btnExpand = document.getElementById('expandAllBtn');
+            const btnCollapse = document.getElementById('collapseAllBtn');
+
+            if (btnExpand && btnCollapse) {
+                btnExpand.addEventListener('click', function() {
+                    document.querySelectorAll('.dir-item').forEach(function(el) {
+                        setDirOpenState(el, true);
+                    });
+                    saveOpenDirs(openDirs);
+                });
+
+                btnCollapse.addEventListener('click', function() {
+                    document.querySelectorAll('.dir-item').forEach(function(el) {
+                        setDirOpenState(el, false);
+                    });
+                    saveOpenDirs(openDirs);
+                });
+            }
+
+            // Initialize directory states from localStorage
+            document.querySelectorAll('.dir-item').forEach(function(dirItem) {
+                const path = dirItem.getAttribute('data-dir-path') || '';
+                if (path && openDirs.has(path)) {
+                    setDirOpenState(dirItem, true);
+                }
+            });
+
+            // Auto-expand directories for active files
+            document.querySelectorAll('.file-list a.active').forEach(function(link) {
+                let li = link.closest('li');
+                while (li) {
+                    const dirItem = li.querySelector('.dir-item');
+                    if (dirItem) {
+                        setDirOpenState(dirItem, true);
+                    }
+                    li = li.parentElement?.closest('li');
+                }
+            });
+
+            saveOpenDirs(openDirs);
+
+            // Search result highlighting
+            const keyword = "{{ search_query or '' }}".trim();
+            if (keyword) {
+                const pattern = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                document.querySelectorAll('.post-list-card h3 a, .post-list-card p').forEach((node) => {
+                    if (!node || node.querySelector('mark')) return;
+                    node.innerHTML = node.textContent.replace(pattern, '<mark class="search-hit">$1</mark>');
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

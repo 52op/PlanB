@@ -1,0 +1,110 @@
+{% extends 'blog_base_hexo.html' %}
+
+{% block hero %}
+<div class="hero-banner">
+    <div class="hero-content">
+        <h1 class="hero-title">{{ page_title }}</h1>
+        <p class="hero-subtitle">
+            {% if request.endpoint == 'main.search' and search_query %}
+            搜索 "{{ search_query }}" 的结果
+            {% elif page_description %}
+            {{ page_description }}
+            {% elif category_name %}
+            分类：{{ category_name }}
+            {% else %}
+            浏览所有已发布的文章
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if posts %}
+    <div class="post-list">
+        {% for post in posts %}
+        <article class="post-card">
+            {% if post.cover %}
+            <img src="{{ absolute_url(post.cover) }}" alt="{{ post.title }}" class="post-cover">
+            {% endif %}
+            <div class="post-body">
+                <div class="post-meta">
+                    {% if post.date_display %}
+                    <span class="post-meta-item">
+                        <i data-lucide="calendar"></i>
+                        {{ post.date_display }}
+                    </span>
+                    {% endif %}
+                    {% if post.category_name %}
+                    <span class="post-meta-item">
+                        <i data-lucide="folder"></i>
+                        {{ post.category_name }}
+                    </span>
+                    {% endif %}
+                    {% if post.reading_minutes %}
+                    <span class="post-meta-item">
+                        <i data-lucide="clock"></i>
+                        {{ post.reading_minutes }} 分钟
+                    </span>
+                    {% endif %}
+                    {% if post.view_count %}
+                    <span class="post-meta-item">
+                        <i data-lucide="eye"></i>
+                        {{ post.view_count }}
+                    </span>
+                    {% endif %}
+                </div>
+                <h2 class="post-title">
+                    <a href="{{ post.url }}">{{ post.title }}</a>
+                </h2>
+                <p class="post-excerpt">{{ post.search_snippet or post.summary or '这篇文章还没有摘要。' }}</p>
+                <div class="post-footer">
+                    {% if post.tags %}
+                    <div class="post-tags">
+                        {% for tag in post.tags[:5] %}
+                        <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <a href="{{ post.url }}" class="read-more">
+                        阅读全文
+                        <i data-lucide="arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+
+    {% if pagination and pagination.total_pages > 1 %}
+    <nav class="pagination">
+        {% if pagination.has_prev %}
+        <a href="{{ pagination.prev_url }}" class="page-link">
+            <i data-lucide="chevron-left"></i>
+        </a>
+        {% endif %}
+        
+        {% for page_num in range(1, pagination.total_pages + 1) %}
+            {% if page_num == pagination.page %}
+            <span class="page-number current">{{ page_num }}</span>
+            {% elif page_num == 1 or page_num == pagination.total_pages or (page_num >= pagination.page - 2 and page_num <= pagination.page + 2) %}
+            <a href="?page={{ page_num }}" class="page-number">{{ page_num }}</a>
+            {% elif page_num == pagination.page - 3 or page_num == pagination.page + 3 %}
+            <span class="page-number">...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if pagination.has_next %}
+        <a href="{{ pagination.next_url }}" class="page-link">
+            <i data-lucide="chevron-right"></i>
+        </a>
+        {% endif %}
+    </nav>
+    {% endif %}
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <p class="empty-state-text">{{ empty_message or '没有找到相关文章' }}</p>
+    </div>
+{% endif %}
+{% endblock %}

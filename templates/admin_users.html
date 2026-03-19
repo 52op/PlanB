@@ -1,0 +1,258 @@
+{% extends "admin.html" %}
+
+{% block head %}
+<style>
+    .user-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .user-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .user-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .info-item {
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+    .info-item label {
+        display: block;
+        font-size: 12px;
+        color: #6c757d;
+        margin-bottom: 4px;
+    }
+    .info-item .value {
+        font-size: 15px;
+        font-weight: 500;
+        color: #2c3e50;
+    }
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .badge-admin { background: #e3f2fd; color: #1976d2; }
+    .badge-regular { background: #f3e5f5; color: #7b1fa2; }
+    .badge-guest { background: #fff3e0; color: #f57c00; }
+    .badge-verified { background: #e8f5e9; color: #388e3c; }
+    .badge-unverified { background: #ffebee; color: #d32f2f; }
+    .badge-pending { background: #fff9c4; color: #f57f17; }
+    .badge-approved { background: #e8f5e9; color: #388e3c; }
+    .badge-deleted { background: #ffebee; color: #d32f2f; }
+    .comment-item {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        border-left: 3px solid #dee2e6;
+    }
+    .comment-item.pending { border-left-color: #ffc107; }
+    .comment-item.approved { border-left-color: #28a745; }
+    .comment-item.deleted { border-left-color: #dc3545; }
+    .comment-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: #6c757d;
+    }
+    .comment-content {
+        color: #333;
+        line-height: 1.6;
+        margin-bottom: 10px;
+    }
+    .comment-actions {
+        display: flex;
+        gap: 8px;
+    }
+    .tab-nav {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .tab-nav a {
+        padding: 10px 20px;
+        text-decoration: none;
+        color: #6c757d;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+    .tab-nav a:hover {
+        color: #2c3e50;
+    }
+    .tab-nav a.active {
+        color: #0056b3;
+        border-bottom-color: #0056b3;
+        font-weight: 600;
+    }
+    .permission-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+    .permission-toggle input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    .permission-toggle label {
+        margin: 0;
+        cursor: pointer;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="user-header">
+    <h2 style="margin: 0;">用户管理</h2>
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn" style="text-decoration: none; background: #6c757d;">返回后台首页</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">用户列表</div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('admin.admin_users') }}" class="filter-form">
+            <input type="text" name="q" value="{{ keyword or '' }}" placeholder="搜索用户名或邮箱">
+            <select name="role">
+                <option value="all" {% if role_filter == 'all' %}selected{% endif %}>全部角色</option>
+                <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>管理员</option>
+                <option value="regular" {% if role_filter == 'regular' %}selected{% endif %}>普通用户</option>
+                <option value="guest" {% if role_filter == 'guest' %}selected{% endif %}>访客</option>
+            </select>
+            <select name="verified">
+                <option value="all" {% if verified_filter == 'all' %}selected{% endif %}>全部验证状态</option>
+                <option value="yes" {% if verified_filter == 'yes' %}selected{% endif %}>已验证</option>
+                <option value="no" {% if verified_filter == 'no' %}selected{% endif %}>未验证</option>
+            </select>
+            <select name="can_comment">
+                <option value="all" {% if can_comment_filter == 'all' %}selected{% endif %}>全部评论权限</option>
+                <option value="yes" {% if can_comment_filter == 'yes' %}selected{% endif %}>可评论</option>
+                <option value="no" {% if can_comment_filter == 'no' %}selected{% endif %}>禁止评论</option>
+            </select>
+            <button type="submit" class="btn">筛选</button>
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>邮箱</th>
+                    <th>角色</th>
+                    <th>邮箱验证</th>
+                    <th>评论权限</th>
+                    <th>评论数</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>
+                        <a href="{{ url_for('admin.admin_user_detail_page', user_id=u.id) }}" style="color:#0056b3; text-decoration:none; font-weight:500;">
+                            {{ u.username }}
+                        </a>
+                    </td>
+                    <td>{{ u.email or '-' }}</td>
+                    <td>
+                        <span class="badge badge-{{ u.role }}">{{ u.role }}</span>
+                    </td>
+                    <td>
+                        {% if u.email_verified %}
+                        <span class="badge badge-verified">已验证</span>
+                        {% else %}
+                        <span class="badge badge-unverified">未验证</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.can_comment %}
+                        <span class="badge badge-approved">可评论</span>
+                        {% else %}
+                        <span class="badge badge-deleted">禁止</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.comment_count }}</td>
+                    <td>
+                        <a href="{{ url_for('admin.admin_user_detail_page', user_id=u.id) }}" class="btn btn-sm">详情</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="empty-state">暂无用户</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if pagination and pagination.pages > 1 %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('admin.admin_users', page=pagination.prev_num, q=keyword, role=role_filter, verified=verified_filter, can_comment=can_comment_filter) }}" class="btn btn-sm">上一页</a>
+            {% endif %}
+            <span>第 {{ pagination.page }} / {{ pagination.pages }} 页</span>
+            {% if pagination.has_next %}
+            <a href="{{ url_for('admin.admin_users', page=pagination.next_num, q=keyword, role=role_filter, verified=verified_filter, can_comment=can_comment_filter) }}" class="btn btn-sm">下一页</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">新增用户</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.admin_add_user_page') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="margin: 0;">
+                <label>用户名</label>
+                <input type="text" name="username" required placeholder="请输入用户名">
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label>邮箱（可选）</label>
+                <input type="email" name="email" placeholder="user@example.com">
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label>密码</label>
+                <input type="password" name="password" required placeholder="请输入密码">
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label>角色</label>
+                <select name="role">
+                    <option value="guest">访客 (guest)</option>
+                    <option value="regular" selected>普通用户 (regular)</option>
+                    <option value="admin">管理员 (admin)</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin: 0; display: flex; align-items: flex-end;">
+                <button type="submit" class="btn" style="width: 100%;">新增用户</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

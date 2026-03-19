@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% set base_site_name = site_settings.site_name if site_settings and site_settings.site_name else 'Planning' %}
+    {% set raw_title = page_meta.title if page_meta and page_meta.title else (page_title if page_title else base_site_name) %}
+    {% set meta_title = raw_title ~ ' | ' ~ base_site_name if raw_title != base_site_name else base_site_name %}
+    {% set meta_description = page_description if page_description else (page_meta.summary if page_meta and page_meta.summary else (site_settings.site_tagline if site_settings else 'Planning')) %}
+    {% set meta_image = page_meta.cover if page_meta and page_meta.cover else '' %}
+    <title>{{ meta_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:title" content="{{ meta_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:site_name" content="{{ base_site_name }}">
+    {% if meta_image %}<meta property="og:image" content="{{ absolute_url(meta_image) }}">{% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="{{ request.url }}">
+    <link rel="alternate" type="application/rss+xml" title="{{ base_site_name }}" href="{{ url_for('main.rss_feed') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/blog-indigo-new.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <!-- Header Toggle Button -->
+    <button class="header-toggle" onclick="toggleSidebar()">
+        <i data-lucide="menu" class="icon-menu"></i>
+        <i data-lucide="x" class="icon-close"></i>
+    </button>
+
+    <!-- Compact Header Title (only shown when scrolled) -->
+    <div class="compact-header-title">{{ meta_title }}</div>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+        <button class="header-action-btn" id="themeToggle" title="切换主题">
+            <svg class="icon-sun" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+            </svg>
+            <svg class="icon-moon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            </svg>
+        </button>
+        <button class="header-action-btn" onclick="document.getElementById('searchModal').style.display='flex'" title="搜索">
+            <i data-lucide="search"></i>
+        </button>
+        {% if current_user.is_authenticated %}
+        <div class="header-user-dropdown">
+            <button class="header-user-btn" onclick="toggleUserMenu(event)">
+                {% if current_user.avatar_url %}
+                <img src="{{ current_user.avatar_url }}" alt="{{ current_user.username }}" class="user-avatar">
+                {% else %}
+                <div class="user-avatar-fallback">{{ (current_user.username[:1] or 'U')|upper }}</div>
+                {% endif %}
+                <span class="user-name">{{ current_user.nickname or current_user.username }}</span>
+                <i data-lucide="chevron-down" class="dropdown-icon"></i>
+            </button>
+            <div class="user-dropdown-menu" id="userDropdownMenu">
+                <a href="{{ url_for('auth.account') }}" class="dropdown-item">
+                    <i data-lucide="user"></i>
+                    <span>用户中心</span>
+                </a>
+                {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="dropdown-item">
+                    <i data-lucide="settings"></i>
+                    <span>后台管理</span>
+                </a>
+                {% endif %}
+                <div class="dropdown-divider"></div>
+                <a href="{{ url_for('auth.logout') }}" class="dropdown-item">
+                    <i data-lucide="log-out"></i>
+                    <span>退出登录</span>
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <a href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}" class="header-user-info" title="登录">
+            <i data-lucide="log-in"></i>
+            <span>登录</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+        <i data-lucide="menu" class="icon-menu"></i>
+        <i data-lucide="x" class="icon-close"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <aside class="blog-sidebar" id="blogSidebar">
+        <div class="sidebar-header">
+            <a href="{{ url_for('main.index') }}">
+                <div class="sidebar-avatar">{{ (base_site_name[:1] or 'P')|upper }}</div>
+            </a>
+            <h1 class="sidebar-title">{{ base_site_name }}</h1>
+            <p class="sidebar-subtitle">{{ site_settings.site_tagline if site_settings else '记录生活，分享技术' }}</p>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul>
+                <li>
+                    <a href="{{ url_for('main.index') }}" class="{{ 'active' if request.endpoint == 'main.index' else '' }}">
+                        <i data-lucide="home"></i>
+                        <span>首页</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.archive') }}" class="{{ 'active' if request.endpoint == 'main.archive' else '' }}">
+                        <i data-lucide="archive"></i>
+                        <span>归档</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.tags_page') }}" class="{{ 'active' if request.endpoint == 'main.tags_page' else '' }}">
+                        <i data-lucide="tag"></i>
+                        <span>标签</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.posts') }}" class="{{ 'active' if request.endpoint in ['main.posts', 'main.tag', 'main.category'] else '' }}">
+                        <i data-lucide="file-text"></i>
+                        <span>文章</span>
+                    </a>
+                </li>
+                {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}
+                <li>
+                    <a href="{{ url_for('main.docs_home') }}">
+                        <i data-lucide="book-open"></i>
+                        <span>文档</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if current_user.is_authenticated %}
+                <li>
+                    <a href="{{ url_for('auth.account') }}">
+                        <i data-lucide="user"></i>
+                        <span>账户</span>
+                    </a>
+                </li>
+                {% if current_user.role == 'admin' %}
+                <li>
+                    <a href="{{ url_for('admin.admin_dashboard') }}">
+                        <i data-lucide="settings"></i>
+                        <span>管理</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% else %}
+                <li>
+                    <a href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}">
+                        <i data-lucide="log-in"></i>
+                        <span>登录</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-social">
+                <a href="{{ url_for('main.rss_feed') }}" target="_blank" title="RSS">
+                    <i data-lucide="rss"></i>
+                </a>
+                <a href="javascript:void(0)" onclick="document.getElementById('searchModal').style.display='flex'" title="搜索">
+                    <i data-lucide="search"></i>
+                </a>
+            </div>
+            <p>&copy; <span id="footerYear"></span> {{ base_site_name }}</p>
+            {% if site_settings.footer_html %}
+            <p>{{ site_settings.footer_html|safe }}</p>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- Search Modal -->
+    <div id="searchModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; align-items: center; justify-content: center;" onclick="if(event.target === this) this.style.display='none'">
+        <form method="GET" action="{{ url_for('main.search') }}" style="background: white; padding: 30px; border-radius: 4px; width: 90%; max-width: 500px;">
+            <h3 style="margin-bottom: 16px; color: var(--text-primary);">搜索文章</h3>
+            <input type="text" name="q" placeholder="输入关键词..." value="{{ search_query or '' }}" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 15px; margin-bottom: 16px;">
+            <div style="display: flex; gap: 12px;">
+                <button type="submit" class="btn">搜索</button>
+                <button type="button" class="btn" style="background: var(--text-muted);" onclick="document.getElementById('searchModal').style.display='none'">取消</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Main Content -->
+    <div class="blog-main">
+        {% block page_header %}{% endblock %}
+
+        <div class="blog-content">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                <div style="margin-bottom: 24px;">
+                    {% for message in messages %}
+                    <div style="padding: 12px 16px; background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; border-radius: 4px; margin-bottom: 12px;">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+
+        <footer class="blog-footer">
+            <p>{{ base_site_name }} © <span id="footerYear2"></span></p>
+            <p>
+                {% if site_settings.footer_html %}
+                {{ site_settings.footer_html|safe }} ·
+                {% endif %}
+                Powered by Flask
+            </p>
+        </footer>
+    </div>
+
+    <!-- Back to Top Button -->
+    <button type="button" class="back-to-top" id="backToTop" title="返回顶部">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+        </svg>
+    </button>
+
+    <script src="{{ url_for('static', filename='vendor/lucide/lucide.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/blog-theme.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            const year = new Date().getFullYear();
+            document.getElementById('footerYear').textContent = year;
+            const footerYear2 = document.getElementById('footerYear2');
+            if (footerYear2) footerYear2.textContent = year;
+
+            // Header scroll behavior
+            let lastScrollTop = 0;
+            const header = document.querySelector('.page-header');
+            const compactTitle = document.querySelector('.compact-header-title');
+            
+            if (header) {
+                window.addEventListener('scroll', function() {
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    
+                    // Add scrolled class when scrolled down more than 100px
+                    if (scrollTop > 100) {
+                        header.classList.add('scrolled');
+                        if (compactTitle) {
+                            compactTitle.style.display = 'flex';
+                        }
+                    } else {
+                        header.classList.remove('scrolled');
+                        if (compactTitle) {
+                            compactTitle.style.display = 'none';
+                        }
+                    }
+                    
+                    lastScrollTop = scrollTop;
+                });
+            }
+        });
+
+        function toggleSidebar() {
+            if (window.innerWidth <= 768) {
+                // Mobile behavior
+                const sidebar = document.getElementById('blogSidebar');
+                sidebar.classList.toggle('active');
+                document.body.classList.toggle('mobile-sidebar-open');
+            } else {
+                // Desktop behavior
+                document.body.classList.toggle('sidebar-collapsed');
+            }
+        }
+
+        function toggleUserMenu(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('userDropdownMenu');
+            menu.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('userDropdownMenu');
+            if (menu && !e.target.closest('.header-user-dropdown')) {
+                menu.classList.remove('show');
+            }
+            
+            // Close sidebar when clicking outside on mobile
+            const sidebar = document.getElementById('blogSidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            const headerToggle = document.querySelector('.header-toggle');
+            if (window.innerWidth <= 768 && sidebar.classList.contains('active')) {
+                if (!sidebar.contains(e.target) && !toggle.contains(e.target) && !headerToggle.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                    document.body.classList.remove('mobile-sidebar-open');
+                }
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

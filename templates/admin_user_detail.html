@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户详情</title>
+    <style>
+        body { margin: 0; font-family: "Segoe UI", "PingFang SC", sans-serif; background: #f6f8fb; color: #243446; }
+        .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 18px; }
+        .card { background:#fff; border-radius:18px; border:1px solid #e5eaf0; box-shadow:0 10px 24px rgba(15,23,42,.06); padding:22px; margin-bottom:20px; }
+        h1, h2 { margin-top: 0; }
+        .meta { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:14px; }
+        .meta div { padding:12px 14px; border:1px solid #eef2f7; border-radius:12px; background:#fafcff; }
+        .form-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:14px; }
+        .form-grid input, .form-grid select { width:100%; box-sizing:border-box; padding:11px 12px; border-radius:12px; border:1px solid #d6e1ea; font:inherit; }
+        .btn { display:inline-flex; padding:9px 14px; border-radius:10px; background:#0f4fa8; color:#fff; text-decoration:none; border:none; cursor:pointer; }
+        .btn-danger { background:#be123c; }
+        @media (max-width: 760px) { .meta, .form-grid { grid-template-columns: 1fr; } }
+        .comment { padding:14px 0; border-bottom:1px dashed #e7edf4; }
+        .comment:last-child { border-bottom:none; }
+        .muted { color:#64748b; font-size:13px; }
+        .badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:12px; font-weight:700; }
+        .approved { background:#eef7f5; color:#0f766e; }
+        .pending { background:#fff7ed; color:#b45309; }
+        .deleted { background:#fff1f2; color:#be123c; }
+        .nav a { color:#0056b3; text-decoration:none; margin-right:14px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="nav" style="margin-bottom:16px;"><a href="{{ url_for('admin.admin_dashboard') }}">返回后台</a></div>
+        <div class="card">
+            <h1>用户详情</h1>
+            <form method="POST" action="{{ url_for('admin.admin_update_user_detail', user_id=user.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-grid">
+                    <div><strong>用户名</strong><div style="margin-top:8px;"><input type="text" name="username" value="{{ user.username }}"></div></div>
+                    <div><strong>昵称</strong><div style="margin-top:8px;"><input type="text" name="nickname" value="{{ user.nickname or '' }}"></div></div>
+                    <div><strong>邮箱</strong><div style="margin-top:8px;"><input type="email" name="email" value="{{ user.email or '' }}"></div></div>
+                    <div><strong>角色</strong><div style="margin-top:8px;"><select name="role"><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>admin</option><option value="regular" {% if user.role == 'regular' %}selected{% endif %}>regular</option><option value="guest" {% if user.role == 'guest' %}selected{% endif %}>guest</option></select></div></div>
+                </div>
+                <div class="meta" style="margin-top:14px;">
+                    <div><strong>验证状态</strong><div>{{ '已验证' if user.email_verified else '未验证' }}</div></div>
+                    <div><strong>评论数量</strong><div>{{ comments|length }}</div></div>
+                </div>
+                <div style="margin-top:16px;"><button type="submit" class="btn">保存用户资料</button></div>
+            </form>
+        </div>
+        <div class="card">
+            <h2>最新评论</h2>
+            {% for comment in comments %}
+            <div class="comment">
+                <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
+                    <strong>{{ comment.filename }}</strong>
+                    <span class="badge {{ comment.status }}">{{ comment.status }}</span>
+                </div>
+                <div>{{ comment.rendered_content|default(comment.content)|safe }}</div>
+                <div class="muted" style="margin-top:8px;">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '' }}</div>
+                <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                    {% if comment.status != 'approved' %}
+                    <form method="POST" action="{{ url_for('admin.admin_approve_comment', comment_id=comment.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm" type="submit">通过</button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('admin.admin_delete_comment', comment_id=comment.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-danger" type="submit">删除</button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="muted">该用户还没有评论记录。</div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

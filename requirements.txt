@@ -1,0 +1,12 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Flask-WTF
+PyYAML
+Markdown
+Pygments
+boto3
+Pillow
+bleach
+tinycss2
+waitress
