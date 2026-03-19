@@ -318,6 +318,9 @@ class EditorManager {
 
     cancelEditing() {
         this.canResumeHiddenSession = false;
+        this.frontMatterDirty = false;
+        this.loadedFrontMatterText = '';
+        this.loadedFrontMatterMetadata = {};
         this.hideEditor();
     }
 
@@ -378,9 +381,10 @@ class EditorManager {
 
     async openEditor() {
         const content = await this.loadFileContent();
-        if (content === null) return;
+        if (content === null) return false;
         this.showEditor();
         await this.initializeEditor(content);
+        return true;
     }
 
     applyFrontMatter() {
@@ -437,8 +441,8 @@ class EditorManager {
                         return;
                     }
 
-                    this.openEditor().then(() => {
-                        if (this.metaPanel) this.metaPanel.classList.add('show');
+                    this.openEditor().then((opened) => {
+                        if (opened && this.metaPanel) this.metaPanel.classList.add('show');
                     });
                     return;
                 }
