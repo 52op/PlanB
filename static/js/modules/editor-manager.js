@@ -419,17 +419,19 @@ class EditorManager {
             this.frontMatterBtn.addEventListener('click', () => {
                 if (!this.editorView || !this.renderView) return;
 
-                if (this.editorView.style.display === 'none' && this.editBtn) {
+                if (this.editorView.style.display === 'none') {
+                    if (this.editorInstance) {
+                        this.showEditor();
+                        if (this.metaPanel) this.metaPanel.classList.add('show');
+                        return;
+                    }
+
                     this.openEditor().then(() => {
-                        setTimeout(() => {
-                            window.frontMatterUtils?.ensureFrontMatterBlock();
-                            if (this.metaPanel) this.metaPanel.classList.add('show');
-                        }, 240);
+                        if (this.metaPanel) this.metaPanel.classList.add('show');
                     });
                     return;
                 }
 
-                window.frontMatterUtils?.ensureFrontMatterBlock();
                 if (this.metaPanel) this.metaPanel.classList.toggle('show');
             });
         }
