@@ -2973,6 +2973,9 @@
             let docsLightGallery = null;
 
             let editorInstance = null;
+            let loadedFrontMatterText = '';
+            let loadedFrontMatterMetadata = {};
+            let frontMatterDirty = false;
 
             function normalizeImageSize(value) {
                 const raw = (value || '').trim();
@@ -3029,11 +3032,11 @@
 
             function splitFrontMatter(content) {
                 if (!content.startsWith('---\n')) {
-                    return { metadata: {}, body: content };
+                    return { metadata: {}, body: content, frontMatterText: '', hasFrontMatter: false };
                 }
                 const endIndex = content.indexOf('\n---\n', 4);
                 if (endIndex === -1) {
-                    return { metadata: {}, body: content };
+                    return { metadata: {}, body: content, frontMatterText: '', hasFrontMatter: false };
                 }
                 const fmText = content.slice(4, endIndex);
                 const body = content.slice(endIndex + 5);
@@ -3045,27 +3048,67 @@
                     const value = line.slice(separator + 1).trim();
                     metadata[key] = value;
                 });
-                return { metadata, body };
+                return {
+                    metadata,
+                    body,
+                    frontMatterText: `---\n${fmText}\n---`,
+                    hasFrontMatter: true,
+                };
+            }
+
+            function unwrapFrontMatterValue(value) {
+                if (value === undefined || value === null) return '';
+                const text = String(value).trim();
+                if (!text) return '';
+                if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+                    return text.slice(1, -1).replace(/''/g, "'");
+                }
+                return text;
+            }
+
+            function parseFrontMatterBoolean(value) {
+                return ['true', 'True', '1'].includes(String(value || '').trim());
+            }
+
+            function syncLoadedFrontMatterState(content) {
+                const parsed = splitFrontMatter(content || '');
+                loadedFrontMatterText = parsed.frontMatterText || '';
+                loadedFrontMatterMetadata = parsed.metadata || {};
+                frontMatterDirty = false;
+                return parsed;
+            }
+
+            function composeDocumentContent(bodyContent) {
+                const normalizedBody = (bodyContent || '').replace(/^\n+/, '');
+
+                if (frontMatterDirty) {
+                    return buildFrontMatterFromPanel(normalizedBody);
+                }
+
+                if (loadedFrontMatterText) {
+                    return `${loadedFrontMatterText}\n\n${normalizedBody}`;
+                }
+
+                return bodyContent || '';
             }
 
             function fillMetaPanel() {
                 if (!editorInstance || !metaPanel) return;
-                const markdownValue = editorInstance.getMarkdown();
-                const parsed = splitFrontMatter(markdownValue);
-                const hints = extractFrontMatterHints(markdownValue);
-                const metadata = parsed.metadata;
+                const bodyContent = editorInstance.getMarkdown();
+                const hints = extractFrontMatterHints(bodyContent);
+                const metadata = loadedFrontMatterMetadata || {};
                 const slugFallback = (currentFilePath.split('/').pop() || 'post').replace(/\.md$/i, '');
 
-                document.getElementById('metaTitle').value = metadata.title || hints.title || '';
-                document.getElementById('metaSlug').value = metadata.slug || slugFallback;
-                document.getElementById('metaDate').value = metadata.date || '';
-                document.getElementById('metaUpdated').value = metadata.updated || new Date().toISOString().slice(0, 10);
-                document.getElementById('metaTemplate').value = metadata.template || 'post';
-                document.getElementById('metaTags').value = (metadata.tags || '').replace(/^\[(.*)\]$/, '$1').replace(/['\"]+/g, '').replace(/\s*,\s*/g, ', ');
-                document.getElementById('metaSummary').value = metadata.summary || hints.summary || '';
-                document.getElementById('metaCover').value = metadata.cover || hints.cover || '';
-                document.getElementById('metaPublic').checked = ['true', 'True', '1'].includes(metadata.public);
-                document.getElementById('metaDraft').checked = ['true', 'True', '1'].includes(metadata.draft);
+                document.getElementById('metaTitle').value = unwrapFrontMatterValue(metadata.title) || hints.title || '';
+                document.getElementById('metaSlug').value = unwrapFrontMatterValue(metadata.slug) || slugFallback;
+                document.getElementById('metaDate').value = unwrapFrontMatterValue(metadata.date) || '';
+                document.getElementById('metaUpdated').value = unwrapFrontMatterValue(metadata.updated) || new Date().toISOString().slice(0, 10);
+                document.getElementById('metaTemplate').value = unwrapFrontMatterValue(metadata.template) || 'post';
+                document.getElementById('metaTags').value = unwrapFrontMatterValue(metadata.tags).replace(/^\[(.*)\]$/, '$1').replace(/['\"]+/g, '').replace(/\s*,\s*/g, ', ');
+                document.getElementById('metaSummary').value = unwrapFrontMatterValue(metadata.summary) || hints.summary || '';
+                document.getElementById('metaCover').value = unwrapFrontMatterValue(metadata.cover) || hints.cover || '';
+                document.getElementById('metaPublic').checked = parseFrontMatterBoolean(metadata.public);
+                document.getElementById('metaDraft').checked = parseFrontMatterBoolean(metadata.draft);
             }
 
             // YAML 值转义函数
@@ -3130,31 +3173,6 @@
 
             function ensureFrontMatterBlock() {
                 if (!editorInstance) return;
-                const markdownValue = editorInstance.getMarkdown();
-                if (markdownValue.startsWith('---\n')) {
-                    fillMetaPanel();
-                    return;
-                }
-
-                const hints = extractFrontMatterHints(markdownValue);
-                const slugValue = (currentFilePath.split('/').pop() || 'post').replace(/\.md$/i, '');
-                const frontMatter = [
-                    '---',
-                    `title: ${hints.title || slugValue}`,
-                    `date: ${new Date().toISOString().slice(0, 10)}`,
-                    'updated: ',
-                    `summary: ${hints.summary || ''}`,
-                    'tags: []',
-                    `cover: ${hints.cover || ''}`,
-                    'template: post',
-                    'public: true',
-                    'draft: false',
-                    `slug: ${slugValue}`,
-                    '---',
-                    '',
-                ].join('\n');
-
-                editorInstance.setMarkdown(frontMatter + markdownValue, false);
                 fillMetaPanel();
             }
 
@@ -3391,7 +3409,7 @@
                             renderView.style.display = 'none';
                             editorView.style.display = 'block';
                             editBtn.style.display = 'none';
-                            if (frontMatterBtn) frontMatterBtn.style.display = 'none';
+                            if (frontMatterBtn) frontMatterBtn.style.display = 'inline-block';
                             
                             // 隐藏评论区和其他内容，避免编辑器出现在下方
                             const commentsSection = document.getElementById('comments');
@@ -3416,10 +3434,12 @@
                                 }
                             }
 
+                            const parsedContent = syncLoadedFrontMatterState(data.content);
+
                             if (!editorInstance) {
                                 editorInstance = new toastui.Editor({
                                     el: document.querySelector('#toastEditor'),
-                                    initialValue: data.content,
+                                    initialValue: parsedContent.body,
                                     previewStyle: 'vertical',
                                     height: '100%',
                                     initialEditType: 'markdown',
@@ -3467,7 +3487,7 @@
                                     }
                                 });
                             } else {
-                                editorInstance.setMarkdown(data.content, false);
+                                editorInstance.setMarkdown(parsedContent.body, false);
                             }
                             fillMetaPanel();
                         })
@@ -3541,17 +3561,14 @@
                 if (applyMetaBtn) {
                     applyMetaBtn.addEventListener('click', function() {
                         if (!editorInstance) return;
-                        const parsed = splitFrontMatter(editorInstance.getMarkdown());
-                        const contentWithMeta = buildFrontMatterFromPanel(parsed.body);
-                        editorInstance.setMarkdown(contentWithMeta, false);
-                        
-                        // 标记编辑器内容已修改
-                        if (editorInstance.getMarkdown) {
-                            const currentContent = editorInstance.getMarkdown();
-                            // 强制触发编辑器的change事件，确保内容被识别为已修改
-                            editorInstance.setMarkdown(currentContent, false);
-                        }
-                        
+                        const bodyContent = editorInstance.getMarkdown();
+                        const contentWithMeta = buildFrontMatterFromPanel(bodyContent);
+                        const parsed = splitFrontMatter(contentWithMeta);
+                        loadedFrontMatterText = parsed.frontMatterText || '';
+                        loadedFrontMatterMetadata = parsed.metadata || {};
+                        frontMatterDirty = true;
+                        fillMetaPanel();
+
                         // 关闭头部面板
                         if (metaPanel) metaPanel.classList.remove('show');
                         
@@ -3562,10 +3579,11 @@
 
                 saveEditBtn.addEventListener('click', function() {
                     if (!editorInstance) return;
-                    const newContent = editorInstance.getMarkdown();
+                    const bodyContent = editorInstance.getMarkdown();
+                    const newContent = composeDocumentContent(bodyContent);
                     
                     // 检查内容是否为空
-                    if (!newContent || newContent.trim() === '') {
+                    if (!bodyContent || bodyContent.trim() === '') {
                         showToast('内容不能为空', 'error');
                         return;
                     }
@@ -3596,7 +3614,8 @@
                         if(data.success) {
                             showToast('保存成功', 'success');
                             if (data.content && editorInstance) {
-                                editorInstance.setMarkdown(data.content, false);
+                                const parsedContent = syncLoadedFrontMatterState(data.content);
+                                editorInstance.setMarkdown(parsedContent.body, false);
                                 fillMetaPanel();
                             }
                             // 延迟刷新，让用户看到成功提示

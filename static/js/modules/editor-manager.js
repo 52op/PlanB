@@ -167,7 +167,7 @@ class EditorManager {
         if (this.renderView) this.renderView.style.display = 'none';
         if (this.editorView) this.editorView.style.display = 'block';
         if (this.editBtn) this.editBtn.style.display = 'none';
-        if (this.frontMatterBtn) this.frontMatterBtn.style.display = 'none';
+        if (this.frontMatterBtn) this.frontMatterBtn.style.display = 'inline-block';
     }
 
     hideEditor() {
