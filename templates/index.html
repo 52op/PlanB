@@ -76,6 +76,15 @@
             color: var(--color-text);
         }
 
+        .lg-container,
+        .lg-content,
+        .lg-inner,
+        .lg-item,
+        .lg-img-wrap {
+            touch-action: none;
+            overscroll-behavior: contain;
+        }
+
         .app-shell {
             display: grid;
             grid-template-columns: 288px minmax(0, 1fr) 260px;
@@ -2573,17 +2582,17 @@
 
     <!-- External Dependencies -->
     <script src="{{ url_for('static', filename='vendor/toastui/toastui-editor-all.min.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='vendor/lightgallery/lightgallery.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/lightgallery/lightgallery.umd.js') }}" defer></script>
     <script src="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.js') }}" defer></script>
 	<script src="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.js') }}" defer></script>
     <script src="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.js') }}" defer></script>
 
     <!-- Modular JavaScript -->
     <script src="{{ url_for('static', filename='js/modules/ui-utils.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modules/image-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/context-menu.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/search-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/theme-manager.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/front-matter-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 
     <script>
@@ -3012,62 +3021,19 @@
             }
 
             function extractFrontMatterHints(content) {
-                const titleMatch = content.match(/^#\s+(.+)$/m);
-                const markdownImage = content.match(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/);
-                const htmlImage = content.match(/<img[^>]+src=["']([^"']+)["']/i);
-                const stripped = content
-                    .replace(/^---[\s\S]*?---\s*/m, '')
-                    .replace(/[#>*`_\-]+/g, ' ')
-                    .replace(/!\[[^\]]*\]\((.*?)\)/g, ' ')
-                    .replace(/<[^>]+>/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                const summary = stripped ? `${stripped.slice(0, 140)}${stripped.length > 140 ? '...' : ''}` : '';
-                return {
-                    title: titleMatch ? titleMatch[1].trim() : '',
-                    cover: markdownImage ? markdownImage[1].trim() : (htmlImage ? htmlImage[1].trim() : ''),
-                    summary,
-                };
+                return window.frontMatterUtils.extractFrontMatterHints(content);
             }
 
             function splitFrontMatter(content) {
-                if (!content.startsWith('---\n')) {
-                    return { metadata: {}, body: content, frontMatterText: '', hasFrontMatter: false };
-                }
-                const endIndex = content.indexOf('\n---\n', 4);
-                if (endIndex === -1) {
-                    return { metadata: {}, body: content, frontMatterText: '', hasFrontMatter: false };
-                }
-                const fmText = content.slice(4, endIndex);
-                const body = content.slice(endIndex + 5);
-                const metadata = {};
-                fmText.split('\n').forEach((line) => {
-                    const separator = line.indexOf(':');
-                    if (separator === -1) return;
-                    const key = line.slice(0, separator).trim();
-                    const value = line.slice(separator + 1).trim();
-                    metadata[key] = value;
-                });
-                return {
-                    metadata,
-                    body,
-                    frontMatterText: `---\n${fmText}\n---`,
-                    hasFrontMatter: true,
-                };
+                return window.frontMatterUtils.splitFrontMatter(content);
             }
 
             function unwrapFrontMatterValue(value) {
-                if (value === undefined || value === null) return '';
-                const text = String(value).trim();
-                if (!text) return '';
-                if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
-                    return text.slice(1, -1).replace(/''/g, "'");
-                }
-                return text;
+                return window.frontMatterUtils.unwrapFrontMatterValue(value);
             }
 
             function parseFrontMatterBoolean(value) {
-                return ['true', 'True', '1'].includes(String(value || '').trim());
+                return window.frontMatterUtils.parseFrontMatterBoolean(value);
             }
 
             function syncLoadedFrontMatterState(content) {
@@ -3094,25 +3060,16 @@
 
             function fillMetaPanel() {
                 if (!editorInstance || !metaPanel) return;
-                const bodyContent = editorInstance.getMarkdown();
-                const hints = extractFrontMatterHints(bodyContent);
-                const metadata = loadedFrontMatterMetadata || {};
-                const slugFallback = (currentFilePath.split('/').pop() || 'post').replace(/\.md$/i, '');
-
-                document.getElementById('metaTitle').value = unwrapFrontMatterValue(metadata.title) || hints.title || '';
-                document.getElementById('metaSlug').value = unwrapFrontMatterValue(metadata.slug) || slugFallback;
-                document.getElementById('metaDate').value = unwrapFrontMatterValue(metadata.date) || '';
-                document.getElementById('metaUpdated').value = unwrapFrontMatterValue(metadata.updated) || new Date().toISOString().slice(0, 10);
-                document.getElementById('metaTemplate').value = unwrapFrontMatterValue(metadata.template) || 'post';
-                document.getElementById('metaTags').value = unwrapFrontMatterValue(metadata.tags).replace(/^\[(.*)\]$/, '$1').replace(/['\"]+/g, '').replace(/\s*,\s*/g, ', ');
-                document.getElementById('metaSummary').value = unwrapFrontMatterValue(metadata.summary) || hints.summary || '';
-                document.getElementById('metaCover').value = unwrapFrontMatterValue(metadata.cover) || hints.cover || '';
-                document.getElementById('metaPublic').checked = parseFrontMatterBoolean(metadata.public);
-                document.getElementById('metaDraft').checked = parseFrontMatterBoolean(metadata.draft);
+                window.frontMatterUtils.fillMetaPanelFromState({
+                    bodyContent: editorInstance.getMarkdown(),
+                    metadata: loadedFrontMatterMetadata || {},
+                    currentFilePath,
+                });
             }
 
             // YAML 值转义函数
             function escapeYamlValue(value) {
+                return window.frontMatterUtils.escapeYamlValue(value);
                 if (!value) return value;
                 const str = String(value);
                 
@@ -3135,6 +3092,7 @@
             }
 
             function buildFrontMatterFromPanel(bodyContent) {
+                return window.frontMatterUtils.buildFrontMatterFromPanel(bodyContent);
                 const title = document.getElementById('metaTitle').value.trim();
                 const slug = document.getElementById('metaSlug').value.trim();
                 const date = document.getElementById('metaDate').value.trim();
@@ -3232,6 +3190,7 @@
                 }
 
                 docsLightGallery = lightGallery(renderView, {
+                    licenseKey: 'GPLv3',
                     selector: '.doc-image-link',
                     plugins: [lgZoom, lgRotate, lgThumbnail],
                     download: false,
@@ -3791,21 +3750,21 @@
                             navigator.vibrate(50);
                         }
                     }, longPressDuration);
-                });
+                }, { passive: true });
 
                 node.addEventListener('touchend', function() {
                     if (longPressTimer) {
                         clearTimeout(longPressTimer);
                         longPressTimer = null;
                     }
-                });
+                }, { passive: true });
 
                 node.addEventListener('touchmove', function() {
                     if (longPressTimer) {
                         clearTimeout(longPressTimer);
                         longPressTimer = null;
                     }
-                });
+                }, { passive: true });
             });
 
             // 显示右键菜单的通用函数

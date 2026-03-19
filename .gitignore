@@ -5,3 +5,5 @@ instance/
 __pycache__/
 blueprints/__pycache__/
 blog/
+.codex-tmp/
+static/uploads/

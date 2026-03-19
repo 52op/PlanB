@@ -1,6 +1,3 @@
-/**
- * Front Matter工具模块 - 处理YAML前置元数据的解析和操作
- */
 class FrontMatterUtils {
     constructor() {
         this.initializeElements();
@@ -14,296 +11,197 @@ class FrontMatterUtils {
         this.metaCoverInput = document.getElementById('metaCover');
         this.metaSlugInput = document.getElementById('metaSlug');
         this.metaDateInput = document.getElementById('metaDate');
+        this.metaUpdatedInput = document.getElementById('metaUpdated');
         this.metaTemplateSelect = document.getElementById('metaTemplate');
         this.metaPublicCheck = document.getElementById('metaPublic');
         this.metaDraftCheck = document.getElementById('metaDraft');
     }
 
     splitFrontMatter(content) {
-        if (!content.startsWith('---')) {
-            return { metadata: {}, body: content };
+        const text = String(content || '');
+        if (!text.startsWith('---\n')) {
+            return { metadata: {}, body: text, frontMatterText: '', hasFrontMatter: false };
         }
 
-        const lines = content.split('\n');
-        let endIndex = -1;
-
-        for (let i = 1; i < lines.length; i++) {
-            if (lines[i].trim() === '---') {
-                endIndex = i;
-                break;
-            }
-        }
-
+        const endIndex = text.indexOf('\n---\n', 4);
         if (endIndex === -1) {
-            return { metadata: {}, body: content };
+            return { metadata: {}, body: text, frontMatterText: '', hasFrontMatter: false };
         }
 
-        const frontMatterText = lines.slice(1, endIndex).join('\n');
-        const body = lines.slice(endIndex + 1).join('\n');
+        const fmText = text.slice(4, endIndex);
+        const body = text.slice(endIndex + 5);
+        const metadata = {};
 
-        try {
-            // 简单的YAML解析（仅支持基本键值对）
-            const metadata = this.parseSimpleYAML(frontMatterText);
-            return { metadata, body };
-        } catch (error) {
-            console.warn('Failed to parse front matter:', error);
-            return { metadata: {}, body: content };
-        }
+        fmText.split('\n').forEach((line) => {
+            const separator = line.indexOf(':');
+            if (separator === -1) return;
+            const key = line.slice(0, separator).trim();
+            const value = line.slice(separator + 1).trim();
+            metadata[key] = value;
+        });
+
+        return {
+            metadata,
+            body,
+            frontMatterText: `---\n${fmText}\n---`,
+            hasFrontMatter: true,
+        };
     }
 
-    parseSimpleYAML(yamlText) {
-        const metadata = {};
-        const lines = yamlText.split('\n');
+    unwrapFrontMatterValue(value) {
+        if (value === undefined || value === null) return '';
+        const text = String(value).trim();
+        if (!text) return '';
 
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) continue;
-
-            const colonIndex = trimmed.indexOf(':');
-            if (colonIndex === -1) continue;
-
-            const key = trimmed.substring(0, colonIndex).trim();
-            let value = trimmed.substring(colonIndex + 1).trim();
-
-            // 处理引号
-            if ((value.startsWith('"') && value.endsWith('"')) ||
-                (value.startsWith("'") && value.endsWith("'"))) {
-                value = value.slice(1, -1);
-            }
-
-            // 处理布尔值
-            if (value === 'true') value = true;
-            else if (value === 'false') value = false;
-
-            // 处理数组（简单的逗号分隔）
-            if (key === 'tags' && value.includes(',')) {
-                value = value.split(',').map(tag => tag.trim()).filter(tag => tag);
-            }
-
-            metadata[key] = value;
+        if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+            return text.slice(1, -1).replace(/''/g, "'");
         }
 
-        return metadata;
+        return text;
+    }
+
+    parseFrontMatterBoolean(value) {
+        return ['true', 'True', '1'].includes(String(value || '').trim());
+    }
+
+    escapeYamlValue(value) {
+        if (!value) return value;
+        const text = String(value);
+        const needsQuoting =
+            /[:\n\r"'#\[\]{}|>@`!%&*]/.test(text) ||
+            text.startsWith(' ') ||
+            text.endsWith(' ') ||
+            text.startsWith('-') ||
+            /^\d+$/.test(text) ||
+            /^(true|false|yes|no|null)$/i.test(text);
+
+        if (!needsQuoting) {
+            return text;
+        }
+
+        return `'${text.replace(/'/g, "''")}'`;
+    }
+
+    extractFrontMatterHints(content) {
+        const text = String(content || '');
+        const titleMatch = text.match(/^#\s+(.+)$/m);
+        const markdownImage = text.match(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/);
+        const htmlImage = text.match(/<img[^>]+src=["']([^"']+)["']/i);
+        const stripped = text
+            .replace(/^---[\s\S]*?---\s*/m, '')
+            .replace(/[#>*`_\-]+/g, ' ')
+            .replace(/!\[[^\]]*\]\((.*?)\)/g, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return {
+            title: titleMatch ? titleMatch[1].trim() : '',
+            cover: markdownImage ? markdownImage[1].trim() : (htmlImage ? htmlImage[1].trim() : ''),
+            summary: stripped ? `${stripped.slice(0, 140)}${stripped.length > 140 ? '...' : ''}` : '',
+        };
+    }
+
+    fillMetaPanelFromState({ bodyContent = '', metadata = {}, currentFilePath = '' } = {}) {
+        if (!this.metaPanel) return;
+
+        const hints = this.extractFrontMatterHints(bodyContent);
+        const slugFallback = (String(currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
+
+        if (this.metaTitleInput) {
+            this.metaTitleInput.value = this.unwrapFrontMatterValue(metadata.title) || hints.title || '';
+        }
+        if (this.metaSlugInput) {
+            this.metaSlugInput.value = this.unwrapFrontMatterValue(metadata.slug) || slugFallback;
+        }
+        if (this.metaDateInput) {
+            this.metaDateInput.value = this.unwrapFrontMatterValue(metadata.date) || '';
+        }
+        if (this.metaUpdatedInput) {
+            this.metaUpdatedInput.value = this.unwrapFrontMatterValue(metadata.updated) || new Date().toISOString().slice(0, 10);
+        }
+        if (this.metaTemplateSelect) {
+            this.metaTemplateSelect.value = this.unwrapFrontMatterValue(metadata.template) || 'post';
+        }
+        if (this.metaTagsInput) {
+            this.metaTagsInput.value = this
+                .unwrapFrontMatterValue(metadata.tags)
+                .replace(/^\[(.*)\]$/, '$1')
+                .replace(/['"]+/g, '')
+                .replace(/\s*,\s*/g, ', ');
+        }
+        if (this.metaSummaryInput) {
+            this.metaSummaryInput.value = this.unwrapFrontMatterValue(metadata.summary) || hints.summary || '';
+        }
+        if (this.metaCoverInput) {
+            this.metaCoverInput.value = this.unwrapFrontMatterValue(metadata.cover) || hints.cover || '';
+        }
+        if (this.metaPublicCheck) {
+            this.metaPublicCheck.checked = this.parseFrontMatterBoolean(metadata.public);
+        }
+        if (this.metaDraftCheck) {
+            this.metaDraftCheck.checked = this.parseFrontMatterBoolean(metadata.draft);
+        }
     }
 
     buildFrontMatterFromPanel(bodyContent) {
-        if (!this.metaPanel) return bodyContent;
+        const title = this.metaTitleInput?.value.trim() || '';
+        const slug = this.metaSlugInput?.value.trim() || '';
+        const date = this.metaDateInput?.value.trim() || '';
+        const updated = this.metaUpdatedInput?.value.trim() || new Date().toISOString().slice(0, 10);
+        const template = this.metaTemplateSelect?.value || 'post';
+        const tags = (this.metaTagsInput?.value || '')
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean);
+        const summary = this.metaSummaryInput?.value.trim() || '';
+        const cover = this.metaCoverInput?.value.trim() || '';
+        const isPublic = !!this.metaPublicCheck?.checked;
+        const isDraft = !!this.metaDraftCheck?.checked;
 
-        const metadata = {};
+        const lines = ['---'];
+        if (title) lines.push(`title: ${this.escapeYamlValue(title)}`);
+        if (date) lines.push(`date: ${date}`);
+        lines.push(`updated: ${updated}`);
+        if (summary) lines.push(`summary: ${this.escapeYamlValue(summary)}`);
+        lines.push(`tags: [${tags.map((tag) => this.escapeYamlValue(tag)).join(', ')}]`);
 
-        if (this.metaTitleInput?.value.trim()) {
-            metadata.title = this.metaTitleInput.value.trim();
-        }
-
-        if (this.metaSummaryInput?.value.trim()) {
-            metadata.summary = this.metaSummaryInput.value.trim();
-        }
-
-        if (this.metaTagsInput?.value.trim()) {
-            const tags = this.metaTagsInput.value.split(',')
-                .map(tag => tag.trim())
-                .filter(tag => tag);
-            if (tags.length > 0) {
-                metadata.tags = tags;
+        if (cover) {
+            const coverLower = cover.toLowerCase();
+            if (coverLower === 'none' || coverLower === 'false') {
+                lines.push(`cover: ${coverLower}`);
+            } else {
+                lines.push(`cover: ${this.escapeYamlValue(cover)}`);
             }
+        } else {
+            lines.push('cover: ');
         }
 
-        if (this.metaCoverInput?.value.trim()) {
-            metadata.cover = this.metaCoverInput.value.trim();
-        }
+        lines.push(`template: ${template}`);
+        lines.push(`public: ${isPublic ? 'true' : 'false'}`);
+        lines.push(`draft: ${isDraft ? 'true' : 'false'}`);
+        if (slug) lines.push(`slug: ${this.escapeYamlValue(slug)}`);
+        lines.push('---', '', String(bodyContent || '').replace(/^\n+/, ''));
 
-        if (this.metaSlugInput?.value.trim()) {
-            metadata.slug = this.metaSlugInput.value.trim();
-        }
-
-        if (this.metaDateInput?.value.trim()) {
-            metadata.date = this.metaDateInput.value.trim();
-        }
-
-        if (this.metaTemplateSelect?.value && this.metaTemplateSelect.value !== 'doc') {
-            metadata.template = this.metaTemplateSelect.value;
-        }
-
-        if (this.metaPublicCheck?.checked) {
-            metadata.public = true;
-        }
-
-        if (this.metaDraftCheck?.checked) {
-            metadata.draft = true;
-        }
-
-        // 自动添加更新时间
-        metadata.updated = new Date().toISOString().split('T')[0];
-
-        return this.buildFrontMatterContent(metadata, bodyContent);
-    }
-
-    buildFrontMatterContent(metadata, bodyContent) {
-        if (Object.keys(metadata).length === 0) {
-            return bodyContent;
-        }
-
-        const yamlLines = ['---'];
-
-        // 按特定顺序输出字段
-        const fieldOrder = ['title', 'date', 'updated', 'summary', 'tags', 'cover', 'template', 'public', 'draft', 'slug'];
-
-        for (const field of fieldOrder) {
-            if (metadata.hasOwnProperty(field)) {
-                const value = metadata[field];
-                if (Array.isArray(value)) {
-                    yamlLines.push(`${field}: [${value.map(v => `"${v}"`).join(', ')}]`);
-                } else if (typeof value === 'string') {
-                    yamlLines.push(`${field}: "${value}"`);
-                } else {
-                    yamlLines.push(`${field}: ${value}`);
-                }
-            }
-        }
-
-        // 添加其他未在顺序中的字段
-        for (const [key, value] of Object.entries(metadata)) {
-            if (!fieldOrder.includes(key)) {
-                if (Array.isArray(value)) {
-                    yamlLines.push(`${key}: [${value.map(v => `"${v}"`).join(', ')}]`);
-                } else if (typeof value === 'string') {
-                    yamlLines.push(`${key}: "${value}"`);
-                } else {
-                    yamlLines.push(`${key}: ${value}`);
-                }
-            }
-        }
-
-        yamlLines.push('---');
-        yamlLines.push('');
-
-        return yamlLines.join('\n') + bodyContent.replace(/^\n+/, '');
+        return lines.join('\n');
     }
 
     fillMetaPanel() {
-        if (!this.metaPanel || !window.editorManager?.editorInstance) return;
+        const editorInstance = window.editorManager?.editorInstance;
+        if (!editorInstance) return;
 
-        const content = window.editorManager.editorInstance.getMarkdown();
+        const content = editorInstance.getMarkdown();
         const parsed = this.splitFrontMatter(content);
-        const metadata = parsed.metadata;
-
-        if (this.metaTitleInput) {
-            this.metaTitleInput.value = metadata.title || '';
-        }
-
-        if (this.metaSummaryInput) {
-            this.metaSummaryInput.value = metadata.summary || '';
-        }
-
-        if (this.metaTagsInput) {
-            const tags = Array.isArray(metadata.tags) ? metadata.tags :
-                         (metadata.tags ? [metadata.tags] : []);
-            this.metaTagsInput.value = tags.join(', ');
-        }
-
-        if (this.metaCoverInput) {
-            this.metaCoverInput.value = metadata.cover || '';
-        }
-
-        if (this.metaSlugInput) {
-            this.metaSlugInput.value = metadata.slug || '';
-        }
-
-        if (this.metaDateInput) {
-            this.metaDateInput.value = metadata.date || '';
-        }
-
-        if (this.metaTemplateSelect) {
-            this.metaTemplateSelect.value = metadata.template || 'doc';
-        }
-
-        if (this.metaPublicCheck) {
-            this.metaPublicCheck.checked = metadata.public === true;
-        }
-
-        if (this.metaDraftCheck) {
-            this.metaDraftCheck.checked = metadata.draft === true;
-        }
+        this.fillMetaPanelFromState({
+            bodyContent: parsed.body,
+            metadata: parsed.metadata,
+            currentFilePath: window.editorManager?.currentFilePath || '',
+        });
     }
 
     ensureFrontMatterBlock() {
-        if (!window.editorManager?.editorInstance) return;
-
-        const content = window.editorManager.editorInstance.getMarkdown();
-
-        if (!content.startsWith('---')) {
-            const newContent = this.buildFrontMatterContent({
-                title: '',
-                date: new Date().toISOString().split('T')[0],
-                updated: new Date().toISOString().split('T')[0],
-                template: 'doc',
-                public: false,
-                draft: false
-            }, content);
-
-            window.editorManager.editorInstance.setMarkdown(newContent, false);
-        }
-    }
-
-    extractFirstHeading(content) {
-        const match = content.match(/^#\s+(.+)$/m);
-        return match ? match[1].trim() : '';
-    }
-
-    extractFirstImage(content) {
-        // 匹配 Markdown 图片语法
-        const markdownMatch = content.match(/!\[[^\]]*\]\(([^)\s]+)/);
-        if (markdownMatch) {
-            return markdownMatch[1].trim();
-        }
-
-        // 匹配 HTML img 标签
-        const htmlMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
-        if (htmlMatch) {
-            return htmlMatch[1].trim();
-        }
-
-        return '';
-    }
-
-    generateSlug(text) {
-        return text
-            .toLowerCase()
-            .replace(/[^\w\u4e00-\u9fff\s-]/g, '') // 保留中文、英文、数字、空格、连字符
-            .replace(/\s+/g, '-') // 空格替换为连字符
-            .replace(/-+/g, '-') // 多个连字符合并为一个
-            .replace(/^-|-$/g, ''); // 去除首尾连字符
-    }
-
-    autoFillMetadata() {
-        if (!window.editorManager?.editorInstance) return;
-
-        const content = window.editorManager.editorInstance.getMarkdown();
-        const parsed = this.splitFrontMatter(content);
-        const body = parsed.body;
-
-        // 自动填充标题
-        if (this.metaTitleInput && !this.metaTitleInput.value.trim()) {
-            const heading = this.extractFirstHeading(body);
-            if (heading) {
-                this.metaTitleInput.value = heading;
-            }
-        }
-
-        // 自动填充封面图片
-        if (this.metaCoverInput && !this.metaCoverInput.value.trim()) {
-            const image = this.extractFirstImage(body);
-            if (image) {
-                this.metaCoverInput.value = image;
-            }
-        }
-
-        // 自动生成slug
-        if (this.metaSlugInput && !this.metaSlugInput.value.trim() && this.metaTitleInput?.value.trim()) {
-            this.metaSlugInput.value = this.generateSlug(this.metaTitleInput.value);
-        }
+        this.fillMetaPanel();
     }
 }
 
-// 导出单例
 window.frontMatterUtils = new FrontMatterUtils();
