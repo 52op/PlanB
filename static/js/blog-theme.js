@@ -197,10 +197,41 @@
             initTheme();
             initBackToTop();
             initCodeCopyButtons();
+            initThemeSwitcher();
         });
     } else {
         initTheme();
         initBackToTop();
         initCodeCopyButtons();
+        initThemeSwitcher();
     }
+    
+    // ==================== Theme Switcher ====================
+    function initThemeSwitcher() {
+        const switcher = document.getElementById('themeSwitcher');
+        const options = document.getElementById('themeOptions');
+        
+        if (!switcher || !options) return;
+        
+        // Toggle dropdown
+        switcher.addEventListener('click', function(e) {
+            e.stopPropagation();
+            options.classList.toggle('show');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.theme-switcher')) {
+                options.classList.remove('show');
+            }
+        });
+        
+        // Prevent dropdown from closing when clicking inside
+        options.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+    
+    // Export for global access
+    window.initThemeSwitcher = initThemeSwitcher;
 })();

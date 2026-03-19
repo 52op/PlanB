@@ -40,19 +40,32 @@ from services import (
 main_bp = Blueprint('main', __name__, template_folder='templates')
 
 
+@main_bp.context_processor
+def inject_theme():
+    """向所有模板注入当前主题信息"""
+    return {
+        'current_theme': _get_blog_theme()
+    }
+
+
 def _get_blog_theme():
-    """获取当前博客主题配置 - 优先从数据库读取，其次从配置文件"""
-    # 优先从数据库读取
+    """获取当前博客主题配置 - 优先从用户Cookie读取，其次从数据库，最后从配置文件"""
+    # 1. 优先从用户 Cookie 读取
+    user_theme = request.cookies.get('user_blog_theme')
+    valid_themes = ['default', 'indigo', 'hexo']
+    if user_theme and user_theme in valid_themes:
+        return user_theme
+    
+    # 2. 从数据库读取系统默认主题
     from models import SystemSetting
     theme = SystemSetting.get('blog_theme')
     
-    # 如果数据库没有，从配置文件读取
+    # 3. 如果数据库没有，从配置文件读取
     if not theme:
         config = current_app.config.get('APP_CONFIG', {})
         theme = config.get('blog_theme', 'default')
     
     # 验证主题是否有效
-    valid_themes = ['default', 'indigo', 'hexo']
     return theme if theme in valid_themes else 'default'
 
 
@@ -359,6 +372,25 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
         pagination=pagination,
         post_url_map=post_url_map,
     )
+
+
+@main_bp.route('/switch-theme/<theme>')
+def switch_theme(theme):
+    """切换博客主题"""
+    # 验证主题名称
+    valid_themes = ['default', 'indigo', 'hexo']
+    if theme not in valid_themes:
+        flash('无效的主题选择')
+        return redirect(request.referrer or url_for('main.index'))
+    
+    # 获取返回地址
+    return_url = request.referrer or url_for('main.index')
+    
+    # 设置 Cookie (30天有效)
+    resp = redirect(return_url)
+    resp.set_cookie('user_blog_theme', theme, max_age=30*24*60*60, path='/')
+    
+    return resp
 
 
 @main_bp.route('/')
