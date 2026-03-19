@@ -22,18 +22,40 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
 def _ensure_markdown_filename(filename):
-    safe_name = secure_filename((filename or '').strip())
-    if not safe_name:
+    """确保文件名安全且有.md后缀，支持中文"""
+    name = (filename or '').strip()
+    if not name:
         raise ValueError('文件名不能为空')
+    
+    # 移除危险字符，但保留中文、字母、数字、下划线、连字符、点号、空格
+    import re
+    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', name)
+    safe_name = safe_name.strip()
+    
+    if not safe_name:
+        raise ValueError('文件名不能为空或只包含特殊字符')
+    
+    # 确保有.md后缀
     if not safe_name.lower().endswith('.md'):
         safe_name = f'{safe_name}.md'
+    
     return safe_name
 
 
 def _ensure_directory_name(name):
-    safe_name = secure_filename((name or '').strip())
-    if not safe_name:
+    """确保目录名安全，支持中文"""
+    dir_name = (name or '').strip()
+    if not dir_name:
         raise ValueError('目录名不能为空')
+    
+    # 移除危险字符，但保留中文、字母、数字、下划线、连字符、空格
+    import re
+    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', dir_name)
+    safe_name = safe_name.strip()
+    
+    if not safe_name:
+        raise ValueError('目录名不能为空或只包含特殊字符')
+    
     return safe_name
 
 

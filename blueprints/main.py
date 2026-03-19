@@ -413,9 +413,30 @@ def index():
 
     # 文档模式：显示文档首页
     if site_settings['site_mode'] == 'docs':
+        # 优先使用后台设置的首页默认展示
+        if home_type == 'file' and home_target:
+            # 如果设置了默认文件，直接显示该文件
+            try:
+                return _render_document(home_target, file_tree=file_tree)
+            except:
+                pass  # 如果文件不存在，继续使用默认逻辑
+        
+        elif home_type == 'dir' and home_target:
+            # 如果设置了默认目录，查找该目录的默认文件
+            target_dir = home_target.rstrip('/')  # 移除末尾的斜杠
+            default_file = get_default_file_for_dir(docs_root, target_dir)
+            if default_file:
+                return _render_document(default_file, file_tree=file_tree)
+            else:
+                # 如果目录中没有默认文件，显示该目录的列表
+                return redirect(url_for('main.docs_dir', dirname=target_dir))
+        
+        # 其次查找根目录的默认文件
         default_file = get_default_file_for_dir(docs_root, '')
         if default_file:
             return _render_document(default_file, file_tree=file_tree)
+        
+        # 最后显示目录列表
         return docs_dir('')
 
     # 博客模式：显示博客首页
@@ -450,9 +471,33 @@ def docs_home():
 
     docs_root = get_docs_root()
     file_tree = get_markdown_files()
+    site_settings = _get_site_settings()
+    home_type = site_settings.get('home_default_type', '')
+    home_target = site_settings.get('home_default_target', '')
+    
+    # 优先使用后台设置的首页默认展示
+    if home_type == 'file' and home_target:
+        try:
+            return _render_document(home_target, file_tree=file_tree)
+        except:
+            pass  # 如果文件不存在，继续使用默认逻辑
+    
+    elif home_type == 'dir' and home_target:
+        # 如果设置了默认目录，查找该目录的默认文件
+        target_dir = home_target.rstrip('/')  # 移除末尾的斜杠
+        default_file = get_default_file_for_dir(docs_root, target_dir)
+        if default_file:
+            return _render_document(default_file, file_tree=file_tree)
+        else:
+            # 如果目录中没有默认文件，显示该目录的列表
+            return redirect(url_for('main.docs_dir', dirname=target_dir))
+    
+    # 其次查找根目录的默认文件
     default_file = get_default_file_for_dir(docs_root, '')
     if default_file:
         return _render_document(default_file, file_tree=file_tree)
+    
+    # 最后显示目录列表
     return docs_dir('')
 
 

@@ -1775,7 +1775,7 @@
                 {% if node.type == 'dir' %}
                 <div class="tree-row">
                     <button type="button" class="toggle" aria-label="切换目录"><i data-lucide="chevron-right"></i></button>
-                    <a href="{{ url_for('main.category', dirname=node.path) }}" class="dir-item {{ 'active' if node.path == current_dir else '' }}" data-path="{{ node.path }}"><span class="icon-box"><i data-lucide="folder"></i></span> {{ node.name }}</a>
+                    <a href="{{ url_for('main.docs_dir', dirname=node.path) }}" class="dir-item {{ 'active' if node.path == current_dir else '' }}" data-path="{{ node.path }}" data-node-type="dir" data-dir-path="{{ node.path }}" data-node-name="{{ node.name }}"><span class="icon-box"><i data-lucide="folder"></i></span> {{ node.name }}</a>
                 </div>
                 <div class="dir-children" data-path="{{ node.path }}"{% if not (node.path == current_dir or (current_file and current_file.startswith(node.path))) %} style="display:none"{% endif %}>
                     {{ render_tree(node.children) }}
@@ -1783,7 +1783,7 @@
                 {% else %}
                 <div class="tree-row">
                     <button type="button" class="ghost" tabindex="-1" aria-hidden="true"></button>
-                    <a class="file-row {{ 'active' if node.path == current_file else '' }}" href="{{ url_for(docs_endpoint or 'main.docs_doc', filename=node.path) }}"><span class="icon-box"><i data-lucide="file-text"></i></span> {{ node.name|replace('.md', '') }}</a>
+                    <a class="file-row {{ 'active' if node.path == current_file else '' }}" href="{{ url_for(docs_endpoint or 'main.docs_doc', filename=node.path) }}" data-node-type="file" data-file-path="{{ node.path }}" data-node-name="{{ node.name }}"><span class="icon-box"><i data-lucide="file-text"></i></span> {{ node.name|replace('.md', '') }}</a>
                 </div>
                 {% endif %}
             </li>
@@ -1825,14 +1825,6 @@
             </div>
             <div class="header-right">
                 {% if current_user.is_authenticated %}
-                <span style="color: #333; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                   {% if current_user.avatar_url %}<img src="{{ current_user.avatar_url }}" alt="avatar" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">{% endif %}
-                   欢迎: {{ current_user.nickname or current_user.username }}
-                   <a href="{{ url_for('auth.account') }}" style="color:#0f766e; text-decoration:none;"><i data-lucide="user-round" class="icon-inline"></i> 个人中心</a>
-                   <a href="{{ url_for('main.posts') }}" style="color:#b85c38; text-decoration:none;"><i data-lucide="newspaper" class="icon-inline"></i> 公开文章</a>
-                   {% if current_user.role == 'admin' %} <a href="{{ url_for('admin.admin_dashboard') }}" style="color:var(--color-primary); text-decoration:none;"><i data-lucide="settings-2" class="icon-inline"></i> 后台</a> {% endif %}
-                   <a href="{{ url_for('auth.logout') }}" style="color: #dc3545; text-decoration:none;">退出</a>
-                </span>
                 <div style="display: flex; gap: 8px;">
                     {% if current_file and can_edit %}
                     <button id="editBtn" class="action-btn"><i data-lucide="square-pen" class="icon-inline"></i> 编辑</button>
@@ -2164,7 +2156,8 @@
     <div class="app-toast" id="appToast"></div>
     <div class="context-menu" id="treeContextMenu">
         <button type="button" data-action="create-doc"><i data-lucide="file-plus-2" class="icon-inline"></i> 新建文档</button>
-        <button type="button" data-action="upload-doc"><i data-lucide="upload" class="icon-inline"></i> 上传文档</button>
+        <button type="button" data-action="create-dir"><i data-lucide="folder-plus" class="icon-inline"></i> 新建目录</button>
+        <hr style="margin: 4px 0; border: none; border-top: 1px solid var(--color-border);">
         <button type="button" data-action="rename"><i data-lucide="square-pen" class="icon-inline"></i> 重命名</button>
         <button type="button" data-action="delete"><i data-lucide="trash-2" class="icon-inline"></i> 删除</button>
     </div>
@@ -2197,6 +2190,82 @@
             if (yearNode) {
                 yearNode.textContent = String(new Date().getFullYear());
             }
+            
+            // 右键菜单相关变量
+            const treeContextMenu = document.getElementById('treeContextMenu');
+            let contextMenuTarget = null;
+            let uploadTargetDir = '';
+            
+            // 获取CSRF令牌
+            const csrfToken = (function() {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                if (meta) return meta.getAttribute('content');
+                // 尝试从cookie中获取
+                const cookies = document.cookie.split(';');
+                for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrf_token') return decodeURIComponent(value);
+                }
+                return '';
+            })();
+            
+            // 隐藏右键菜单函数
+            function hideContextMenu() {
+                if (treeContextMenu) {
+                    treeContextMenu.classList.remove('show');
+                }
+                contextMenuTarget = null;
+            }
+            
+            // UI工具函数的快捷方式（桥接到window.uiUtils）
+            function showToast(message, type) {
+                if (window.uiUtils) {
+                    window.uiUtils.showToast(message, type);
+                } else {
+                    console.log(message);
+                }
+            }
+            
+            function showAlertDialog(title, message) {
+                if (window.uiUtils) {
+                    return window.uiUtils.showAlertDialog(title, message);
+                } else {
+                    alert(title + '\n\n' + message);
+                    return Promise.resolve();
+                }
+            }
+            
+            function showConfirmDialog(title, message, confirmText) {
+                if (window.uiUtils) {
+                    return window.uiUtils.showConfirmDialog(title, message, confirmText);
+                } else {
+                    return Promise.resolve(confirm(title + '\n\n' + message));
+                }
+            }
+            
+            function showPromptDialog(title, message, defaultValue) {
+                if (window.uiUtils) {
+                    return window.uiUtils.showPromptDialog(title, message, defaultValue);
+                } else {
+                    const result = prompt(title + '\n\n' + message, defaultValue);
+                    return Promise.resolve(result);
+                }
+            }
+            
+            // 点击其他地方隐藏右键菜单
+            document.addEventListener('click', function(event) {
+                if (treeContextMenu && !treeContextMenu.contains(event.target) && treeContextMenu.classList.contains('show')) {
+                    hideContextMenu();
+                }
+            });
+            
+            // ESC键隐藏右键菜单
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && treeContextMenu && treeContextMenu.classList.contains('show')) {
+                    hideContextMenu();
+                }
+            });
+            
             // Sidebar and TOC toggle functionality
             var leftBtn = document.getElementById('leftMenuBtn');
             var rightBtn = document.getElementById('rightMenuBtn');
@@ -2839,6 +2908,7 @@
             }
 
             // ==========================================
+            // ==========================================
             // 上传相关逻辑
             // ==========================================
             const uploadBtn = document.getElementById('uploadBtn');
@@ -2849,11 +2919,20 @@
                     uploadInput.click();
                 });
 
-                uploadInput.addEventListener('change', function() {
+                uploadInput.addEventListener('change', function(event) {
                     const file = this.files[0];
-                    if (!file) return;
+                    
+                    // 如果没有选择文件（用户取消了），清空目标目录并返回
+                    if (!file) {
+                        uploadTargetDir = '';
+                        return;
+                    }
+                    
+                    // 检查文件格式
                     if (!file.name.endsWith('.md')) {
                         showAlertDialog('上传失败', '只允许上传 .md 格式文件');
+                        // 不清空 uploadInput.value，避免触发 change 事件
+                        uploadTargetDir = '';
                         return;
                     }
 
@@ -2887,22 +2966,27 @@
                     .then(data => {
                         uploadBtn.innerText = btnOriginalText;
                         uploadBtn.disabled = false;
+                        
                         if(data.success) {
+                            // 只在成功时清空，避免重复触发
+                            uploadInput.value = '';
+                            uploadTargetDir = '';
                             showToast('上传成功', 'success');
-                            window.location.reload();
+                            // 延迟刷新，确保清空操作完成
+                            setTimeout(() => window.location.reload(), 100);
                         } else {
+                            // 失败时不清空 uploadInput，只清空目标目录
+                            uploadTargetDir = '';
                             showAlertDialog('上传失败', data.error || '请稍后再试');
                         }
                     })
                     .catch(err => {
                         uploadBtn.innerText = btnOriginalText;
                         uploadBtn.disabled = false;
+                        // 错误时不清空 uploadInput，只清空目标目录
+                        uploadTargetDir = '';
                         showAlertDialog('上传失败', '网络异常，请稍后再试');
                     });
-                    
-                    // 清空 file input，以便同名文件可重复上传
-                    uploadInput.value = '';
-                    uploadTargetDir = '';
                 });
             }
 
@@ -2970,8 +3054,12 @@
                     };
                     treeContextMenu.style.left = `${event.clientX}px`;
                     treeContextMenu.style.top = `${event.clientY}px`;
-                    treeContextMenu.querySelector('[data-action="upload-doc"]').style.display = contextMenuTarget.type === 'dir' ? 'flex' : 'none';
-                    treeContextMenu.querySelector('[data-action="create-doc"]').style.display = contextMenuTarget.type === 'dir' ? 'flex' : 'none';
+                    
+                    // 根据节点类型显示/隐藏菜单项
+                    const isDir = contextMenuTarget.type === 'dir';
+                    treeContextMenu.querySelector('[data-action="create-doc"]').style.display = isDir ? 'flex' : 'none';
+                    treeContextMenu.querySelector('[data-action="create-dir"]').style.display = isDir ? 'flex' : 'none';
+                    
                     treeContextMenu.classList.add('show');
                     if (window.lucide) window.lucide.createIcons();
                 });
@@ -2985,10 +3073,7 @@
                         if (!contextMenuTarget) return;
                         const action = this.dataset.action;
                         if (action === 'create-doc' && contextMenuTarget.type === 'dir') createDocument(contextMenuTarget.path);
-                        if (action === 'upload-doc' && contextMenuTarget.type === 'dir' && uploadInput) {
-                            uploadTargetDir = contextMenuTarget.path;
-                            uploadInput.click();
-                        }
+                        if (action === 'create-dir' && contextMenuTarget.type === 'dir') createDirectory(contextMenuTarget.path);
                         if (action === 'rename') {
                             if (contextMenuTarget.type === 'dir') renameDirectory(contextMenuTarget.path, contextMenuTarget.name);
                             else renameDocument(contextMenuTarget.path, contextMenuTarget.name);
