@@ -424,3 +424,82 @@ def delete_image_by_filename(unique_filename):
         return jsonify({'error': 'Image not found.'}), 404
 
     return jsonify({'success': True})
+
+
+@api_bp.route('/search-docs', methods=['GET'])
+def search_docs():
+    """文档搜索API - 返回JSON格式的搜索结果"""
+    from services import check_global_access
+    
+    # 检查全局访问权限
+    access_redirect = check_global_access()
+    if access_redirect:
+        return jsonify({'success': False, 'error': '无权限访问'}), 403
+    
+    query = (request.args.get('q') or '').strip()
+    
+    if not query:
+        return jsonify({'success': True, 'results': []})
+    
+    try:
+        from services.docs import _iter_markdown_filenames, _parse_markdown_file
+        import re
+        
+        results = []
+        query_lower = query.lower()
+        
+        # 搜索所有markdown文件
+        for filename in _iter_markdown_filenames():
+            # 检查权限
+            if not check_permission(current_user, filename, 'read'):
+                continue
+            
+            # 解析文件
+            payload = _parse_markdown_file(filename)
+            if not payload:
+                continue
+            
+            metadata = payload.get('metadata', {})
+            raw_content = payload.get('raw_content', '')
+            
+            # 搜索标题、内容
+            title = metadata.get('title', '')
+            searchable_text = f"{title} {raw_content}".lower()
+            
+            if query_lower in searchable_text:
+                # 生成搜索摘要
+                content = re.sub(r'^---[\s\S]*?---\s*', '', raw_content or '', flags=re.MULTILINE)
+                content = re.sub(r'!\[[^\]]*\]\((.*?)\)', ' ', content)
+                content = re.sub(r'<[^>]+>', ' ', content)
+                content = re.sub(r'\s+', ' ', content).strip()
+                
+                # 查找关键词位置
+                index = content.lower().find(query_lower)
+                if index == -1:
+                    snippet = content[:200] + ('...' if len(content) > 200 else '')
+                else:
+                    start = max(0, index - 80)
+                    end = min(len(content), index + len(query) + 120)
+                    snippet = content[start:end].strip()
+                    if start > 0:
+                        snippet = '...' + snippet
+                    if end < len(content):
+                        snippet = snippet + '...'
+                
+                from flask import url_for
+                results.append({
+                    'filename': filename,
+                    'title': title or filename,
+                    'snippet': snippet,
+                    'url': url_for('main.docs_doc', filename=filename)
+                })
+        
+        # 限制返回结果数量
+        results = results[:50]
+        
+        return jsonify({'success': True, 'results': results, 'total': len(results)})
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

@@ -849,6 +849,129 @@ def dir_view(dirname):
     return redirect(_get_docs_endpoint(dirname=dirname))
 
 
+@main_bp.route('/docs/search')
+def docs_search():
+    """文档搜索功能 - 支持权限控制"""
+    access_redirect = check_global_access()
+    if access_redirect:
+        return access_redirect
+    
+    query = (request.args.get('q') or '').strip()
+    file_tree = get_markdown_files()
+    site_settings = _get_site_settings()
+    
+    results = []
+    if query:
+        # 搜索所有markdown文件
+        from services.docs import _iter_markdown_filenames, _parse_markdown_file
+        
+        query_lower = query.lower()
+        for filename in _iter_markdown_filenames():
+            # 检查权限
+            if not check_permission(current_user, filename, 'read'):
+                continue
+            
+            # 解析文件
+            payload = _parse_markdown_file(filename)
+            if not payload:
+                continue
+            
+            metadata = payload.get('metadata', {})
+            raw_content = payload.get('raw_content', '')
+            
+            # 搜索标题、内容
+            title = metadata.get('title', '')
+            searchable_text = f"{title} {raw_content}".lower()
+            
+            if query_lower in searchable_text:
+                # 生成搜索摘要
+                import re
+                content = re.sub(r'^---[\s\S]*?---\s*', '', raw_content or '', flags=re.MULTILINE)
+                content = re.sub(r'!\[[^\]]*\]\((.*?)\)', ' ', content)
+                content = re.sub(r'<[^>]+>', ' ', content)
+                content = re.sub(r'\s+', ' ', content).strip()
+                
+                # 查找关键词位置
+                index = content.lower().find(query_lower)
+                if index == -1:
+                    snippet = content[:200] + ('...' if len(content) > 200 else '')
+                else:
+                    start = max(0, index - 80)
+                    end = min(len(content), index + len(query) + 120)
+                    snippet = content[start:end].strip()
+                    if start > 0:
+                        snippet = '...' + snippet
+                    if end < len(content):
+                        snippet = snippet + '...'
+                
+                results.append({
+                    'filename': filename,
+                    'title': title or filename,
+                    'snippet': snippet,
+                    'url': url_for('main.docs_doc', filename=filename)
+                })
+    
+    # 分页
+    page = request.args.get('page', 1, type=int)
+    pagination = paginate_posts(results, page=page, per_page=20)
+    
+    content_html = f'<h2>搜索文档</h2>'
+    if query:
+        content_html += f'<p>搜索关键词：<strong>{query}</strong>，找到 {len(results)} 个结果</p>'
+        if results:
+            content_html += '<div style="margin-top: 20px;">'
+            for result in pagination['items']:
+                content_html += f'''
+                <div style="padding: 16px; margin-bottom: 16px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface);">
+                    <h3 style="margin: 0 0 8px 0;"><a href="{result['url']}" style="color: var(--color-primary); text-decoration: none;">{result['title']}</a></h3>
+                    <p style="margin: 0; color: var(--color-text-secondary); font-size: 14px;">{result['snippet']}</p>
+                    <p style="margin: 8px 0 0 0; font-size: 12px; color: var(--color-text-muted);">文件: {result['filename']}</p>
+                </div>
+                '''
+            content_html += '</div>'
+            
+            # 分页导航
+            if pagination['total_pages'] > 1:
+                content_html += '<div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">'
+                if pagination['has_prev']:
+                    content_html += f'<a href="{url_for("main.docs_search", q=query, page=pagination["prev_page"])}" style="padding: 8px 16px; border: 1px solid var(--color-border); border-radius: 6px; text-decoration: none;">上一页</a>'
+                content_html += f'<span style="padding: 8px 16px;">第 {pagination["page"]} / {pagination["total_pages"]} 页</span>'
+                if pagination['has_next']:
+                    content_html += f'<a href="{url_for("main.docs_search", q=query, page=pagination["next_page"])}" style="padding: 8px 16px; border: 1px solid var(--color-border); border-radius: 6px; text-decoration: none;">下一页</a>'
+                content_html += '</div>'
+        else:
+            content_html += '<p style="color: var(--color-text-secondary);">没有找到匹配的文档。</p>'
+    else:
+        content_html += '<p style="color: var(--color-text-secondary);">请输入关键词搜索文档。</p>'
+    
+    # 添加搜索表单
+    content_html = f'''
+    <div style="margin-bottom: 24px;">
+        <form method="get" action="{url_for('main.docs_search')}" style="display: flex; gap: 10px;">
+            <input type="text" name="q" value="{query}" placeholder="搜索文档标题或内容..." style="flex: 1; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 14px;">
+            <button type="submit" style="padding: 10px 20px; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">搜索</button>
+        </form>
+    </div>
+    ''' + content_html
+    
+    return render_template(
+        'index.html',
+        file_tree=file_tree,
+        current_file=None,
+        current_dir='',
+        content=content_html,
+        toc='',
+        config=current_app.config.get('APP_CONFIG', {}),
+        can_edit=False,
+        can_upload=False,
+        page_meta={'title': f'搜索: {query}' if query else '搜索文档'},
+        site_settings=site_settings,
+        page_mode='docs_search',
+        docs_endpoint='main.docs_doc',
+        search_query=query,
+    )
+
+
 @main_bp.route('/media/<path:filename>')
 def media_file(filename):
     return send_from_directory(os.path.join(current_app.root_path, 'static', 'uploads'), filename)

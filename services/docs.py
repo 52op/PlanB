@@ -353,10 +353,29 @@ def _build_front_matter(raw_metadata, body_content, filename):
     metadata['cover'] = str(raw_metadata.get('cover') or _extract_first_image(body_content) or '').strip()
     metadata['slug'] = _slugify(raw_metadata.get('slug') or file_slug)
     metadata['updated'] = datetime.now().strftime('%Y-%m-%d')
-    metadata['template'] = _normalize_template(raw_metadata.get('template'))
-    metadata['public'] = _normalize_bool(raw_metadata.get('public'), default=False)
-    metadata['draft'] = _normalize_bool(raw_metadata.get('draft'), default=False)
-    if raw_metadata.get('date') in (None, '') and metadata['template'] == 'post':
+    
+    # 保留原始的 template 值，如果存在的话
+    if 'template' in raw_metadata and raw_metadata['template']:
+        metadata['template'] = _normalize_template(raw_metadata.get('template'))
+    elif 'template' not in metadata:
+        metadata['template'] = 'doc'
+    
+    # 保留原始的 public 值，如果存在的话
+    if 'public' in raw_metadata:
+        metadata['public'] = _normalize_bool(raw_metadata.get('public'), default=False)
+    elif 'public' not in metadata:
+        metadata['public'] = False
+    
+    # 保留原始的 draft 值
+    if 'draft' in raw_metadata:
+        metadata['draft'] = _normalize_bool(raw_metadata.get('draft'), default=False)
+    elif 'draft' not in metadata:
+        metadata['draft'] = False
+    
+    # 保留原始的 date 值，如果存在的话
+    if 'date' in raw_metadata and raw_metadata['date']:
+        metadata['date'] = raw_metadata['date']
+    elif raw_metadata.get('date') in (None, '') and metadata.get('template') == 'post':
         metadata['date'] = datetime.now().strftime('%Y-%m-%d')
 
     ordered = [

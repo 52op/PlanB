@@ -131,37 +131,6 @@
             text-overflow: ellipsis;
         }
 
-        .site-main-nav {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .site-main-nav a {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            height: 38px;
-            padding: 0 14px;
-            border-radius: 10px;
-            color: var(--color-text);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 700;
-            transition: background-color 0.15s ease, color 0.15s ease;
-        }
-
-        .site-main-nav a:hover {
-            background: var(--color-primary-light);
-        }
-
-        .site-main-nav a.active {
-            background: var(--color-primary-light);
-            color: var(--color-primary-dark);
-            box-shadow: inset 0 -2px 0 var(--color-primary);
-        }
-
         .site-header-right {
             display: flex;
             align-items: center;
@@ -194,6 +163,94 @@
             border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
         }
 
+        /* 用户菜单样式 */
+        .user-menu-wrapper {
+            position: relative;
+        }
+
+        .user-avatar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .user-avatar-btn:hover {
+            background: var(--color-primary-light);
+            color: var(--color-primary-dark);
+            border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+        }
+
+        .user-avatar-btn .user-name {
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 180px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            padding: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease;
+            z-index: 1000;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: var(--color-text);
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.15s ease;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-hover);
+        }
+
+        .user-dropdown-item-danger {
+            color: #dc2626;
+        }
+
+        .user-dropdown-item-danger:hover {
+            background: rgba(220, 38, 38, 0.1);
+        }
+
+        .user-dropdown-divider {
+            margin: 8px 0;
+            border: none;
+            border-top: 1px solid var(--color-border);
+        }
+
+        /* 移动端TOC按钮样式 */
         .sidebar {
             grid-area: sidebar;
             width: auto;
@@ -250,6 +307,7 @@
 
         .sidebar-site {
             min-width: 0;
+            flex: 1;
         }
 
         .sidebar-site-name {
@@ -271,6 +329,40 @@
             text-overflow: ellipsis;
         }
 
+        /* 侧边栏操作按钮 */
+        .sidebar-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sidebar-icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-surface);
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-icon-btn:hover {
+            background: var(--color-hover);
+            color: var(--color-text);
+            border-color: var(--color-primary);
+        }
+
+        .sidebar-icon-btn svg,
+        .sidebar-icon-btn i {
+            width: 18px;
+            height: 18px;
+        }
+
         .sidebar-chip {
             flex: 0 0 auto;
             font-size: 12px;
@@ -280,6 +372,7 @@
             border: 1px solid var(--color-border);
             background: var(--color-primary-light);
             color: var(--color-primary-dark);
+            display: none; /* 隐藏chip，为按钮腾出空间 */
         }
 
         .sidebar-nav {
@@ -956,17 +1049,44 @@
             min-width: 260px;
             max-width: 360px;
             padding: 14px 16px;
-            border-radius: 14px;
-            background: #16283f;
-            color: var(--color-surface);
-            box-shadow: 0 16px 36px var(--color-shadow);
+            border-radius: 12px;
+            background: var(--color-surface);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
             display: none;
+            font-size: 14px;
+            line-height: 1.5;
         }
         .app-toast.show {
             display: block;
+            animation: slideInUp 0.3s ease;
         }
-        .app-toast.success { background: #166534; }
-        .app-toast.error { background: #991b1b; }
+        .app-toast.success { 
+            background: var(--color-primary-light);
+            color: var(--color-primary-dark);
+            border-color: var(--color-primary);
+        }
+        .app-toast.error { 
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border-color: #fca5a5;
+        }
+        .app-toast.info {
+            background: var(--color-primary-light);
+            color: var(--color-primary-dark);
+            border-color: var(--color-primary);
+        }
+        @keyframes slideInUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
         .listing-nav a {
             padding: 10px 15px;
             border-radius: 8px;
@@ -1592,6 +1712,29 @@
             padding: 5px;
         }
 
+        /* 移动端纯图标按钮 */
+        .menu-btn-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        .menu-btn-icon:hover,
+        .menu-btn-icon:active {
+            background: var(--color-hover);
+        }
+
+        .menu-btn-icon svg,
+        .menu-btn-icon i {
+            width: 22px;
+            height: 22px;
+        }
+
         .backdrop {
             display: none;
             position: fixed;
@@ -1628,7 +1771,7 @@
 
             .sidebar {
                 position: fixed;
-                left: -320px;
+                left: -100%;
                 top: 0;
                 bottom: 0;
                 width: 300px;
@@ -1647,9 +1790,10 @@
 
             .toc-container {
                 position: fixed;
-                right: -260px;
+                right: -280px;
                 top: 0;
                 bottom: 0;
+                width: 260px;
                 z-index: 999;
                 transition: right 0.3s ease;
             }
@@ -1666,6 +1810,130 @@
             .backdrop.show {
                 display: block;
             }
+
+            /* 移动端文档头部和操作按钮优化 */
+            .document-header {
+                margin-bottom: 16px;
+                padding-bottom: 12px;
+                gap: 10px;
+            }
+
+            .header-left {
+                font-size: 13px;
+                line-height: 1.4;
+            }
+
+            .header-right {
+                width: 100%;
+            }
+
+            .action-btn {
+                font-size: 13px;
+                padding: 6px 12px;
+                white-space: nowrap;
+            }
+
+            /* 移动端隐藏桌面端用户菜单 */
+            .user-menu-wrapper {
+                display: none;
+            }
+        }
+
+        /* 移动端用户菜单弹出层 */
+        .mobile-user-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            display: none;
+            align-items: flex-end;
+            backdrop-filter: blur(4px);
+        }
+
+        .mobile-user-menu.show {
+            display: flex;
+        }
+
+        .mobile-user-menu-content {
+            width: 100%;
+            background: var(--color-surface);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .mobile-user-menu-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .mobile-user-menu-header span {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .mobile-user-menu-close {
+            background: transparent;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            color: var(--color-text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mobile-user-menu-body {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .mobile-user-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            color: var(--color-text);
+            text-decoration: none;
+            font-size: 15px;
+            transition: background-color 0.15s ease;
+        }
+
+        .mobile-user-menu-item:hover {
+            background: var(--color-hover);
+        }
+
+        .mobile-user-menu-item-danger {
+            color: #dc2626;
+        }
+
+        .mobile-user-menu-item-danger:hover {
+            background: rgba(220, 38, 38, 0.1);
+        }
+
+        .mobile-user-menu-divider {
+            margin: 8px 0;
+            border: none;
+            border-top: 1px solid var(--color-border);
         }
     </style>
 </head>
@@ -1680,23 +1948,35 @@
                     <div class="site-brand-title">{{ site_settings.site_name if site_settings else 'Planning' }}</div>
                     <div class="site-brand-subtitle">{{ site_settings.site_tagline if site_settings else '轻量 Markdown 内容站' }}</div>
                 </div>
-                <nav class="site-main-nav" aria-label="站点主导航">
-                    <a href="{{ url_for('main.index') }}" class="{% if page_mode not in ['posts','archive'] and not request.path.startswith('/posts') and not request.path.startswith('/archive') and not request.path.startswith('/search') and not request.path.startswith('/tags') and not request.path.startswith('/tag/') and not request.path.startswith('/category/') %}active{% endif %}"><i data-lucide="book-open" class="icon-inline"></i> 文档</a>
-                    <a href="{{ url_for('main.posts') }}" class="{% if request.path.startswith('/posts') or page_mode == 'posts' %}active{% endif %}"><i data-lucide="newspaper" class="icon-inline"></i> 文章</a>
-                    <a href="{{ url_for('main.archive') }}" class="{% if request.path.startswith('/archive') or page_mode == 'archive' %}active{% endif %}"><i data-lucide="archive" class="icon-inline"></i> 归档</a>
-                    <a href="{{ url_for('main.search') }}" class="{% if request.path.startswith('/search') %}active{% endif %}"><i data-lucide="search" class="icon-inline"></i> 搜索</a>
-                </nav>
             </div>
             <div class="site-header-right">
+                <button class="header-action-btn" id="openSearchBtnDesktop" type="button" title="搜索 (Ctrl+K)"><i data-lucide="search" class="icon-inline"></i></button>
                 <button class="header-action-btn" id="themeToggleBtnDesktop" type="button"><i data-lucide="palette" class="icon-inline"></i> 主题</button>
-                {% if site_settings and site_settings.site_mode == 'blog' and site_settings.show_docs_entry_in_blog %}
-                <a class="header-action-link {% if request.path.startswith('/docs') or page_mode in ['doc', 'directory'] %}active{% endif %}" href="{{ url_for('main.docs_home') }}"><i data-lucide="book-open" class="icon-inline"></i> 文档系统</a>
-                {% endif %}
+                <a class="header-action-link" href="{{ url_for('main.posts') }}"><i data-lucide="newspaper" class="icon-inline"></i> 博客页面</a>
                 {% if current_user.is_authenticated %}
-                <a class="header-action-link" href="{{ url_for('auth.account') }}"><i data-lucide="user-round" class="icon-inline"></i> 个人中心</a>
-                {% if current_user.role == 'admin' %}
-                <a class="header-action-link" href="{{ url_for('admin.admin_dashboard') }}"><i data-lucide="settings-2" class="icon-inline"></i> 后台</a>
-                {% endif %}
+                <div class="user-menu-wrapper">
+                    <button class="user-avatar-btn" id="userMenuBtnDesktop" type="button" title="{{ current_user.username }}">
+                        <i data-lucide="user-round" class="icon-inline"></i>
+                        <span class="user-name">{{ current_user.username }}</span>
+                    </button>
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="{{ url_for('auth.account') }}" class="user-dropdown-item">
+                            <i data-lucide="user-round" class="icon-inline"></i>
+                            <span>个人中心</span>
+                        </a>
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('admin.admin_dashboard') }}" class="user-dropdown-item">
+                            <i data-lucide="settings-2" class="icon-inline"></i>
+                            <span>后台管理</span>
+                        </a>
+                        {% endif %}
+                        <hr class="user-dropdown-divider">
+                        <a href="{{ url_for('auth.logout') }}" class="user-dropdown-item user-dropdown-item-danger">
+                            <i data-lucide="log-out" class="icon-inline"></i>
+                            <span>退出登录</span>
+                        </a>
+                    </div>
+                </div>
                 {% else %}
                 <a class="header-action-link" href="{{ url_for('auth.login', next=request.path) }}"><i data-lucide="log-in" class="icon-inline"></i> 登录</a>
                 {% endif %}
@@ -1705,11 +1985,21 @@
 
         <!-- 移动端顶部导航栏 -->
         <div class="mobile-header">
-            <button class="menu-btn" id="leftMenuBtn"><i data-lucide="panel-left" class="icon-inline"></i> 目录</button>
+            <button class="menu-btn menu-btn-icon" id="leftMenuBtn" title="文档目录"><i data-lucide="panel-left"></i></button>
             <h2>{{ site_settings.site_name if site_settings else 'Planning' }}</h2>
             <div style="display:flex; align-items:center; gap:8px;">
-                <button class="menu-btn" id="themeToggleBtnMobile"><i data-lucide="palette" class="icon-inline"></i></button>
-                <button class="menu-btn" id="rightMenuBtn">目录 <i data-lucide="panel-right" class="icon-inline"></i></button>
+                <button class="menu-btn menu-btn-icon" id="openSearchBtnMobile" title="搜索"><i data-lucide="search"></i></button>
+                <button class="menu-btn menu-btn-icon" id="themeToggleBtnMobile" title="主题"><i data-lucide="palette"></i></button>
+                {% if current_user.is_authenticated %}
+                <button class="menu-btn menu-btn-icon" id="userMenuBtnMobile" title="{{ current_user.username }}">
+                    <i data-lucide="user-round"></i>
+                </button>
+                {% else %}
+                <a class="menu-btn menu-btn-icon" href="{{ url_for('auth.login', next=request.path) }}" title="登录">
+                    <i data-lucide="log-in"></i>
+                </a>
+                {% endif %}
+                <button class="menu-btn menu-btn-icon" id="rightMenuBtn" title="文章目录"><i data-lucide="panel-right"></i></button>
             </div>
         </div>
 
@@ -1721,7 +2011,14 @@
                         <div class="sidebar-site-name">{% if page_mode in ['posts', 'archive'] %}文章导航{% else %}文档目录{% endif %}</div>
                         <div class="sidebar-site-tagline">{% if page_mode in ['posts', 'archive'] %}浏览公开文章、分类与归档入口{% else %}按目录浏览内容树并快速进入文档{% endif %}</div>
                     </div>
-                    <div class="sidebar-chip">{% if page_mode in ['posts', 'archive'] %}文章{% else %}文档{% endif %}</div>
+                    <div class="sidebar-actions">
+                        <button class="sidebar-icon-btn" id="expandAllBtn" title="展开全部">
+                            <i data-lucide="chevrons-down"></i>
+                        </button>
+                        <button class="sidebar-icon-btn" id="collapseAllBtn" title="折叠全部">
+                            <i data-lucide="chevrons-up"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1797,15 +2094,6 @@
                 <span class="sidebar-chip">{{ file_tree|length if file_tree else 0 }} 项</span>
             </div>
         {{ render_tree(file_tree) }}
-        </div>
-
-        <div class="sidebar-footer">
-            <div class="sidebar-footer-title">工具</div>
-            <div class="tree-controls">
-                {% if current_user.is_authenticated and page_mode not in ['posts', 'archive'] %}<button id="createDocBtn" class="primary">新建文档</button><button id="createDirBtn">新建目录</button>{% endif %}
-                <button id="expandAllBtn">展开全部</button>
-                <button id="collapseAllBtn">折叠全部</button>
-            </div>
         </div>
     </aside>
 
@@ -2008,7 +2296,7 @@
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                         <strong style="color:var(--color-text);">{{ comment.user.username if comment.user else '匿名' }}</strong>
                         {% if comment.user and comment.user.role == 'admin' %}<span style="padding:2px 8px; border-radius:999px; background:#eef7f5; color:#0f766e; font-size:12px;">管理员</span>{% endif %}
-                        {% if comment.status != 'approved' %}<span style="padding:2px 8px; border-radius:999px; background:var(--color-surface)1f2; color:#be123c; font-size:12px;">待审核</span>{% endif %}
+                        {% if comment.status != 'approved' %}<span style="padding:2px 8px; border-radius:999px; background:rgba(255, 241, 242, 1); color:#be123c; font-size:12px;">待审核</span>{% endif %}
                     </div>
                     <span>{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '' }}</span>
                 </div>
@@ -2190,6 +2478,82 @@
             if (yearNode) {
                 yearNode.textContent = String(new Date().getFullYear());
             }
+
+            // 用户菜单功能
+            const userMenuBtnDesktop = document.getElementById('userMenuBtnDesktop');
+            const userMenuBtnMobile = document.getElementById('userMenuBtnMobile');
+            const userDropdown = document.getElementById('userDropdown');
+            let userMenuMobileDropdown = null;
+
+            // 桌面端用户菜单
+            if (userMenuBtnDesktop && userDropdown) {
+                userMenuBtnDesktop.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('show');
+                });
+
+                // 点击其他地方关闭菜单
+                document.addEventListener('click', function(e) {
+                    if (!userMenuBtnDesktop.contains(e.target) && !userDropdown.contains(e.target)) {
+                        userDropdown.classList.remove('show');
+                    }
+                });
+            }
+
+            // 移动端用户菜单
+            if (userMenuBtnMobile) {
+                // 创建移动端用户菜单弹出层
+                userMenuMobileDropdown = document.createElement('div');
+                userMenuMobileDropdown.className = 'mobile-user-menu';
+                userMenuMobileDropdown.innerHTML = `
+                    <div class="mobile-user-menu-content">
+                        <div class="mobile-user-menu-header">
+                            <span>{{ current_user.username if current_user.is_authenticated else '' }}</span>
+                            <button class="mobile-user-menu-close" id="closeMobileUserMenu">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                        <div class="mobile-user-menu-body">
+                            <a href="{{ url_for('auth.account') }}" class="mobile-user-menu-item">
+                                <i data-lucide="user-round"></i>
+                                <span>个人中心</span>
+                            </a>
+                            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                            <a href="{{ url_for('admin.admin_dashboard') }}" class="mobile-user-menu-item">
+                                <i data-lucide="settings-2"></i>
+                                <span>后台管理</span>
+                            </a>
+                            {% endif %}
+                            <hr class="mobile-user-menu-divider">
+                            <a href="{{ url_for('auth.logout') }}" class="mobile-user-menu-item mobile-user-menu-item-danger">
+                                <i data-lucide="log-out"></i>
+                                <span>退出登录</span>
+                            </a>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(userMenuMobileDropdown);
+
+                userMenuBtnMobile.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    userMenuMobileDropdown.classList.add('show');
+                    if (window.lucide) window.lucide.createIcons();
+                });
+
+                const closeMobileUserMenu = document.getElementById('closeMobileUserMenu');
+                if (closeMobileUserMenu) {
+                    closeMobileUserMenu.addEventListener('click', function() {
+                        userMenuMobileDropdown.classList.remove('show');
+                    });
+                }
+
+                // 点击遮罩关闭
+                userMenuMobileDropdown.addEventListener('click', function(e) {
+                    if (e.target === userMenuMobileDropdown) {
+                        userMenuMobileDropdown.classList.remove('show');
+                    }
+                });
+            }
             
             // 右键菜单相关变量
             const treeContextMenu = document.getElementById('treeContextMenu');
@@ -2368,8 +2732,6 @@
             const frontMatterBtn = document.getElementById('frontMatterBtn');
             const saveEditBtn = document.getElementById('saveEditBtn');
             const cancelEditBtn = document.getElementById('cancelEditBtn');
-            const createDocBtn = document.getElementById('createDocBtn');
-            const createDirBtn = document.getElementById('createDirBtn');
             const metaPanel = document.getElementById('metaPanel');
             const applyMetaBtn = document.getElementById('applyMetaBtn');
             const closeMetaBtn = document.getElementById('closeMetaBtn');
@@ -2475,6 +2837,29 @@
                 document.getElementById('metaDraft').checked = ['true', 'True', '1'].includes(metadata.draft);
             }
 
+            // YAML 值转义函数
+            function escapeYamlValue(value) {
+                if (!value) return value;
+                const str = String(value);
+                
+                // 检查是否需要引用
+                // 包含特殊字符、冒号、引号、换行符等需要引用
+                const needsQuoting = /[:\n\r"'#\[\]{}|>@`!%&*]/.test(str) || 
+                                    str.startsWith(' ') || 
+                                    str.endsWith(' ') ||
+                                    str.startsWith('-') ||
+                                    /^\d+$/.test(str) ||
+                                    /^(true|false|yes|no|null)$/i.test(str);
+                
+                if (!needsQuoting) {
+                    return str;
+                }
+                
+                // 使用单引号引用，并转义单引号
+                // 在 YAML 中，单引号内的单引号需要双写
+                return `'${str.replace(/'/g, "''")}'`;
+            }
+
             function buildFrontMatterFromPanel(bodyContent) {
                 const title = document.getElementById('metaTitle').value.trim();
                 const slug = document.getElementById('metaSlug').value.trim();
@@ -2488,16 +2873,16 @@
                 const isDraft = document.getElementById('metaDraft').checked;
 
                 const lines = ['---'];
-                if (title) lines.push(`title: ${title}`);
+                if (title) lines.push(`title: ${escapeYamlValue(title)}`);
                 if (date) lines.push(`date: ${date}`);
                 lines.push(`updated: ${updated}`);
-                if (summary) lines.push(`summary: ${summary}`);
-                lines.push(`tags: [${tags.join(', ')}]`);
-                if (cover) lines.push(`cover: ${cover}`);
+                if (summary) lines.push(`summary: ${escapeYamlValue(summary)}`);
+                lines.push(`tags: [${tags.map(t => escapeYamlValue(t)).join(', ')}]`);
+                if (cover) lines.push(`cover: ${escapeYamlValue(cover)}`);
                 lines.push(`template: ${template}`);
                 lines.push(`public: ${isPublic ? 'true' : 'false'}`);
                 lines.push(`draft: ${isDraft ? 'true' : 'false'}`);
-                if (slug) lines.push(`slug: ${slug}`);
+                if (slug) lines.push(`slug: ${escapeYamlValue(slug)}`);
                 lines.push('---', '', bodyContent.replace(/^\n+/, ''));
                 return lines.join('\n');
             }
@@ -2863,16 +3248,39 @@
                         const parsed = splitFrontMatter(editorInstance.getMarkdown());
                         const contentWithMeta = buildFrontMatterFromPanel(parsed.body);
                         editorInstance.setMarkdown(contentWithMeta, false);
+                        
+                        // 标记编辑器内容已修改
+                        if (editorInstance.getMarkdown) {
+                            const currentContent = editorInstance.getMarkdown();
+                            // 强制触发编辑器的change事件，确保内容被识别为已修改
+                            editorInstance.setMarkdown(currentContent, false);
+                        }
+                        
+                        // 关闭头部面板
+                        if (metaPanel) metaPanel.classList.remove('show');
+                        
+                        // 提示用户保存
+                        showToast('头部已应用，请点击"保存编辑"保存更改', 'info');
                     });
                 }
 
                 saveEditBtn.addEventListener('click', function() {
                     if (!editorInstance) return;
                     const newContent = editorInstance.getMarkdown();
+                    
+                    // 检查内容是否为空
+                    if (!newContent || newContent.trim() === '') {
+                        showToast('内容不能为空', 'error');
+                        return;
+                    }
+                    
                     const btnOriginalText = saveEditBtn.innerText;
                     saveEditBtn.innerText = "保存中...";
                     saveEditBtn.disabled = true;
 
+                    // 确定是否需要确保front matter存在
+                    const hasFrontMatter = newContent.trim().startsWith('---');
+                    
                     fetch('/api/save', {
                         method: 'POST',
                         headers: {
@@ -2882,7 +3290,7 @@
                         body: JSON.stringify({
                             filename: currentFilePath,
                             content: newContent,
-                            ensure_front_matter: newContent.startsWith('---\n')
+                            ensure_front_matter: hasFrontMatter
                         })
                     })
                     .then(response => response.json())
@@ -2890,11 +3298,15 @@
                         saveEditBtn.innerText = btnOriginalText;
                         saveEditBtn.disabled = false;
                         if(data.success) {
+                            showToast('保存成功', 'success');
                             if (data.content && editorInstance) {
                                 editorInstance.setMarkdown(data.content, false);
                                 fillMetaPanel();
                             }
-                            window.location.reload();
+                            // 延迟刷新，让用户看到成功提示
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 800);
                         } else {
                             showAlertDialog('保存失败', data.error || '请稍后再试');
                         }
@@ -2990,18 +3402,6 @@
                 });
             }
 
-            if (createDocBtn) {
-                createDocBtn.addEventListener('click', function() {
-                    createDocument(getWorkingDirectory());
-                });
-            }
-
-            if (createDirBtn) {
-                createDirBtn.addEventListener('click', function() {
-                    createDirectory(getWorkingDirectory());
-                });
-            }
-
             document.querySelectorAll('.create-doc-in-dir').forEach(function(button) {
                 button.addEventListener('click', function(event) {
                     event.preventDefault();
@@ -3042,28 +3442,98 @@
                 });
             });
 
+            // 右键菜单功能（支持桌面端右键和移动端长按）
+            let longPressTimer = null;
+            const longPressDuration = 500; // 长按时长（毫秒）
+
             document.querySelectorAll('.dir-item, .file-row').forEach(function(node) {
+                // 桌面端右键菜单
                 node.addEventListener('contextmenu', function(event) {
-                    if (!treeContextMenu || window.innerWidth <= 900) return;
+                    if (!treeContextMenu) return;
                     event.preventDefault();
                     event.stopPropagation();
-                    contextMenuTarget = {
-                        type: this.dataset.nodeType || (this.dataset.dirPath ? 'dir' : 'file'),
-                        path: this.dataset.dirPath || this.dataset.filePath || '',
-                        name: this.dataset.nodeName || this.dataset.dirName || this.dataset.fileName || ''
-                    };
-                    treeContextMenu.style.left = `${event.clientX}px`;
-                    treeContextMenu.style.top = `${event.clientY}px`;
+                    showContextMenu(event, this);
+                });
+
+                // 移动端长按支持
+                node.addEventListener('touchstart', function(event) {
+                    if (!treeContextMenu) return;
+                    const touch = event.touches[0];
+                    const target = this;
                     
-                    // 根据节点类型显示/隐藏菜单项
-                    const isDir = contextMenuTarget.type === 'dir';
-                    treeContextMenu.querySelector('[data-action="create-doc"]').style.display = isDir ? 'flex' : 'none';
-                    treeContextMenu.querySelector('[data-action="create-dir"]').style.display = isDir ? 'flex' : 'none';
-                    
-                    treeContextMenu.classList.add('show');
-                    if (window.lucide) window.lucide.createIcons();
+                    longPressTimer = setTimeout(function() {
+                        // 触发长按菜单
+                        const syntheticEvent = {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY,
+                            preventDefault: function() {},
+                            stopPropagation: function() {}
+                        };
+                        showContextMenu(syntheticEvent, target);
+                        
+                        // 触觉反馈（如果支持）
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
+                    }, longPressDuration);
+                });
+
+                node.addEventListener('touchend', function() {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                });
+
+                node.addEventListener('touchmove', function() {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
                 });
             });
+
+            // 显示右键菜单的通用函数
+            function showContextMenu(event, node) {
+                contextMenuTarget = {
+                    type: node.dataset.nodeType || (node.dataset.dirPath ? 'dir' : 'file'),
+                    path: node.dataset.dirPath || node.dataset.filePath || '',
+                    name: node.dataset.nodeName || node.dataset.dirName || node.dataset.fileName || ''
+                };
+
+                // 计算菜单位置，确保不超出屏幕
+                let left = event.clientX;
+                let top = event.clientY;
+                
+                // 获取菜单尺寸（如果已经显示过）
+                const menuWidth = treeContextMenu.offsetWidth || 200;
+                const menuHeight = treeContextMenu.offsetHeight || 200;
+                
+                // 确保菜单不超出右边界
+                if (left + menuWidth > window.innerWidth) {
+                    left = window.innerWidth - menuWidth - 10;
+                }
+                
+                // 确保菜单不超出底部边界
+                if (top + menuHeight > window.innerHeight) {
+                    top = window.innerHeight - menuHeight - 10;
+                }
+                
+                // 确保菜单不超出左边界和顶部边界
+                left = Math.max(10, left);
+                top = Math.max(10, top);
+                
+                treeContextMenu.style.left = `${left}px`;
+                treeContextMenu.style.top = `${top}px`;
+                
+                // 根据节点类型显示/隐藏菜单项
+                const isDir = contextMenuTarget.type === 'dir';
+                treeContextMenu.querySelector('[data-action="create-doc"]').style.display = isDir ? 'flex' : 'none';
+                treeContextMenu.querySelector('[data-action="create-dir"]').style.display = isDir ? 'flex' : 'none';
+                
+                treeContextMenu.classList.add('show');
+                if (window.lucide) window.lucide.createIcons();
+            }
 
             if (treeContextMenu) {
                 treeContextMenu.querySelectorAll('button').forEach(function(button) {
@@ -3089,6 +3559,218 @@
 
             setupDocumentImagePreview();
         });
+    </script>
+
+    <!-- 搜索弹出层 -->
+    <div id="searchModal" class="modal-overlay">
+        <div class="search-modal-content">
+            <div class="search-modal-header">
+                <div class="search-input-wrapper">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="搜索文档标题或内容..." autocomplete="off">
+                    <button type="button" id="closeSearchBtn" class="search-close-btn" title="关闭 (ESC)">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="search-modal-body">
+                <div id="searchResults" class="search-results">
+                    <div class="search-empty">
+                        <i data-lucide="search" style="width: 48px; height: 48px; opacity: 0.3;"></i>
+                        <p>输入关键词开始搜索</p>
+                    </div>
+                </div>
+            </div>
+            <div class="search-modal-footer">
+                <div class="search-tips">
+                    <span><kbd>↑</kbd> <kbd>↓</kbd> 导航</span>
+                    <span><kbd>Enter</kbd> 打开</span>
+                    <span><kbd>ESC</kbd> 关闭</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 搜索弹出层功能
+        (function() {
+            const searchModal = document.getElementById('searchModal');
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            const openSearchBtnDesktop = document.getElementById('openSearchBtnDesktop');
+            const openSearchBtnMobile = document.getElementById('openSearchBtnMobile');
+            const closeSearchBtn = document.getElementById('closeSearchBtn');
+            let searchTimeout = null;
+            let currentResults = [];
+            let selectedIndex = -1;
+
+            // 打开搜索弹出层
+            function openSearchModal() {
+                searchModal.classList.add('show');
+                searchInput.focus();
+                if (window.lucide) window.lucide.createIcons();
+            }
+
+            // 关闭搜索弹出层
+            function closeSearchModal() {
+                searchModal.classList.remove('show');
+                searchInput.value = '';
+                searchResults.innerHTML = '<div class="search-empty"><i data-lucide="search" style="width: 48px; height: 48px; opacity: 0.3;"></i><p>输入关键词开始搜索</p></div>';
+                currentResults = [];
+                selectedIndex = -1;
+                if (window.lucide) window.lucide.createIcons();
+            }
+
+            // 执行搜索
+            function performSearch(query) {
+                if (!query || query.trim().length === 0) {
+                    searchResults.innerHTML = '<div class="search-empty"><i data-lucide="search" style="width: 48px; height: 48px; opacity: 0.3;"></i><p>输入关键词开始搜索</p></div>';
+                    currentResults = [];
+                    selectedIndex = -1;
+                    if (window.lucide) window.lucide.createIcons();
+                    return;
+                }
+
+                searchResults.innerHTML = '<div class="search-loading"><i data-lucide="loader-2" class="spin" style="width: 32px; height: 32px;"></i><p>搜索中...</p></div>';
+                if (window.lucide) window.lucide.createIcons();
+
+                fetch('/api/search-docs?q=' + encodeURIComponent(query.trim()))
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            currentResults = data.results || [];
+                            selectedIndex = -1;
+                            renderSearchResults(currentResults, query);
+                        } else {
+                            searchResults.innerHTML = '<div class="search-error"><i data-lucide="alert-circle" style="width: 32px; height: 32px; color: #ef4444;"></i><p>' + (data.error || '搜索失败') + '</p></div>';
+                            if (window.lucide) window.lucide.createIcons();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('搜索错误:', error);
+                        searchResults.innerHTML = '<div class="search-error"><i data-lucide="alert-circle" style="width: 32px; height: 32px; color: #ef4444;"></i><p>搜索失败，请稍后再试</p></div>';
+                        if (window.lucide) window.lucide.createIcons();
+                    });
+            }
+
+            // 渲染搜索结果
+            function renderSearchResults(results, query) {
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div class="search-empty"><i data-lucide="file-search" style="width: 48px; height: 48px; opacity: 0.3;"></i><p>没有找到匹配的文档</p></div>';
+                    if (window.lucide) window.lucide.createIcons();
+                    return;
+                }
+
+                let html = '<div class="search-results-list">';
+                results.forEach((result, index) => {
+                    const highlightedSnippet = highlightKeyword(result.snippet, query);
+                    html += `
+                        <a href="${result.url}" class="search-result-item" data-index="${index}">
+                            <div class="search-result-title">
+                                <i data-lucide="file-text" class="search-result-icon"></i>
+                                <span>${escapeHtml(result.title)}</span>
+                            </div>
+                            <div class="search-result-snippet">${highlightedSnippet}</div>
+                            <div class="search-result-path">${escapeHtml(result.filename)}</div>
+                        </a>
+                    `;
+                });
+                html += '</div>';
+                searchResults.innerHTML = html;
+                if (window.lucide) window.lucide.createIcons();
+            }
+
+            // 高亮关键词
+            function highlightKeyword(text, keyword) {
+                if (!text || !keyword) return escapeHtml(text);
+                const escapedText = escapeHtml(text);
+                const escapedKeyword = escapeHtml(keyword);
+                const regex = new RegExp('(' + escapedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+                return escapedText.replace(regex, '<mark>$1</mark>');
+            }
+
+            // HTML转义
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text || '';
+                return div.innerHTML;
+            }
+
+            // 选择搜索结果
+            function selectResult(index) {
+                const items = searchResults.querySelectorAll('.search-result-item');
+                items.forEach((item, i) => {
+                    if (i === index) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+                selectedIndex = index;
+            }
+
+            // 事件监听
+            if (openSearchBtnDesktop) {
+                openSearchBtnDesktop.addEventListener('click', openSearchModal);
+            }
+            if (openSearchBtnMobile) {
+                openSearchBtnMobile.addEventListener('click', openSearchModal);
+            }
+
+            if (closeSearchBtn) {
+                closeSearchBtn.addEventListener('click', closeSearchModal);
+            }
+
+            // 点击遮罩层关闭
+            searchModal.addEventListener('click', function(e) {
+                if (e.target === searchModal) {
+                    closeSearchModal();
+                }
+            });
+
+            // 搜索输入
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    performSearch(this.value);
+                }, 300);
+            });
+
+            // 键盘导航
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeSearchModal();
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (currentResults.length > 0) {
+                        const nextIndex = selectedIndex < currentResults.length - 1 ? selectedIndex + 1 : 0;
+                        selectResult(nextIndex);
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (currentResults.length > 0) {
+                        const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : currentResults.length - 1;
+                        selectResult(prevIndex);
+                    }
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndex >= 0 && selectedIndex < currentResults.length) {
+                        window.location.href = currentResults[selectedIndex].url;
+                    } else if (currentResults.length > 0) {
+                        window.location.href = currentResults[0].url;
+                    }
+                }
+            });
+
+            // 快捷键 Ctrl+K 或 Cmd+K 打开搜索
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    openSearchModal();
+                }
+            });
+        })();
     </script>
 </body>
 
