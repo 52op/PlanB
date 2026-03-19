@@ -189,13 +189,14 @@ class PlanningApp {
     handleGlobalKeyboard(event) {
         // Ctrl+S 保存
         if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-            if (window.editorManager?.editorInstance) {
+            if (window.editorManager?.editorInstance && window.editorManager?.isEditorVisible?.()) {
                 event.preventDefault();
                 window.editorManager.saveContent().then(success => {
                     if (success) {
-                        window.uiUtils?.showToast?.('保存成功');
-                        window.editorManager.hideEditor?.();
-                        window.location.href = window.location.href.split('#')[0];
+                        window.uiUtils?.showToast?.('保存成功', 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 800);
                     }
                 });
             }

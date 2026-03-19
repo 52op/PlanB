@@ -6,6 +6,7 @@ class EditorManager {
         this.loadedFrontMatterText = '';
         this.loadedFrontMatterMetadata = {};
         this.frontMatterDirty = false;
+        this.canResumeHiddenSession = false;
         this.editModeState = { sidebarHidden: false, tocHidden: false };
         this.handleEditorKeydown = this.handleEditorKeydown.bind(this);
         this.initializeElements();
@@ -157,6 +158,10 @@ class EditorManager {
         editorRoot.dataset.saveShortcutBound = 'true';
     }
 
+    isEditorVisible() {
+        return !!this.editorView && this.editorView.style.display !== 'none';
+    }
+
     async initializeEditor(content) {
         const parsed = this.syncLoadedFrontMatterState(content);
         const editorBody = parsed.body || '';
@@ -263,6 +268,7 @@ class EditorManager {
     }
 
     showEditor() {
+        this.canResumeHiddenSession = true;
         if (this.renderView) this.renderView.style.display = 'none';
         if (this.editorView) this.editorView.style.display = 'block';
         if (this.editBtn) this.editBtn.style.display = 'none';
@@ -308,6 +314,11 @@ class EditorManager {
                 this.updateTocIcon(false);
             }
         }
+    }
+
+    cancelEditing() {
+        this.canResumeHiddenSession = false;
+        this.hideEditor();
     }
 
     async saveContent() {
@@ -399,7 +410,7 @@ class EditorManager {
 
         if (this.cancelEditBtn) {
             this.cancelEditBtn.addEventListener('click', () => {
-                this.hideEditor();
+                this.cancelEditing();
             });
         }
 
@@ -420,7 +431,7 @@ class EditorManager {
                 if (!this.editorView || !this.renderView) return;
 
                 if (this.editorView.style.display === 'none') {
-                    if (this.editorInstance) {
+                    if (this.editorInstance && this.canResumeHiddenSession) {
                         this.showEditor();
                         if (this.metaPanel) this.metaPanel.classList.add('show');
                         return;
