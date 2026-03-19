@@ -2593,6 +2593,7 @@
     <script src="{{ url_for('static', filename='js/modules/search-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/theme-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/front-matter-utils.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/editor-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 
     <script>
@@ -3355,7 +3356,7 @@
                     .catch(() => showAlertDialog('删除目录失败', '网络异常，请稍后再试'));
             }
 
-            if (editBtn && editorView && renderView) {
+            if (!window.editorManager && editBtn && editorView && renderView) {
                 editBtn.addEventListener('click', function() {
                     fetch(`/api/get_raw?filename=${encodeURIComponent(currentFilePath)}`)
                         .then(response => response.json())

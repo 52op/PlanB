@@ -7,6 +7,7 @@ class EditorManager {
         this.loadedFrontMatterMetadata = {};
         this.frontMatterDirty = false;
         this.editModeState = { sidebarHidden: false, tocHidden: false };
+        this.handleEditorKeydown = this.handleEditorKeydown.bind(this);
         this.initializeElements();
     }
 
@@ -22,6 +23,8 @@ class EditorManager {
         this.applyMetaBtn = document.getElementById('applyMetaBtn');
         this.clearCoverBtn = document.getElementById('clearCoverBtn');
         this.appShell = document.querySelector('.app-shell');
+        this.toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+        this.toggleTocBtn = document.getElementById('toggleTocBtn');
         this.commentsSection = document.getElementById('comments');
         this.postNav = document.querySelector('.post-nav');
         this.siteFooter = document.querySelector('.site-footer');
@@ -71,6 +74,89 @@ class EditorManager {
         });
     }
 
+    normalizeImageSize(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        if (raw.endsWith('%') || raw.endsWith('px') || raw === 'auto') return raw;
+        if (/^\d+$/.test(raw)) return `${raw}px`;
+        return raw;
+    }
+
+    buildSizedImageMarkup(url, altText) {
+        const widthInput = window.prompt('设置图片宽度（如 320、50%、240px，留空按原图）', '');
+        if (widthInput === null) {
+            return { cancelled: true, markup: '' };
+        }
+
+        const heightInput = window.prompt('设置图片高度（可留空自动）', '');
+        if (heightInput === null) {
+            return { cancelled: true, markup: '' };
+        }
+
+        const widthValue = this.normalizeImageSize(widthInput);
+        const heightValue = this.normalizeImageSize(heightInput);
+        if (!widthValue && !heightValue) {
+            return { cancelled: false, markup: '' };
+        }
+
+        const styleParts = [];
+        if (widthValue) styleParts.push(`width: ${widthValue}`);
+        if (heightValue) styleParts.push(`height: ${heightValue}`);
+
+        return {
+            cancelled: false,
+            markup: `<img src="${url}" alt="${altText}" style="${styleParts.join('; ')};" />`,
+        };
+    }
+
+    updateSidebarIcon(isHidden) {
+        if (!this.toggleSidebarBtn) return;
+        const icon = this.toggleSidebarBtn.querySelector('i');
+        if (icon) {
+            icon.setAttribute('data-lucide', isHidden ? 'panel-left-open' : 'panel-left-close');
+            window.lucide?.createIcons?.();
+        }
+        this.toggleSidebarBtn.title = isHidden ? '显示侧边栏' : '隐藏侧边栏';
+    }
+
+    updateTocIcon(isHidden) {
+        if (!this.toggleTocBtn) return;
+        const icon = this.toggleTocBtn.querySelector('i');
+        if (icon) {
+            icon.setAttribute('data-lucide', isHidden ? 'panel-right-open' : 'panel-right-close');
+            window.lucide?.createIcons?.();
+        }
+        this.toggleTocBtn.title = isHidden ? '显示目录' : '隐藏目录';
+    }
+
+    handleEditorKeydown(event) {
+        const isSaveShortcut = (event.ctrlKey || event.metaKey) && String(event.key || '').toLowerCase() === 's';
+        if (!isSaveShortcut || !this.editorInstance) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') {
+            event.stopImmediatePropagation();
+        }
+
+        this.saveContent().then((success) => {
+            if (success) {
+                window.uiUtils?.showToast?.('保存成功', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 800);
+            }
+        });
+    }
+
+    bindEditorShortcuts() {
+        const editorRoot = document.querySelector('#toastEditor');
+        if (!editorRoot || editorRoot.dataset.saveShortcutBound === 'true') return;
+
+        editorRoot.addEventListener('keydown', this.handleEditorKeydown, true);
+        editorRoot.dataset.saveShortcutBound = 'true';
+    }
+
     async initializeEditor(content) {
         const parsed = this.syncLoadedFrontMatterState(content);
         const editorBody = parsed.body || '';
@@ -92,6 +178,7 @@ class EditorManager {
             this.editorInstance.setMarkdown(editorBody, false);
         }
 
+        this.bindEditorShortcuts();
         this.fillMetaPanel();
     }
 
@@ -111,14 +198,14 @@ class EditorManager {
             const result = await response.json();
 
             if (result.success) {
-                const customImage = window.imageUtils?.buildSizedImageMarkup(result.url, 'Image');
+                const customImage = this.buildSizedImageMarkup(result.url, 'Image');
 
-                if (customImage?.cancelled) {
+                if (customImage.cancelled) {
                     callback(result.url, 'Image');
                     return;
                 }
 
-                if (customImage?.markup) {
+                if (customImage.markup) {
                     callback(result.url, 'Image');
                     setTimeout(() => {
                         this.replaceRecentlyInsertedImage(result.url, customImage.markup);
@@ -138,12 +225,21 @@ class EditorManager {
     replaceRecentlyInsertedImage(url, markup) {
         if (!this.editorInstance) return;
 
-        const content = this.editorInstance.getMarkdown();
-        const imagePattern = new RegExp(`!\\[Image\\]\\(${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`, 'g');
-        const newContent = content.replace(imagePattern, markup);
+        const standardMarkup = `![Image](${url})`;
+        const selection = this.editorInstance.getSelection?.();
+        if (!Array.isArray(selection) || !Array.isArray(selection[1])) {
+            return;
+        }
 
-        if (newContent !== content) {
-            this.editorInstance.setMarkdown(newContent, false);
+        const end = selection[1];
+        const start = [end[0], Math.max(0, end[1] - standardMarkup.length)];
+        const selectedText = this.editorInstance.getSelectedText?.(start, end);
+
+        if (selectedText === standardMarkup) {
+            this.editorInstance.replaceSelection(markup, start, end);
+            const cursorAt = [start[0], start[1] + markup.length];
+            this.editorInstance.setSelection?.(cursorAt, cursorAt);
+            this.editorInstance.focus?.();
         }
     }
 
@@ -182,9 +278,11 @@ class EditorManager {
 
             if (!this.editModeState.sidebarHidden) {
                 this.appShell.classList.add('sidebar-hidden');
+                this.updateSidebarIcon(true);
             }
             if (!this.editModeState.tocHidden) {
                 this.appShell.classList.add('toc-hidden');
+                this.updateTocIcon(true);
             }
         }
     }
@@ -203,9 +301,11 @@ class EditorManager {
         if (this.appShell) {
             if (!this.editModeState.sidebarHidden) {
                 this.appShell.classList.remove('sidebar-hidden');
+                this.updateSidebarIcon(false);
             }
             if (!this.editModeState.tocHidden) {
                 this.appShell.classList.remove('toc-hidden');
+                this.updateTocIcon(false);
             }
         }
     }
