@@ -84,6 +84,77 @@
                 "site-header site-header site-header"
                 "sidebar content toc";
             height: 100vh;
+            transition: grid-template-columns 0.3s ease;
+        }
+        
+        /* 隐藏左侧边栏（仅PC端） */
+        .app-shell.sidebar-hidden {
+            grid-template-columns: 0 minmax(0, 1fr) 260px;
+        }
+        .app-shell.sidebar-hidden .sidebar {
+            display: none;
+        }
+        
+        /* 隐藏右侧 TOC（仅PC端） */
+        .app-shell.toc-hidden {
+            grid-template-columns: 288px minmax(0, 1fr) 0;
+        }
+        .app-shell.toc-hidden .toc-container {
+            display: none;
+        }
+        
+        /* 同时隐藏两侧（仅PC端） */
+        .app-shell.sidebar-hidden.toc-hidden {
+            grid-template-columns: 0 minmax(0, 1fr) 0;
+        }
+        
+        /* 浮动显示按钮 */
+        .floating-show-btn {
+            position: fixed;
+            z-index: 100;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px var(--color-shadow);
+        }
+        
+        .floating-show-btn:hover {
+            background: var(--color-primary-light);
+            color: var(--color-primary-dark);
+            border-color: var(--color-primary);
+        }
+        
+        .floating-show-btn svg,
+        .floating-show-btn i {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .floating-show-sidebar {
+            top: 80px;
+            left: 12px;
+        }
+        
+        .floating-show-toc {
+            top: 80px;
+            right: 12px;
+        }
+        
+        /* 当侧边栏隐藏时显示浮动按钮 */
+        .app-shell.sidebar-hidden .floating-show-sidebar {
+            display: flex;
+        }
+        
+        .app-shell.toc-hidden .floating-show-toc {
+            display: flex;
         }
 
         .site-header {
@@ -1042,40 +1113,55 @@
             color: var(--color-surface);
         }
         .app-toast {
-            position: fixed;
-            right: 24px;
-            bottom: 24px;
-            z-index: 1210;
-            min-width: 260px;
-            max-width: 360px;
-            padding: 14px 16px;
-            border-radius: 12px;
-            background: var(--color-surface);
-            color: var(--color-text);
-            border: 1px solid var(--color-border);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            display: none;
-            font-size: 14px;
-            line-height: 1.5;
+            position: fixed !important;
+            right: 24px !important;
+            bottom: 24px !important;
+            left: auto !important;
+            top: auto !important;
+            width: auto !important;
+            height: auto !important;
+            z-index: 9999 !important;
+            min-width: 280px !important;
+            max-width: 420px !important;
+            min-height: auto !important;
+            max-height: 300px !important;
+            padding: 16px 20px !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            background: var(--color-surface) !important;
+            color: var(--color-text) !important;
+            border: 1px solid var(--color-border) !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+            display: none !important;
+            font-size: 15px !important;
+            line-height: 1.5 !important;
+            font-weight: 500 !important;
+            word-wrap: break-word !important;
+            overflow: auto !important;
+            pointer-events: auto !important;
+            box-sizing: border-box !important;
         }
         .app-toast.show {
-            display: block;
+            display: block !important;
             animation: slideInUp 0.3s ease;
         }
         .app-toast.success { 
-            background: var(--color-primary-light);
-            color: var(--color-primary-dark);
-            border-color: var(--color-primary);
+            background: var(--color-primary-light) !important;
+            color: var(--color-primary-dark) !important;
+            border-color: var(--color-primary) !important;
+            border-width: 2px !important;
         }
         .app-toast.error { 
-            background: rgba(239, 68, 68, 0.1);
-            color: #dc2626;
-            border-color: #fca5a5;
+            background: rgba(239, 68, 68, 0.15) !important;
+            color: #dc2626 !important;
+            border-color: #fca5a5 !important;
+            border-width: 2px !important;
         }
         .app-toast.info {
-            background: var(--color-primary-light);
-            color: var(--color-primary-dark);
-            border-color: var(--color-primary);
+            background: var(--color-primary-light) !important;
+            color: var(--color-primary-dark) !important;
+            border-color: var(--color-primary) !important;
+            border-width: 2px !important;
         }
         @keyframes slideInUp {
             from {
@@ -1755,6 +1841,29 @@
                     "content";
                 height: 100vh;
             }
+            
+            /* 移动端禁用PC端的隐藏功能 */
+            .app-shell.sidebar-hidden,
+            .app-shell.toc-hidden,
+            .app-shell.sidebar-hidden.toc-hidden {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+            
+            .app-shell.sidebar-hidden .sidebar,
+            .app-shell.toc-hidden .toc-container {
+                display: flex !important;
+            }
+            
+            /* 移动端隐藏浮动按钮 */
+            .floating-show-btn {
+                display: none !important;
+            }
+            
+            /* 移动端隐藏PC端的切换按钮 */
+            #toggleSidebarBtn,
+            #toggleTocBtn {
+                display: none !important;
+            }
 
             .site-header {
                 display: none;
@@ -2018,6 +2127,9 @@
                         <button class="sidebar-icon-btn" id="collapseAllBtn" title="折叠全部">
                             <i data-lucide="chevrons-up"></i>
                         </button>
+                        <button class="sidebar-icon-btn" id="toggleSidebarBtn" title="隐藏侧边栏">
+                            <i data-lucide="panel-left-close"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2241,7 +2353,7 @@
             {% endif %}
         </div>
         {% endif %}
-        {% if page_meta and page_meta.template == "post" and page_meta.cover %}
+        {% if page_meta and page_meta.template == "post" and page_meta.cover and page_meta.cover != '__NONE__' %}
         <div class="post-cover">
             <img src="{{ page_meta.cover }}" alt="{{ page_meta.title }}">
         </div>
@@ -2385,7 +2497,12 @@
                     </div>
                     <div class="full">
                         <label for="metaCover">封面图</label>
-                        <input id="metaCover" type="text" placeholder="图片 URL 或 /media/...">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input id="metaCover" type="text" placeholder="图片 URL 或 /media/..." style="flex: 1;">
+                            <button type="button" id="clearCoverBtn" class="action-btn" style="padding: 8px 12px; white-space: nowrap;" title="清除封面（设置为 none）">
+                                <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="full meta-checks">
                         <label><input id="metaPublic" type="checkbox"> 公开文章</label>
@@ -2403,7 +2520,12 @@
 
     <!-- 右侧 TOC -->
     <div class="toc-container" id="tocBox">
-        <h3>{% if page_mode in ['posts', 'archive'] %}站点信息{% else %}文档目录{% endif %}</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px 10px 20px;">
+            <h3 style="margin: 0; padding: 0;">{% if page_mode in ['posts', 'archive'] %}站点信息{% else %}文档目录{% endif %}</h3>
+            <button class="sidebar-icon-btn" id="toggleTocBtn" title="隐藏目录" style="flex-shrink: 0;">
+                <i data-lucide="panel-right-close"></i>
+            </button>
+        </div>
         {% if page_mode in ['posts', 'archive'] %}
         <div class="side-panel-block">
             <div style="font-weight:700; margin-bottom:12px;">热门标签</div>
@@ -2441,7 +2563,6 @@
             <div class="app-modal-actions" id="appModalActions"></div>
         </div>
     </div>
-    <div class="app-toast" id="appToast"></div>
     <div class="context-menu" id="treeContextMenu">
         <button type="button" data-action="create-doc"><i data-lucide="file-plus-2" class="icon-inline"></i> 新建文档</button>
         <button type="button" data-action="create-dir"><i data-lucide="folder-plus" class="icon-inline"></i> 新建目录</button>
@@ -2572,6 +2693,116 @@
                 }
                 return '';
             })();
+            
+            // 侧边栏和TOC显示/隐藏控制
+            const appShell = document.querySelector('.app-shell');
+            const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+            const toggleTocBtn = document.getElementById('toggleTocBtn');
+            const floatingShowSidebar = document.getElementById('floatingShowSidebar');
+            const floatingShowToc = document.getElementById('floatingShowToc');
+            let editModeState = { sidebarHidden: false, tocHidden: false }; // 编辑前的状态
+            
+            // 从 localStorage 读取状态并应用
+            function loadSidebarState() {
+                try {
+                    const sidebarVisible = localStorage.getItem('sidebar-visible');
+                    const tocVisible = localStorage.getItem('toc-visible');
+                    
+                    if (sidebarVisible === 'false') {
+                        appShell.classList.add('sidebar-hidden');
+                        updateSidebarIcon(true);
+                    }
+                    if (tocVisible === 'false') {
+                        appShell.classList.add('toc-hidden');
+                        updateTocIcon(true);
+                    }
+                } catch (e) {
+                    console.error('Failed to load sidebar state:', e);
+                }
+            }
+            
+            // 更新侧边栏按钮图标
+            function updateSidebarIcon(isHidden) {
+                if (!toggleSidebarBtn) return;
+                const icon = toggleSidebarBtn.querySelector('i');
+                if (icon) {
+                    icon.setAttribute('data-lucide', isHidden ? 'panel-left-open' : 'panel-left-close');
+                    if (window.lucide) window.lucide.createIcons();
+                }
+                toggleSidebarBtn.title = isHidden ? '显示侧边栏' : '隐藏侧边栏';
+            }
+            
+            // 更新TOC按钮图标
+            function updateTocIcon(isHidden) {
+                if (!toggleTocBtn) return;
+                const icon = toggleTocBtn.querySelector('i');
+                if (icon) {
+                    icon.setAttribute('data-lucide', isHidden ? 'panel-right-open' : 'panel-right-close');
+                    if (window.lucide) window.lucide.createIcons();
+                }
+                toggleTocBtn.title = isHidden ? '显示目录' : '隐藏目录';
+            }
+            
+            // 切换侧边栏显示/隐藏
+            if (toggleSidebarBtn && appShell) {
+                toggleSidebarBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isHidden = appShell.classList.toggle('sidebar-hidden');
+                    updateSidebarIcon(isHidden);
+                    try {
+                        localStorage.setItem('sidebar-visible', isHidden ? 'false' : 'true');
+                    } catch (e) {
+                        console.error('Failed to save sidebar state:', e);
+                    }
+                });
+            }
+            
+            // 切换TOC显示/隐藏
+            if (toggleTocBtn && appShell) {
+                toggleTocBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isHidden = appShell.classList.toggle('toc-hidden');
+                    updateTocIcon(isHidden);
+                    try {
+                        localStorage.setItem('toc-visible', isHidden ? 'false' : 'true');
+                    } catch (e) {
+                        console.error('Failed to save toc state:', e);
+                    }
+                });
+            }
+            
+            // 浮动按钮：显示侧边栏
+            if (floatingShowSidebar && appShell) {
+                floatingShowSidebar.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    appShell.classList.remove('sidebar-hidden');
+                    updateSidebarIcon(false);
+                    try {
+                        localStorage.setItem('sidebar-visible', 'true');
+                    } catch (e) {
+                        console.error('Failed to save sidebar state:', e);
+                    }
+                });
+            }
+            
+            // 浮动按钮：显示TOC
+            if (floatingShowToc && appShell) {
+                floatingShowToc.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    appShell.classList.remove('toc-hidden');
+                    updateTocIcon(false);
+                    try {
+                        localStorage.setItem('toc-visible', 'true');
+                    } catch (e) {
+                        console.error('Failed to save toc state:', e);
+                    }
+                });
+            }
+            
+            // 页面加载时应用保存的状态
+            if (appShell) {
+                loadSidebarState();
+            }
             
             // 隐藏右键菜单函数
             function hideContextMenu() {
@@ -2878,7 +3109,17 @@
                 lines.push(`updated: ${updated}`);
                 if (summary) lines.push(`summary: ${escapeYamlValue(summary)}`);
                 lines.push(`tags: [${tags.map(t => escapeYamlValue(t)).join(', ')}]`);
-                if (cover) lines.push(`cover: ${escapeYamlValue(cover)}`);
+                // 处理 cover：支持 'none' 或 'false' 表示不要封面
+                if (cover) {
+                    const coverLower = cover.toLowerCase();
+                    if (coverLower === 'none' || coverLower === 'false') {
+                        lines.push(`cover: ${coverLower}`);
+                    } else {
+                        lines.push(`cover: ${escapeYamlValue(cover)}`);
+                    }
+                } else {
+                    lines.push(`cover: `);
+                }
                 lines.push(`template: ${template}`);
                 lines.push(`public: ${isPublic ? 'true' : 'false'}`);
                 lines.push(`draft: ${isDraft ? 'true' : 'false'}`);
@@ -3151,6 +3392,29 @@
                             editorView.style.display = 'block';
                             editBtn.style.display = 'none';
                             if (frontMatterBtn) frontMatterBtn.style.display = 'none';
+                            
+                            // 隐藏评论区和其他内容，避免编辑器出现在下方
+                            const commentsSection = document.getElementById('comments');
+                            const postNav = document.querySelector('.post-nav');
+                            const siteFooter = document.querySelector('.site-footer');
+                            if (commentsSection) commentsSection.style.display = 'none';
+                            if (postNav) postNav.style.display = 'none';
+                            if (siteFooter) siteFooter.style.display = 'none';
+                            
+                            // 保存当前侧边栏状态，然后隐藏两侧
+                            if (appShell) {
+                                editModeState.sidebarHidden = appShell.classList.contains('sidebar-hidden');
+                                editModeState.tocHidden = appShell.classList.contains('toc-hidden');
+                                
+                                if (!editModeState.sidebarHidden) {
+                                    appShell.classList.add('sidebar-hidden');
+                                    updateSidebarIcon(true);
+                                }
+                                if (!editModeState.tocHidden) {
+                                    appShell.classList.add('toc-hidden');
+                                    updateTocIcon(true);
+                                }
+                            }
 
                             if (!editorInstance) {
                                 editorInstance = new toastui.Editor({
@@ -3218,6 +3482,26 @@
                     editBtn.style.display = 'inline-block';
                     if (frontMatterBtn) frontMatterBtn.style.display = 'inline-block';
                     if (metaPanel) metaPanel.classList.remove('show');
+                    
+                    // 恢复显示评论区和其他内容
+                    const commentsSection = document.getElementById('comments');
+                    const postNav = document.querySelector('.post-nav');
+                    const siteFooter = document.querySelector('.site-footer');
+                    if (commentsSection) commentsSection.style.display = '';
+                    if (postNav) postNav.style.display = '';
+                    if (siteFooter) siteFooter.style.display = '';
+                    
+                    // 恢复编辑前的侧边栏状态
+                    if (appShell) {
+                        if (!editModeState.sidebarHidden) {
+                            appShell.classList.remove('sidebar-hidden');
+                            updateSidebarIcon(false);
+                        }
+                        if (!editModeState.tocHidden) {
+                            appShell.classList.remove('toc-hidden');
+                            updateTocIcon(false);
+                        }
+                    }
                 });
 
                 if (frontMatterBtn) {
@@ -3239,6 +3523,18 @@
                 if (closeMetaBtn) {
                     closeMetaBtn.addEventListener('click', function() {
                         if (metaPanel) metaPanel.classList.remove('show');
+                    });
+                }
+
+                // 清除封面按钮
+                const clearCoverBtn = document.getElementById('clearCoverBtn');
+                if (clearCoverBtn) {
+                    clearCoverBtn.addEventListener('click', function() {
+                        const metaCoverInput = document.getElementById('metaCover');
+                        if (metaCoverInput) {
+                            metaCoverInput.value = 'none';
+                            showToast('封面已设置为 none，应用后将不显示封面', 'info');
+                        }
                     });
                 }
 
@@ -3772,6 +4068,17 @@
             });
         })();
     </script>
+    
+    <!-- Toast 提示层（放在最后确保不被遮挡） -->
+    <div class="app-toast" id="appToast"></div>
+    
+    <!-- 浮动显示按钮（PC端隐藏侧边栏后显示） -->
+    <button class="floating-show-btn floating-show-sidebar" id="floatingShowSidebar" title="显示侧边栏">
+        <i data-lucide="panel-left-open"></i>
+    </button>
+    <button class="floating-show-btn floating-show-toc" id="floatingShowToc" title="显示目录">
+        <i data-lucide="panel-right-open"></i>
+    </button>
 </body>
 
 </html>

@@ -70,7 +70,7 @@ class UIUtils {
         window.clearTimeout(this.showToast._timer);
         this.showToast._timer = window.setTimeout(() => {
             this.appToast.className = 'app-toast';
-        }, 3000);
+        }, 5000); // 延长到 5 秒
     }
 
     showAlertDialog(title, message) {

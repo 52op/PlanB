@@ -350,7 +350,21 @@ def _build_front_matter(raw_metadata, body_content, filename):
     metadata = dict(raw_metadata)
     metadata['title'] = str(raw_metadata.get('title') or heading_title or file_slug.replace('-', ' ').replace('_', ' ')).strip()
     metadata['summary'] = summary
-    metadata['cover'] = str(raw_metadata.get('cover') or _extract_first_image(body_content) or '').strip()
+    
+    # 保留原始的 cover 值
+    # 支持 'none' 或 'false' 或 '__NONE__' 表示明确不要封面
+    if 'cover' in raw_metadata:
+        cover_value = str(raw_metadata.get('cover') or '').strip().lower()
+        if cover_value in ('none', 'false', '__none__', ''):
+            # 用户明确不要封面，使用特殊标记 __NONE__（不会被 yaml.safe_dump 过滤）
+            metadata['cover'] = '__NONE__'
+        else:
+            # 用户设置了具体的封面 URL
+            metadata['cover'] = str(raw_metadata.get('cover')).strip()
+    else:
+        # cover 字段不存在，尝试自动提取
+        metadata['cover'] = str(_extract_first_image(body_content) or '').strip()
+    
     metadata['slug'] = _slugify(raw_metadata.get('slug') or file_slug)
     metadata['updated'] = datetime.now().strftime('%Y-%m-%d')
     
