@@ -186,22 +186,6 @@ class FrontMatterUtils {
         return lines.join('\n');
     }
 
-    fillMetaPanel() {
-        const editorInstance = window.editorManager?.editorInstance;
-        if (!editorInstance) return;
-
-        const content = editorInstance.getMarkdown();
-        const parsed = this.splitFrontMatter(content);
-        this.fillMetaPanelFromState({
-            bodyContent: parsed.body,
-            metadata: parsed.metadata,
-            currentFilePath: window.editorManager?.currentFilePath || '',
-        });
-    }
-
-    ensureFrontMatterBlock() {
-        this.fillMetaPanel();
-    }
 }
 
 window.frontMatterUtils = new FrontMatterUtils();
