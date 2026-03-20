@@ -1,0 +1,281 @@
+{% extends 'blog_base_vercel.html' %}
+
+{% block og_type %}article{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lightgallery.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.css') }}">
+<style>
+    .article-content .doc-image-link {
+        display: inline-block;
+        max-width: 100%;
+    }
+
+    .article-content .doc-image-link img {
+        cursor: zoom-in;
+    }
+</style>
+{% endblock %}
+
+{% set page_cover = page_meta.cover if page_meta.cover and page_meta.cover not in ['NONE', '__NONE__', 'false', 'False'] else '' %}
+
+{% block hero %}
+<section class="hero-block{% if not page_cover %} compact{% endif %}">
+    <div class="hero-grid{% if not page_cover %} hero-compact{% endif %}">
+        <div>
+            <span class="hero-eyebrow">Article</span>
+            <h1 class="hero-title">{{ page_meta.title }}</h1>
+            {% if page_meta.summary %}
+            <p class="hero-subtitle">{{ page_meta.summary }}</p>
+            {% endif %}
+            <div class="hero-meta-row">
+                {% if page_meta.date_display %}
+                <span class="hero-meta-pill"><i data-lucide="calendar"></i>{{ page_meta.date_display }}</span>
+                {% endif %}
+                {% if page_meta.category_name %}
+                <span class="hero-meta-pill"><i data-lucide="folder"></i>{{ page_meta.category_name }}</span>
+                {% endif %}
+                {% if page_meta.reading_minutes %}
+                <span class="hero-meta-pill"><i data-lucide="clock"></i>{{ page_meta.reading_minutes }} 分钟</span>
+                {% endif %}
+                {% if page_meta.view_count %}
+                <span class="hero-meta-pill"><i data-lucide="eye"></i>{{ page_meta.view_count }} 次浏览</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if page_cover %}
+        <div class="hero-side-card">
+            <img src="{{ absolute_url(page_cover) }}" alt="{{ page_meta.title }}" style="width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 18px; border: 1px solid var(--line);">
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block sidebar %}
+{% if toc %}
+<section class="widget-card">
+    <div class="widget-title"><i data-lucide="list"></i><h3>目录</h3></div>
+    <nav class="toc-nav" id="postToc">
+        {{ toc|safe }}
+    </nav>
+</section>
+{% endif %}
+
+<section class="widget-card widget-author">
+    <div class="widget-author-top">
+        {% if site_settings and site_settings.site_logo_url %}
+        <img src="{{ site_settings.site_logo_url }}" alt="{{ site_settings.site_name if site_settings else 'Planning' }}" class="widget-author-logo">
+        {% else %}
+        <div class="widget-author-mark">{{ (site_settings.site_name[:1] if site_settings and site_settings.site_name else 'P')|upper }}</div>
+        {% endif %}
+        <div>
+            <p class="widget-author-name">{{ site_settings.site_name if site_settings else 'Planning' }}</p>
+            <p class="widget-author-bio">{{ site_settings.site_tagline if site_settings else '记录生活，分享技术' }}</p>
+        </div>
+    </div>
+</section>
+
+{% if archive_groups %}
+<section class="widget-card">
+    <div class="widget-title"><i data-lucide="archive"></i><h3>近期归档</h3></div>
+    <ul class="archive-mini-list">
+        {% for group in archive_groups[:6] %}
+        <li><a href="{{ url_for('main.archive') }}#archive-{{ group.label|replace(' ', '-') }}">{{ group.label }} ({{ group.count }})</a></li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% set comment_page_value = request.args.get('comment_page', type=int) %}
+{% set comment_return_to = url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_page_value) if comment_page_value and comment_page_value > 1 else url_for('main.post_detail', slug=page_meta.slug) %}
+{% set comment_total = comment_pagination.total if comment_pagination else (comments|length if comments else 0) %}
+
+{% macro render_comment(comment, depth=0) %}
+<article class="comment-card{% if depth > 0 %} is-reply{% endif %}">
+    <div class="comment-head">
+        {% if comment.user and comment.user.avatar_url %}
+        <img src="{{ comment.user.avatar_url }}" alt="Avatar" class="comment-avatar">
+        {% else %}
+        <div class="comment-avatar-fallback">{{ (comment.user.nickname or comment.user.username)[:1]|upper if comment.user else '?' }}</div>
+        {% endif %}
+        <div>
+            <div class="comment-author-row">
+                <span class="comment-author">{{ comment.user.nickname or comment.user.username if comment.user else '匿名' }}</span>
+                {% if comment.user and comment.user.role == 'admin' %}
+                <span class="comment-admin-badge">管理员</span>
+                {% endif %}
+            </div>
+            <div class="comment-meta-time">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '' }}</div>
+        </div>
+    </div>
+
+    <div class="comment-body">{{ comment.rendered_content|safe }}</div>
+
+    <div class="comment-actions">
+        {% if current_user.is_authenticated and current_user.email_verified %}
+        <button type="button" class="comment-btn" onclick="toggleReplyForm('reply-{{ comment.id }}')">回复</button>
+        {% endif %}
+        {% if can_delete_comment(comment, current_user) %}
+        <form method="POST" action="{{ url_for('main.remove_comment', comment_id=comment.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+            <button type="submit" class="comment-btn danger">删除</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if current_user.is_authenticated and current_user.email_verified %}
+    <form id="reply-{{ comment.id }}" class="reply-form" style="display: none;" method="POST" action="{{ url_for('main.post_comment', filename=current_file) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="parent_id" value="{{ comment.id }}">
+        <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+        <textarea name="content" placeholder="回复 {{ comment.user.nickname or comment.user.username if comment.user else '这条评论' }}" required></textarea>
+        <div class="reply-form-actions">
+            <button type="submit" class="btn">提交回复</button>
+            <button type="button" class="btn-secondary" onclick="toggleReplyForm('reply-{{ comment.id }}')">取消</button>
+        </div>
+    </form>
+    {% endif %}
+
+    {% if comment.visible_replies %}
+        {% for reply in comment.visible_replies %}
+        {{ render_comment(reply, depth + 1) }}
+        {% endfor %}
+    {% endif %}
+</article>
+{% endmacro %}
+
+<article class="article-shell">
+    <header class="article-header">
+        <h1 class="article-title">{{ page_meta.title }}</h1>
+        {% if page_meta.summary %}
+        <p class="article-summary">{{ page_meta.summary }}</p>
+        {% endif %}
+        <div class="article-meta">
+            {% if page_meta.date_display %}
+            <span class="article-meta-item"><i data-lucide="calendar"></i>{{ page_meta.date_display }}</span>
+            {% endif %}
+            {% if page_meta.updated_display %}
+            <span class="article-meta-item"><i data-lucide="refresh-cw"></i>{{ page_meta.updated_display }}</span>
+            {% endif %}
+            {% if page_meta.reading_minutes %}
+            <span class="article-meta-item"><i data-lucide="clock"></i>{{ page_meta.reading_minutes }} 分钟</span>
+            {% endif %}
+            {% if page_meta.view_count %}
+            <span class="article-meta-item"><i data-lucide="eye"></i>{{ page_meta.view_count }} 次浏览</span>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="article-body article-content" data-image-preview-scope="blog-post-vercel">
+        {{ content|safe }}
+    </div>
+
+    {% if page_meta.tags %}
+    <div class="article-tags">
+        {% for tag in page_meta.tags %}
+        <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</article>
+
+{% if previous_post or next_post %}
+<nav class="article-nav">
+    {% if previous_post %}
+    <a href="{{ previous_post.url }}" class="article-nav-item">
+        <span class="article-nav-label">上一篇</span>
+        <span class="article-nav-title">{{ previous_post.title }}</span>
+    </a>
+    {% else %}
+    <div class="article-nav-item article-nav-item-disabled">
+        <span class="article-nav-label">上一篇</span>
+        <span class="article-nav-title">没有了</span>
+    </div>
+    {% endif %}
+
+    {% if next_post %}
+    <a href="{{ next_post.url }}" class="article-nav-item">
+        <span class="article-nav-label">下一篇</span>
+        <span class="article-nav-title">{{ next_post.title }}</span>
+    </a>
+    {% else %}
+    <div class="article-nav-item article-nav-item-disabled">
+        <span class="article-nav-label">下一篇</span>
+        <span class="article-nav-title">没有了</span>
+    </div>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% if comments_enabled_flag %}
+<section class="comments-section" id="comments">
+    <h2 class="comments-title"><i data-lucide="message-circle"></i>评论 ({{ comment_total }})</h2>
+
+    {% if current_user.is_authenticated %}
+        {% if current_user.email_verified %}
+        <form class="comment-form" method="POST" action="{{ url_for('main.post_comment', filename=current_file) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+            <textarea name="content" placeholder="写下你的评论，支持 Markdown 语法..." required></textarea>
+            <div class="comment-form-footer">
+                <span style="color: var(--text-muted); font-size: 13px;">当前身份：{{ current_user.username }}</span>
+                <button type="submit" class="btn">发表评论</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="comment-note-box">请先完成邮箱验证后再参与评论。</div>
+        {% endif %}
+    {% else %}
+    <div class="comment-note-box">请先 <a href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}">登录</a> 后再参与评论。</div>
+    {% endif %}
+
+    <div class="comment-list">
+        {% for comment in comments %}
+        {{ render_comment(comment) }}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">💬</div>
+            <h3>还没有评论</h3>
+            <p>来留下第一条评论吧。</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if comment_pagination and comment_pagination.total_pages > 1 %}
+    <nav class="pagination">
+        {% if comment_pagination.has_prev %}
+        <a href="{{ url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_pagination.prev_page) }}#comments" class="page-link"><i data-lucide="chevron-left"></i></a>
+        {% endif %}
+        <span class="page-number current">{{ comment_pagination.page }} / {{ comment_pagination.total_pages }}</span>
+        {% if comment_pagination.has_next %}
+        <a href="{{ url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_pagination.next_page) }}#comments" class="page-link"><i data-lucide="chevron-right"></i></a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endif %}
+
+<script>
+function toggleReplyForm(id) {
+    const form = document.getElementById(id);
+    if (!form) return;
+    form.style.display = (form.style.display === 'block') ? 'none' : 'block';
+}
+</script>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='vendor/lightgallery/lightgallery.umd.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/modules/image-utils.js') }}" defer></script>
+{% endblock %}

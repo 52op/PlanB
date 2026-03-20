@@ -1,0 +1,120 @@
+{% extends 'blog_base_vercel.html' %}
+
+{% block hero %}
+<section class="hero-block compact">
+    <div class="hero-grid hero-compact">
+        <div>
+            <span class="hero-eyebrow">
+                {% if request.endpoint == 'main.search' %}Search{% elif category_name %}Category{% else %}Posts{% endif %}
+            </span>
+            <h1 class="hero-title">{{ page_title }}</h1>
+            <p class="hero-subtitle">
+                {% if request.endpoint == 'main.search' and search_query %}
+                搜索关键词 “{{ search_query }}” 的公开结果
+                {% elif page_description %}
+                {{ page_description }}
+                {% elif category_name %}
+                正在浏览分类 {{ category_name }} 下的文章
+                {% else %}
+                浏览所有已发布的公开文章
+                {% endif %}
+            </p>
+            <div class="hero-meta-row">
+                <span class="hero-meta-pill"><i data-lucide="files"></i>{{ pagination.total if pagination else (posts|length) }} 篇文章</span>
+                {% if pagination %}
+                <span class="hero-meta-pill"><i data-lucide="book-open"></i>第 {{ pagination.page }} / {{ pagination.total_pages }} 页</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section>
+    <div class="posts-toolbar">
+        <div>
+            <strong>{{ pagination.total if pagination else (posts|length) }}</strong>
+            <span>条内容</span>
+        </div>
+        <div class="posts-toolbar-links">
+            <a href="{{ url_for('main.category', dirname='') }}">分类总览</a>
+            <a href="{{ url_for('main.archive') }}">归档</a>
+            <a href="{{ url_for('main.tags_page') }}">标签</a>
+        </div>
+    </div>
+
+    {% if posts %}
+    <div class="posts-stack">
+        {% for post in posts %}
+        {% set post_cover = post.cover if post.cover and post.cover not in ['NONE', '__NONE__', 'false', 'False'] else '' %}
+        <article class="posts-list-card">
+            <div class="posts-list-content">
+                <div class="story-meta">
+                    {% if post.date_display %}
+                    <span class="story-meta-item"><i data-lucide="calendar"></i>{{ post.date_display }}</span>
+                    {% endif %}
+                    {% if post.category_name %}
+                    <span class="story-meta-item"><i data-lucide="folder"></i>{{ post.category_name }}</span>
+                    {% endif %}
+                    {% if post.reading_minutes %}
+                    <span class="story-meta-item"><i data-lucide="clock"></i>{{ post.reading_minutes }} 分钟</span>
+                    {% endif %}
+                    {% if post.view_count %}
+                    <span class="story-meta-item"><i data-lucide="eye"></i>{{ post.view_count }}</span>
+                    {% endif %}
+                </div>
+                <h2 class="story-title compact"><a href="{{ post.url }}">{{ post.title }}</a></h2>
+                <p class="story-summary">{{ post.search_snippet or post.summary or '这篇文章还没有摘要。' }}</p>
+                <div class="story-footer">
+                    <div class="story-tags">
+                        {% for tag in post.tags[:4] %}
+                        <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+                        {% endfor %}
+                    </div>
+                    <a href="{{ post.url }}" class="btn-subtle">阅读全文</a>
+                </div>
+            </div>
+            <div class="posts-list-media">
+                {% if post_cover %}
+                <img src="{{ absolute_url(post_cover) }}" alt="{{ post.title }}">
+                {% else %}
+                <div class="hero-side-card" style="height:100%;">
+                    <h3>Summary</h3>
+                    <strong>{{ post.category_name or '文章' }}</strong>
+                    <p>{{ post.summary or '该文章暂无摘要，点击后查看完整正文。' }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+
+    {% if pagination and pagination.total_pages > 1 %}
+    <nav class="pagination">
+        {% if pagination.has_prev %}
+        <a href="{{ pagination.prev_url }}" class="page-link"><i data-lucide="chevron-left"></i></a>
+        {% endif %}
+        {% for page_num in range(1, pagination.total_pages + 1) %}
+            {% if page_num == pagination.page %}
+            <span class="page-number current">{{ page_num }}</span>
+            {% elif page_num == 1 or page_num == pagination.total_pages or (page_num >= pagination.page - 2 and page_num <= pagination.page + 2) %}
+            <a href="{{ pagination.page_urls[page_num] }}" class="page-number">{{ page_num }}</a>
+            {% elif page_num == pagination.page - 3 or page_num == pagination.page + 3 %}
+            <span class="page-number">...</span>
+            {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+        <a href="{{ pagination.next_url }}" class="page-link"><i data-lucide="chevron-right"></i></a>
+        {% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <h3>没有找到内容</h3>
+        <p>{{ empty_message or '当前条件下还没有可显示的公开文章。' }}</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

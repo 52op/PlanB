@@ -74,6 +74,10 @@
                             <span class="theme-name">Astro</span>
                             <span class="theme-desc">星云内容站</span>
                         </a>
+                        <a href="{{ url_for('main.switch_theme', theme='vercel') }}" class="theme-option {{ 'active' if current_theme == 'vercel' else '' }}">
+                            <span class="theme-name">Vercel</span>
+                            <span class="theme-desc">极简产品感</span>
+                        </a>
                     </div>
                 </div>
                 <button type="button" class="header-icon" id="themeToggle" title="切换主题">

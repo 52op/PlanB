@@ -1,0 +1,163 @@
+{% extends 'blog_base_vercel.html' %}
+
+{% set featured_cover = featured_post.cover if featured_post and featured_post.cover and featured_post.cover not in ['NONE', '__NONE__', 'false', 'False'] else '' %}
+
+{% block hero %}
+<section class="hero-block">
+    <div class="hero-grid">
+        <div>
+            <span class="hero-eyebrow">Vercel Inspired Theme</span>
+            <h1 class="hero-title">{{ site_settings.home_title or site_settings.site_name or 'Welcome' }}</h1>
+            <p class="hero-subtitle">{{ site_settings.home_description or site_settings.site_tagline or '记录生活，分享技术' }}</p>
+            <div class="hero-actions">
+                <a href="{{ url_for('main.posts') }}" class="btn">浏览全部文章</a>
+                <a href="{{ url_for('main.category', dirname='') }}" class="btn-secondary">查看分类结构</a>
+                {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}
+                <a href="{{ url_for('main.docs_home') }}" class="btn-subtle">进入文档系统</a>
+                {% endif %}
+            </div>
+            <div class="hero-stats">
+                <span class="hero-stat"><i data-lucide="file-text"></i>{{ archive_groups|sum(attribute='count') if archive_groups else 0 }} 篇公开文章</span>
+                <span class="hero-stat"><i data-lucide="tag"></i>{{ tags|length if tags else 0 }} 个标签</span>
+                <span class="hero-stat"><i data-lucide="folder-tree"></i>{{ category_groups|length if category_groups else 0 }} 个分类</span>
+            </div>
+        </div>
+
+        <div class="hero-side-card">
+            <h3>Now Shipping</h3>
+            <strong>{{ featured_post.title if featured_post else '内容体系已经就绪' }}</strong>
+            <p>{{ featured_post.summary if featured_post and featured_post.summary else '你可以用这套主题把博客首页做成更偏产品展示和内容索引的感觉，克制、清爽，也更有秩序。' }}</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+{% if featured_post or posts %}
+    {% if featured_post %}
+    <article class="story-card featured">
+        <div class="story-card-body">
+            <span class="story-kicker">Featured Story</span>
+            <h2 class="story-title"><a href="{{ featured_post.url }}">{{ featured_post.title }}</a></h2>
+            <div class="story-meta">
+                {% if featured_post.date_display %}
+                <span class="story-meta-item"><i data-lucide="calendar"></i>{{ featured_post.date_display }}</span>
+                {% endif %}
+                {% if featured_post.category_name %}
+                <span class="story-meta-item"><i data-lucide="folder"></i>{{ featured_post.category_name }}</span>
+                {% endif %}
+                {% if featured_post.reading_minutes %}
+                <span class="story-meta-item"><i data-lucide="clock"></i>{{ featured_post.reading_minutes }} 分钟</span>
+                {% endif %}
+                {% if featured_post.view_count %}
+                <span class="story-meta-item"><i data-lucide="eye"></i>{{ featured_post.view_count }}</span>
+                {% endif %}
+            </div>
+            <p class="story-summary">{{ featured_post.summary or '这是一篇精选文章，适合作为首页第一眼就看到的内容入口。' }}</p>
+            <div class="story-footer">
+                <div class="story-tags">
+                    {% for tag in featured_post.tags[:4] %}
+                    <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+                    {% endfor %}
+                </div>
+                <a href="{{ featured_post.url }}" class="btn">阅读全文</a>
+            </div>
+        </div>
+        <div class="story-card-image">
+            {% if featured_cover %}
+            <img src="{{ absolute_url(featured_cover) }}" alt="{{ featured_post.title }}">
+            {% else %}
+            <div class="hero-side-card" style="height:100%;">
+                <h3>Reading Queue</h3>
+                <strong>{{ featured_post.category_name or '精选推荐' }}</strong>
+                <p>没有封面也没关系，这种大面积留白反而更贴近 Vercel 风格的克制表达。</p>
+            </div>
+            {% endif %}
+        </div>
+    </article>
+    {% endif %}
+
+    {% if posts %}
+    <section style="margin-top: 22px;">
+        <div class="section-header">
+            <div>
+                <h2>Latest Articles</h2>
+                <p>不是简单的信息流，而是更像一个干净的发布面板。</p>
+            </div>
+            <a href="{{ url_for('main.posts') }}" class="btn-secondary">查看全部</a>
+        </div>
+        <div class="stories-grid">
+            {% for post in posts %}
+            {% if not featured_post or post.url != featured_post.url %}
+            {% set post_cover = post.cover if post.cover and post.cover not in ['NONE', '__NONE__', 'false', 'False'] else '' %}
+            <article class="story-card compact">
+                {% if post_cover %}
+                <div class="story-card-image">
+                    <img src="{{ absolute_url(post_cover) }}" alt="{{ post.title }}">
+                </div>
+                {% endif %}
+                <div class="story-card-body">
+                    <div class="story-meta">
+                        {% if post.date_display %}
+                        <span class="story-meta-item"><i data-lucide="calendar"></i>{{ post.date_display }}</span>
+                        {% endif %}
+                        {% if post.category_name %}
+                        <span class="story-meta-item"><i data-lucide="folder"></i>{{ post.category_name }}</span>
+                        {% endif %}
+                    </div>
+                    <h3 class="story-title compact"><a href="{{ post.url }}">{{ post.title }}</a></h3>
+                    <p class="story-summary">{{ post.summary or '这篇文章还没有摘要。' }}</p>
+                    <div class="story-footer">
+                        <div class="story-tags">
+                            {% for tag in post.tags[:3] %}
+                            <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+                            {% endfor %}
+                        </div>
+                        <a href="{{ post.url }}" class="btn-subtle">打开</a>
+                    </div>
+                </div>
+            </article>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if category_groups %}
+    <section style="margin-top: 22px;">
+        <div class="section-header">
+            <div>
+                <h2>Category Overview</h2>
+                <p>如果你更习惯按主题进入内容，可以直接从这里切换。</p>
+            </div>
+            <a href="{{ url_for('main.category', dirname='') }}" class="btn-secondary">全部分类</a>
+        </div>
+        <div class="category-grid">
+            {% for category in category_groups %}
+            <article class="category-card">
+                <div class="category-card-top">
+                    <div>
+                        <h3 class="category-card-title"><a href="{{ category.url }}">{{ category.name }}</a></h3>
+                        {% if category.latest_date_display %}
+                        <p class="category-card-meta">最近更新：{{ category.latest_date_display }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="category-card-count">{{ category.count }} 篇</span>
+                </div>
+                {% if category.latest_post %}
+                <p class="category-card-highlight">最新文章：<a href="{{ category.latest_post.url }}">{{ category.latest_post.title }}</a></p>
+                {% endif %}
+                <a href="{{ category.url }}" class="category-card-link">进入分类 <i data-lucide="arrow-right"></i></a>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon">📝</div>
+    <h3>还没有发布文章</h3>
+    <p>当你开始发布公开文章后，这个首页会自动形成一套很接近产品发布站的内容结构。</p>
+</div>
+{% endif %}
+{% endblock %}
