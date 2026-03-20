@@ -5,6 +5,8 @@ class ContextMenuManager {
     constructor() {
         this.contextMenuTarget = null;
         this.uploadTargetDir = '';
+        this.longPressTimer = null;
+        this.longPressDuration = 500;
         this.initializeElements();
         this.bindEvents();
     }
@@ -14,27 +16,45 @@ class ContextMenuManager {
     }
 
     showContextMenu(event, target) {
-        if (!this.treeContextMenu || window.innerWidth <= 900) return;
+        if (!this.treeContextMenu) return;
 
         event.preventDefault();
         event.stopPropagation();
 
         this.contextMenuTarget = target;
 
-        // 设置菜单位置
-        this.treeContextMenu.style.left = `${event.clientX}px`;
-        this.treeContextMenu.style.top = `${event.clientY}px`;
+        let left = event.clientX;
+        let top = event.clientY;
+        const menuWidth = this.treeContextMenu.offsetWidth || 200;
+        const menuHeight = this.treeContextMenu.offsetHeight || 200;
+
+        if (left + menuWidth > window.innerWidth) {
+            left = window.innerWidth - menuWidth - 10;
+        }
+
+        if (top + menuHeight > window.innerHeight) {
+            top = window.innerHeight - menuHeight - 10;
+        }
+
+        this.treeContextMenu.style.left = `${Math.max(10, left)}px`;
+        this.treeContextMenu.style.top = `${Math.max(10, top)}px`;
 
         // 根据目标类型显示/隐藏菜单项
         const uploadDocBtn = this.treeContextMenu.querySelector('[data-action="upload-doc"]');
         const createDocBtn = this.treeContextMenu.querySelector('[data-action="create-doc"]');
+        const createDirBtn = this.treeContextMenu.querySelector('[data-action="create-dir"]');
+        const isDir = target.type === 'dir';
 
         if (uploadDocBtn) {
-            uploadDocBtn.style.display = target.type === 'dir' ? 'flex' : 'none';
+            uploadDocBtn.style.display = isDir ? 'flex' : 'none';
         }
 
         if (createDocBtn) {
-            createDocBtn.style.display = target.type === 'dir' ? 'flex' : 'none';
+            createDocBtn.style.display = isDir ? 'flex' : 'none';
+        }
+
+        if (createDirBtn) {
+            createDirBtn.style.display = isDir ? 'flex' : 'none';
         }
 
         this.treeContextMenu.classList.add('show');
@@ -75,6 +95,12 @@ class ContextMenuManager {
                 }
                 break;
 
+            case 'create-dir':
+                if (target.type === 'dir') {
+                    window.fileOperations?.createDirectory(target.path);
+                }
+                break;
+
             case 'rename':
                 if (target.type === 'dir') {
                     window.fileOperations?.renameDirectory(target.path, target.name);
@@ -110,6 +136,43 @@ class ContextMenuManager {
 
                 this.showContextMenu(event, target);
             });
+
+            node.addEventListener('touchstart', (event) => {
+                if (!this.treeContextMenu) return;
+                const touch = event.touches[0];
+                const target = {
+                    type: node.dataset.nodeType || (node.dataset.dirPath ? 'dir' : 'file'),
+                    path: node.dataset.dirPath || node.dataset.filePath || '',
+                    name: node.dataset.nodeName || node.dataset.dirName || node.dataset.fileName || ''
+                };
+
+                this.longPressTimer = window.setTimeout(() => {
+                    this.showContextMenu({
+                        clientX: touch.clientX,
+                        clientY: touch.clientY,
+                        preventDefault() {},
+                        stopPropagation() {},
+                    }, target);
+
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                }, this.longPressDuration);
+            }, { passive: true });
+
+            node.addEventListener('touchend', () => {
+                if (this.longPressTimer) {
+                    window.clearTimeout(this.longPressTimer);
+                    this.longPressTimer = null;
+                }
+            }, { passive: true });
+
+            node.addEventListener('touchmove', () => {
+                if (this.longPressTimer) {
+                    window.clearTimeout(this.longPressTimer);
+                    this.longPressTimer = null;
+                }
+            }, { passive: true });
         });
 
         // 绑定上下文菜单按钮事件

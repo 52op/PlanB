@@ -31,8 +31,8 @@ class FileOperations {
     async createDocument(targetDir = '') {
         const fileName = await window.uiUtils?.showPromptDialog(
             '新建文档',
-            '请输入文档名称（无需 .md 后缀）：',
-            ''
+            '请输入新文档名称（可不带 .md）',
+            'new-post.md'
         );
 
         if (!fileName) return;
@@ -53,21 +53,20 @@ class FileOperations {
             const data = await response.json();
 
             if (data.success) {
-                window.uiUtils?.showToast('文档创建成功', 'success');
                 window.location.href = `/docs/doc/${encodeURIComponent(data.path).replace(/%2F/g, '/')}`;
             } else {
-                window.uiUtils?.showAlertDialog('创建失败', data.error || '请稍后再试');
+                window.uiUtils?.showAlertDialog('新建失败', data.error || '请稍后再试');
             }
         } catch (error) {
-            window.uiUtils?.showAlertDialog('创建失败', '网络异常，请稍后再试');
+            window.uiUtils?.showAlertDialog('新建失败', '网络异常，请稍后再试');
         }
     }
 
     async createDirectory(parentDir = '') {
         const dirName = await window.uiUtils?.showPromptDialog(
             '新建目录',
-            '请输入目录名称：',
-            ''
+            '请输入新目录名称',
+            'new-folder'
         );
 
         if (!dirName) return;
@@ -88,25 +87,23 @@ class FileOperations {
             const data = await response.json();
 
             if (data.success) {
-                window.uiUtils?.showToast('目录创建成功', 'success');
-                window.location.reload();
+                window.location.href = data.path ? `/docs/dir/${encodeURIComponent(data.path).replace(/%2F/g, '/')}` : '/docs';
             } else {
-                window.uiUtils?.showAlertDialog('创建目录失败', data.error || '请稍后再试');
+                window.uiUtils?.showAlertDialog('新建目录失败', data.error || '请稍后再试');
             }
         } catch (error) {
-            window.uiUtils?.showAlertDialog('创建目录失败', '网络异常，请稍后再试');
+            window.uiUtils?.showAlertDialog('新建目录失败', '网络异常，请稍后再试');
         }
     }
 
     async renameDocument(filePath, currentName) {
-        const baseName = currentName.replace(/\.md$/i, '');
         const newName = await window.uiUtils?.showPromptDialog(
             '重命名文档',
-            '请输入新的文档名称（无需 .md 后缀）：',
-            baseName
+            '请输入新的文档名称',
+            currentName || ''
         );
 
-        if (!newName || newName === baseName) return;
+        if (!newName || newName === currentName) return;
 
         try {
             const response = await fetch('/api/documents/rename', {
@@ -124,11 +121,10 @@ class FileOperations {
             const data = await response.json();
 
             if (data.success) {
-                window.uiUtils?.showToast('重命名成功', 'success');
                 if (this.currentFilePath === filePath) {
                     window.location.href = `/docs/doc/${encodeURIComponent(data.path).replace(/%2F/g, '/')}`;
                 } else {
-                    window.location.reload();
+                    window.location.href = window.location.pathname;
                 }
             } else {
                 window.uiUtils?.showAlertDialog('重命名失败', data.error || '请稍后再试');
@@ -163,7 +159,6 @@ class FileOperations {
             const data = await response.json();
 
             if (data.success) {
-                window.uiUtils?.showToast('重命名成功', 'success');
                 const targetPath = this.currentDirPath === dirPath ? data.path : this.currentDirPath;
                 window.location.href = targetPath ? `/docs/dir/${encodeURIComponent(targetPath).replace(/%2F/g, '/')}` : '/docs';
             } else {
@@ -177,7 +172,7 @@ class FileOperations {
     async deleteDocument(filePath, fileName) {
         const confirmed = await window.uiUtils?.showConfirmDialog(
             '删除文档',
-            `确定删除文档"${fileName}"吗？此操作不可撤销。`,
+            `确定删除文档“${fileName}”吗？此操作不可恢复。`,
             '删除'
         );
 
@@ -211,7 +206,7 @@ class FileOperations {
     async deleteDirectory(dirPath, dirName) {
         const confirmed = await window.uiUtils?.showConfirmDialog(
             '删除目录',
-            `确定删除空目录"${dirName}"吗？`,
+            `确定删除空目录“${dirName}”吗？`,
             '删除'
         );
 
