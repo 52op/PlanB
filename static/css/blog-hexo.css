@@ -301,6 +301,89 @@ img {
     margin-bottom: 16px;
 }
 
+.posts-index-page {
+    display: grid;
+    gap: 24px;
+}
+
+.posts-index-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.posts-index-summary {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: var(--text-light);
+}
+
+.posts-index-summary strong {
+    font-size: 28px;
+    line-height: 1;
+    color: var(--text);
+}
+
+.posts-index-summary span,
+.posts-index-summary em {
+    font-size: 13px;
+    font-style: normal;
+}
+
+.posts-index-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.posts-index-actions a {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+    transition: all var(--transition);
+}
+
+.posts-index-actions a:hover {
+    color: var(--primary);
+    border-color: rgba(73, 177, 245, 0.3);
+    background: rgba(73, 177, 245, 0.08);
+}
+
+.posts-index-list {
+    gap: 18px;
+}
+
+.posts-index-card .post-cover {
+    height: 200px;
+}
+
+.posts-index-card .post-body {
+    padding: 22px;
+}
+
+.posts-index-card .post-title {
+    font-size: 20px;
+}
+
+.posts-index-card .post-excerpt {
+    margin-bottom: 14px;
+}
+
 .post-footer {
     display: flex;
     align-items: center;
@@ -1404,6 +1487,27 @@ img {
 
     .category-panel-title {
         font-size: 22px;
+    }
+
+    .posts-index-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 18px;
+    }
+
+    .posts-index-summary strong {
+        font-size: 24px;
+    }
+
+    .posts-index-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .posts-index-actions a {
+        width: 100%;
+        justify-content: center;
+        border-radius: 14px;
     }
 }
 

@@ -796,6 +796,88 @@ body.sidebar-collapsed .tags-layout {
     margin-bottom: 16px;
 }
 
+.posts-index-page {
+    display: grid;
+    gap: 24px;
+}
+
+.posts-index-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 60px 16px 0;
+    padding: 18px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+}
+
+.posts-index-summary {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: var(--text-muted);
+}
+
+.posts-index-summary strong {
+    font-size: 28px;
+    line-height: 1;
+    color: var(--text-primary);
+}
+
+.posts-index-summary span,
+.posts-index-summary em {
+    font-size: 13px;
+    font-style: normal;
+}
+
+.posts-index-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.posts-index-actions a {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    background: var(--content-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    transition: var(--transition);
+}
+
+.posts-index-actions a:hover {
+    color: var(--link-color);
+    border-color: rgba(63, 81, 181, 0.18);
+    background: rgba(63, 81, 181, 0.08);
+}
+
+.posts-index-list {
+    gap: 18px;
+    padding-top: 0;
+}
+
+.posts-index-item .post-item-header {
+    padding: 18px 20px 10px;
+}
+
+.posts-index-item .post-item-title {
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.posts-index-item .post-item-excerpt {
+    margin-bottom: 0;
+}
+
 .post-item-footer {
     padding: 12px 20px;
     border-top: 1px solid var(--border-color);
@@ -1389,7 +1471,7 @@ body.mobile-sidebar-open .mobile-menu-toggle .icon-close {
     }
 
     .post-list {
-        padding: 120px 16px 40px;
+        padding: 10px 16px 40px;
     }
 
     .post-item-header {
@@ -1919,6 +2001,28 @@ body.mobile-sidebar-open .mobile-menu-toggle .icon-close {
 
     .category-panel-title {
         font-size: 22px;
+    }
+
+    .posts-index-toolbar {
+        margin-top: 96px;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px;
+    }
+
+    .posts-index-summary strong {
+        font-size: 24px;
+    }
+
+    .posts-index-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .posts-index-actions a {
+        width: 100%;
+        justify-content: center;
+        border-radius: 10px;
     }
 }
 

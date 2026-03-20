@@ -18,10 +18,26 @@
 {% endblock %}
 
 {% block content %}
+<section class="posts-index-page">
+    <div class="posts-index-toolbar">
+        <div class="posts-index-summary">
+            <strong>{{ pagination.total if pagination else (posts|length) }}</strong>
+            <span>篇文章</span>
+            {% if pagination %}
+            <em>第 {{ pagination.page }}/{{ pagination.total_pages }} 页</em>
+            {% endif %}
+        </div>
+        <div class="posts-index-actions">
+            <a href="{{ url_for('main.category', dirname='') }}">分类总览</a>
+            <a href="{{ url_for('main.archive') }}">归档</a>
+            <a href="{{ url_for('main.tags_page') }}">标签</a>
+        </div>
+    </div>
+
 {% if posts %}
-    <div class="post-list">
+    <div class="post-list posts-index-list">
         {% for post in posts %}
-        <article class="post-item">
+        <article class="post-item posts-index-item">
             <div class="post-item-header">
                 <div class="post-item-meta">
                     {% if post.date_display %}
@@ -83,7 +99,7 @@
             {% if page_num == pagination.page %}
             <span class="page-number current">{{ page_num }}</span>
             {% elif page_num == 1 or page_num == pagination.total_pages or (page_num >= pagination.page - 2 and page_num <= pagination.page + 2) %}
-            <a href="?page={{ page_num }}" class="page-number">{{ page_num }}</a>
+            <a href="{{ pagination.page_urls[page_num] }}" class="page-number">{{ page_num }}</a>
             {% elif page_num == pagination.page - 3 or page_num == pagination.page + 3 %}
             <span class="page-number">...</span>
             {% endif %}
@@ -102,4 +118,5 @@
         <p class="empty-state-text">{{ empty_message or '没有找到相关文章' }}</p>
     </div>
 {% endif %}
+</section>
 {% endblock %}

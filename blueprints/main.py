@@ -635,6 +635,10 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
         extra_args['q'] = request.args.get('q')
     pagination['prev_url'] = url_for(endpoint, **pagination_base_args, **extra_args, page=pagination['prev_page']) if pagination['has_prev'] else ''
     pagination['next_url'] = url_for(endpoint, **pagination_base_args, **extra_args, page=pagination['next_page']) if pagination['has_next'] else ''
+    pagination['page_urls'] = {
+        page_num: url_for(endpoint, **pagination_base_args, **extra_args, page=page_num)
+        for page_num in range(1, pagination['total_pages'] + 1)
+    }
 
     return render_template(
         _get_template_name('blog_list'),
@@ -967,6 +971,10 @@ def search():
     pagination = paginate_posts(results, page=request.args.get('page', 1, type=int), per_page=12)
     pagination['prev_url'] = url_for('main.search', q=query, page=pagination['prev_page']) if pagination['has_prev'] else ''
     pagination['next_url'] = url_for('main.search', q=query, page=pagination['next_page']) if pagination['has_next'] else ''
+    pagination['page_urls'] = {
+        page_num: url_for('main.search', q=query, page=page_num)
+        for page_num in range(1, pagination['total_pages'] + 1)
+    }
     return render_template(
         _get_template_name('blog_list'),
         file_tree=file_tree,

@@ -1,10 +1,38 @@
 {% extends 'blog_base.html' %}
 
 {% block content %}
+<section class="posts-index-page">
+    <header class="posts-index-header">
+        <div>
+            <h2 class="posts-index-title">{{ page_title }}</h2>
+            <p class="posts-index-subtitle">
+                {% if request.endpoint == 'main.search' and search_query %}
+                搜索 "{{ search_query }}" 的相关文章结果。
+                {% elif category_name %}
+                当前正在浏览分类“{{ category_name }}”下的文章。
+                {% else %}
+                这是更适合连续浏览的文章索引页，你可以按分类、归档或标签继续深入。
+                {% endif %}
+            </p>
+        </div>
+        {% if pagination %}
+        <div class="posts-index-summary">
+            <span>共 {{ pagination.total }} 篇</span>
+            <span>第 {{ pagination.page }}/{{ pagination.total_pages }} 页</span>
+        </div>
+        {% endif %}
+    </header>
+
+    <div class="posts-index-actions">
+        <a href="{{ url_for('main.category', dirname='') }}">分类总览</a>
+        <a href="{{ url_for('main.archive') }}">按归档浏览</a>
+        <a href="{{ url_for('main.tags_page') }}">按标签浏览</a>
+    </div>
+
 {% if posts %}
-    <div class="post-list">
+    <div class="post-list posts-index-list">
         {% for post in posts %}
-        <article class="post-item">
+        <article class="post-item posts-index-item">
             <h2 class="post-title">
                 <a href="{{ post.url }}">{{ post.title }}</a>
             </h2>
@@ -44,7 +72,7 @@
             {% if page_num == pagination.page %}
             <span class="page-number current">{{ page_num }}</span>
             {% elif page_num == 1 or page_num == pagination.total_pages or (page_num >= pagination.page - 2 and page_num <= pagination.page + 2) %}
-            <a href="?page={{ page_num }}" class="page-number">{{ page_num }}</a>
+            <a href="{{ pagination.page_urls[page_num] }}" class="page-number">{{ page_num }}</a>
             {% elif page_num == pagination.page - 3 or page_num == pagination.page + 3 %}
             <span class="page-number">...</span>
             {% endif %}
@@ -60,4 +88,5 @@
         <p>{{ empty_message or '没有找到相关文章' }}</p>
     </div>
 {% endif %}
+</section>
 {% endblock %}
