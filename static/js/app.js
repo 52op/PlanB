@@ -107,14 +107,6 @@ class PlanningApp {
             window.searchManager.initializeSearchPage();
         }
 
-        // 初始化图片预览
-        if (window.imageUtils) {
-            // 延迟初始化，确保DOM完全加载
-            setTimeout(() => {
-                window.imageUtils.setupDocumentImagePreview();
-            }, 100);
-        }
-
         // 初始化主题管理器
         if (window.themeManager) {
             window.themeManager.initialize();

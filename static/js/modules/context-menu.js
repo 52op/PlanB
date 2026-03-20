@@ -4,7 +4,6 @@
 class ContextMenuManager {
     constructor() {
         this.contextMenuTarget = null;
-        this.uploadTargetDir = '';
         this.longPressTimer = null;
         this.longPressDuration = 500;
         this.initializeElements();
@@ -40,14 +39,9 @@ class ContextMenuManager {
         this.treeContextMenu.style.top = `${Math.max(10, top)}px`;
 
         // 根据目标类型显示/隐藏菜单项
-        const uploadDocBtn = this.treeContextMenu.querySelector('[data-action="upload-doc"]');
         const createDocBtn = this.treeContextMenu.querySelector('[data-action="create-doc"]');
         const createDirBtn = this.treeContextMenu.querySelector('[data-action="create-dir"]');
         const isDir = target.type === 'dir';
-
-        if (uploadDocBtn) {
-            uploadDocBtn.style.display = isDir ? 'flex' : 'none';
-        }
 
         if (createDocBtn) {
             createDocBtn.style.display = isDir ? 'flex' : 'none';
@@ -81,17 +75,6 @@ class ContextMenuManager {
             case 'create-doc':
                 if (target.type === 'dir') {
                     window.fileOperations?.createDocument(target.path);
-                }
-                break;
-
-            case 'upload-doc':
-                if (target.type === 'dir') {
-                    this.uploadTargetDir = target.path;
-                    const uploadInput = document.getElementById('uploadInput');
-                    if (uploadInput) {
-                        window.uploadManager?.setUploadTargetDir(target.path);
-                        uploadInput.click();
-                    }
                 }
                 break;
 
@@ -234,11 +217,6 @@ class ContextMenuManager {
                 <i data-lucide="file-plus"></i>
                 新建文档
             </button>
-            <button data-action="upload-doc">
-                <i data-lucide="upload"></i>
-                上传文档
-            </button>
-            <hr>
             <button data-action="rename">
                 <i data-lucide="edit-3"></i>
                 重命名
