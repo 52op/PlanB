@@ -273,6 +273,24 @@ button { cursor: pointer; }
 .hero-side-card h3 { margin: 0; color: var(--text-muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
 .hero-side-card strong { display: block; margin-top: 16px; font-size: clamp(24px, 4vw, 34px); line-height: 1.1; letter-spacing: -0.05em; }
 .hero-side-card p { margin: 12px 0 0; color: var(--text-soft); font-size: 14px; }
+.story-note-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100%;
+}
+.story-note-card h3 {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+}
+.story-note-card strong {
+    margin-top: 10px;
+    font-size: clamp(18px, 2.2vw, 28px);
+}
+.story-note-card p {
+    font-size: 13px;
+    line-height: 1.55;
+}
 
 .shell-grid { grid-template-columns: minmax(0, 1fr) minmax(260px, var(--sidebar)); gap: 26px; align-items: start; }
 .shell-main { min-width: 0; }

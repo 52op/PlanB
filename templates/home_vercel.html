@@ -6,7 +6,7 @@
 <section class="hero-block">
     <div class="hero-grid">
         <div>
-            <span class="hero-eyebrow">Vercel Inspired Theme</span>
+            <span class="hero-eyebrow">产品化内容首页</span>
             <h1 class="hero-title">{{ site_settings.home_title or site_settings.site_name or 'Welcome' }}</h1>
             <p class="hero-subtitle">{{ site_settings.home_description or site_settings.site_tagline or '记录生活，分享技术' }}</p>
             <div class="hero-actions">
@@ -24,7 +24,7 @@
         </div>
 
         <div class="hero-side-card">
-            <h3>Now Shipping</h3>
+            <h3>当前推荐</h3>
             <strong>{{ featured_post.title if featured_post else '内容体系已经就绪' }}</strong>
             <p>{{ featured_post.summary if featured_post and featured_post.summary else '你可以用这套主题把博客首页做成更偏产品展示和内容索引的感觉，克制、清爽，也更有秩序。' }}</p>
         </div>
@@ -37,7 +37,7 @@
     {% if featured_post %}
     <article class="story-card featured">
         <div class="story-card-body">
-            <span class="story-kicker">Featured Story</span>
+            <span class="story-kicker">精选文章</span>
             <h2 class="story-title"><a href="{{ featured_post.url }}">{{ featured_post.title }}</a></h2>
             <div class="story-meta">
                 {% if featured_post.date_display %}
@@ -67,8 +67,8 @@
             {% if featured_cover %}
             <img src="{{ absolute_url(featured_cover) }}" alt="{{ featured_post.title }}">
             {% else %}
-            <div class="hero-side-card" style="height:100%;">
-                <h3>Reading Queue</h3>
+            <div class="hero-side-card story-note-card" style="height:100%;">
+                <h3>分类入口</h3>
                 <strong>{{ featured_post.category_name or '精选推荐' }}</strong>
                 <p>没有封面也没关系，这种大面积留白反而更贴近 Vercel 风格的克制表达。</p>
             </div>
@@ -81,7 +81,7 @@
     <section style="margin-top: 22px;">
         <div class="section-header">
             <div>
-                <h2>Latest Articles</h2>
+                <h2>最新文章</h2>
                 <p>不是简单的信息流，而是更像一个干净的发布面板。</p>
             </div>
             <a href="{{ url_for('main.posts') }}" class="btn-secondary">查看全部</a>
@@ -127,7 +127,7 @@
     <section style="margin-top: 22px;">
         <div class="section-header">
             <div>
-                <h2>Category Overview</h2>
+                <h2>分类总览</h2>
                 <p>如果你更习惯按主题进入内容，可以直接从这里切换。</p>
             </div>
             <a href="{{ url_for('main.category', dirname='') }}" class="btn-secondary">全部分类</a>

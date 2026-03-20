@@ -5,7 +5,7 @@
     <div class="hero-grid hero-compact">
         <div>
             <span class="hero-eyebrow">
-                {% if request.endpoint == 'main.search' %}Search{% elif category_name %}Category{% else %}Posts{% endif %}
+                {% if request.endpoint == 'main.search' %}搜索{% elif category_name %}分类{% else %}文章{% endif %}
             </span>
             <h1 class="hero-title">{{ page_title }}</h1>
             <p class="hero-subtitle">
@@ -79,8 +79,8 @@
                 {% if post_cover %}
                 <img src="{{ absolute_url(post_cover) }}" alt="{{ post.title }}">
                 {% else %}
-                <div class="hero-side-card" style="height:100%;">
-                    <h3>Summary</h3>
+                <div class="hero-side-card story-note-card" style="height:100%;">
+                    <h3>摘要卡片</h3>
                     <strong>{{ post.category_name or '文章' }}</strong>
                     <p>{{ post.summary or '该文章暂无摘要，点击后查看完整正文。' }}</p>
                 </div>
