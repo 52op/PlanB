@@ -25,6 +25,7 @@ def create_app():
     config = load_config()
     
     app.config['APP_CONFIG'] = config
+    app.config['APP_TIMEZONE'] = config.get('timezone', 'Asia/Shanghai')
     if config.get('force_https_for_external_urls', False):
         app.config['PREFERRED_URL_SCHEME'] = 'https'
     app.config['SQLALCHEMY_DATABASE_URI'] = config.get('database_path', 'sqlite:///app.db')
@@ -92,4 +93,3 @@ if __name__ == '__main__':
             print("[警告] 未安装 waitress，回退到 Flask 开发服务器")
             print("请运行: pip install waitress")
             app.run(host='0.0.0.0', port=port, debug=False)
-

@@ -1,5 +1,7 @@
 import os
+from datetime import timezone, timedelta
 from xml.sax.saxutils import escape
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Blueprint, Response, flash, render_template, request, redirect, url_for, abort, current_app, send_from_directory, session
 from flask_login import current_user
@@ -43,6 +45,22 @@ from services.docs import _parse_markdown_file
 
 
 main_bp = Blueprint('main', __name__, template_folder='templates')
+
+
+def _get_app_timezone():
+    timezone_name = (current_app.config.get('APP_TIMEZONE') or 'Asia/Shanghai').strip() or 'Asia/Shanghai'
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        return timezone(timedelta(hours=8), name=timezone_name)
+
+
+def _format_app_datetime(value):
+    if value is None:
+        return ''
+    tz = _get_app_timezone()
+    localized = value.replace(tzinfo=timezone.utc).astimezone(tz)
+    return localized.strftime('%Y-%m-%d %H:%M')
 
 
 @main_bp.context_processor
@@ -1127,6 +1145,7 @@ def share_view(token):
         _external=True,
     )
     unlocked = not share_link.is_password_protected or bool(session.get(build_share_session_key(share_link.token)))
+    share_expires_display = _format_app_datetime(share_link.expires_at) if share_link.expires_at else '永久有效'
 
     if request.method == 'POST' and share_link.is_password_protected:
         submitted_password = request.form.get('password', '')
@@ -1146,6 +1165,7 @@ def share_view(token):
             current_share_url=requested_share_url,
             current_title=share_link.title,
             breadcrumb_items=[{'label': share_link.title, 'url': share_root_url}],
+            share_expires_display=share_expires_display,
         )
 
     if not unlocked:
@@ -1159,6 +1179,7 @@ def share_view(token):
             current_title=share_link.title,
             breadcrumb_items=[{'label': share_link.title, 'url': share_root_url}],
             password_error=password_error,
+            share_expires_display=share_expires_display,
         )
 
     try:
@@ -1191,6 +1212,7 @@ def share_view(token):
             current_relative_path=resolved_relative_path,
             breadcrumb_items=_build_share_breadcrumbs(share_link, current_path, current_title),
             directory_entries=_build_share_directory_entries(share_link, current_path),
+            share_expires_display=share_expires_display,
         )
 
     payload = _parse_markdown_file(current_path)
@@ -1215,6 +1237,7 @@ def share_view(token):
         content=payload.get('html') or '',
         toc=payload.get('toc') or '',
         allow_share_edit=bool(share_link.allow_edit),
+        share_expires_display=share_expires_display,
     )
 
 

@@ -853,7 +853,7 @@
                 <div class="share-badges">
                     <span class="share-badge"><i data-lucide="shield-check"></i> {{ '已加密' if share_link.is_password_protected else '公开访问' }}</span>
                     <span class="share-badge"><i data-lucide="square-pen"></i> {{ '允许编辑' if share_link.allow_edit else '只读浏览' }}</span>
-                    <span class="share-badge"><i data-lucide="timer"></i> {{ share_link.expires_at.strftime('%Y-%m-%d %H:%M') if share_link.expires_at else '永久有效' }}</span>
+                    <span class="share-badge"><i data-lucide="timer"></i> {{ share_expires_display }}</span>
                 </div>
             </div>
             <div class="share-hero-side">

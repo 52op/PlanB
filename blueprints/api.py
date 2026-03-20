@@ -1,9 +1,10 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, request, jsonify, session, url_for
+from flask import Blueprint, request, jsonify, session, url_for, current_app
 from flask_login import login_required, current_user
 from models import SystemSetting, Image, ShareLink, User, db
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from services import (
     InvalidPathError,
     build_share_session_key,
@@ -26,6 +27,20 @@ from services import (
 from werkzeug.utils import secure_filename
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+
+def _get_app_timezone():
+    timezone_name = (current_app.config.get('APP_TIMEZONE') or 'Asia/Shanghai').strip() or 'Asia/Shanghai'
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        return timezone(timedelta(hours=8), name=timezone_name)
+
+
+def _serialize_utc_datetime(value):
+    if value is None:
+        return None
+    return value.replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z')
 
 
 def _ensure_markdown_filename(filename):
@@ -80,13 +95,21 @@ def _parse_share_expiry(raw_value):
     if value in shortcuts:
         return datetime.utcnow() + shortcuts[value]
 
+    app_timezone = _get_app_timezone()
+
     try:
         expires_at = datetime.fromisoformat(value)
     except ValueError as exc:
-        raise ValueError('有效期格式无效') from exc
+        raise ValueError('???????') from exc
 
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=app_timezone)
+    else:
+        expires_at = expires_at.astimezone(app_timezone)
+
+    expires_at = expires_at.astimezone(timezone.utc).replace(tzinfo=None)
     if expires_at <= datetime.utcnow():
-        raise ValueError('有效期必须晚于当前时间')
+        raise ValueError('???????????')
     return expires_at
 
 
@@ -101,9 +124,9 @@ def _build_share_response(share_link):
         'target_path': share_link.target_path,
         'allow_edit': bool(share_link.allow_edit),
         'requires_password': bool(share_link.is_password_protected),
-        'expires_at': share_link.expires_at.isoformat() if share_link.expires_at else None,
-        'created_at': share_link.created_at.isoformat() if share_link.created_at else None,
-        'updated_at': share_link.updated_at.isoformat() if share_link.updated_at else None,
+        'expires_at': _serialize_utc_datetime(share_link.expires_at),
+        'created_at': _serialize_utc_datetime(share_link.created_at),
+        'updated_at': _serialize_utc_datetime(share_link.updated_at),
         'is_expired': is_expired,
         'is_active': not is_expired,
     }

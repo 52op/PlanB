@@ -296,8 +296,7 @@ class ShareManager {
         });
 
         document.getElementById('copyShareLinkBtn')?.addEventListener('click', async () => {
-            const ok = await window.shareUtils?.copyText(this.shareLinkInput?.value || '');
-            this.showToast(ok ? '分享链接已复制' : '复制失败，请手动复制', ok ? 'success' : 'error');
+            await this.copyTextWithToast(this.shareLinkInput?.value || '', '分享链接已复制');
         });
 
         document.getElementById('shareCreateAnotherBtn')?.addEventListener('click', () => this.showSetupPanel());
@@ -483,24 +482,18 @@ class ShareManager {
         this.createShareSubmitBtn.textContent = '生成中...';
 
         try {
-            const response = await fetch('/api/shares', {
+            const data = await this.requestJson('/api/shares', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.csrfToken,
                 },
                 body: JSON.stringify(payload),
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                return this.showToast(data.error || '生成分享失败', 'error');
-            }
-
+            }, '生成分享失败', '生成分享时网络异常');
+            if (!data) return;
             this.renderShareResult(data.share);
             this.showResultPanel();
             await this.loadShareList({ silent: true });
-        } catch (_) {
-            this.showToast('生成分享时网络异常', 'error');
         } finally {
             this.createShareSubmitBtn.disabled = false;
             this.createShareSubmitBtn.textContent = original;
@@ -528,8 +521,7 @@ class ShareManager {
         if (!this.lastSharePayload) return;
 
         if (action === 'copy-text') {
-            const ok = await window.shareUtils?.copyText(this.lastSharePayload.text);
-            this.showToast(ok ? '分享文案已复制' : '复制失败，请手动复制', ok ? 'success' : 'error');
+            await this.copyTextWithToast(this.lastSharePayload.text, '分享文案已复制');
             return;
         }
 
@@ -544,8 +536,13 @@ class ShareManager {
         }
 
         if (action === 'wechat') {
-            const ok = await window.shareUtils?.copyText(this.lastSharePayload.text);
-            this.showToast(ok ? '已复制分享信息，也可以直接让对方扫码访问。' : '对方也可以直接扫码访问。', ok ? 'success' : 'info');
+            await this.copyTextWithToast(
+                this.lastSharePayload.text,
+                '已复制分享信息，也可以直接让对方扫码访问。',
+                '对方也可以直接扫码访问。',
+                'success',
+                'info'
+            );
             this.shareQrCodeBox?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
@@ -671,8 +668,7 @@ class ShareManager {
 
         if (action === 'copy-link') {
             const share = this.findShare(token);
-            const ok = await window.shareUtils?.copyText(share?.url || '');
-            this.showToast(ok ? '分享链接已复制' : '复制失败，请手动复制', ok ? 'success' : 'error');
+            await this.copyTextWithToast(share?.url || '', '分享链接已复制');
             return;
         }
 
@@ -699,7 +695,7 @@ class ShareManager {
             this.manageCustomExpiryInput.value = '';
         } else {
             this.manageExpirySelect.value = 'custom';
-            this.manageCustomExpiryInput.value = String(share.expires_at).slice(0, 16);
+            this.manageCustomExpiryInput.value = this.toLocalDateTimeInputValue(share.expires_at);
         }
 
         this.syncManagePasswordField();
@@ -743,26 +739,19 @@ class ShareManager {
         this.saveManageShareBtn.textContent = '保存中...';
 
         try {
-            const response = await fetch(`/api/shares/${encodeURIComponent(share.token)}`, {
+            const data = await this.requestJson(`/api/shares/${encodeURIComponent(share.token)}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.csrfToken,
                 },
                 body: JSON.stringify(payload),
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                return this.showToast(data.error || '保存分享设置失败', 'error');
-            }
-
+            }, '保存分享设置失败', '保存分享设置时网络异常');
+            if (!data) return;
             this.replaceShareItem(data.share);
-            this.renderManageSummary();
-            this.renderShareList();
+            this.refreshManageView();
             this.openManageEditor(data.share.token);
             this.showToast('分享设置已更新', 'success');
-        } catch (_) {
-            this.showToast('保存分享设置时网络异常', 'error');
         } finally {
             this.saveManageShareBtn.disabled = false;
             this.saveManageShareBtn.textContent = original;
@@ -783,28 +772,20 @@ class ShareManager {
         );
         if (!ok) return;
 
-        try {
-            const response = await fetch(`/api/shares/${encodeURIComponent(token)}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.csrfToken,
-                },
-                body: JSON.stringify({ active: nextActive }),
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                return this.showToast(data.error || '更新分享状态失败', 'error');
-            }
+        const data = await this.requestJson(`/api/shares/${encodeURIComponent(token)}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.csrfToken,
+            },
+            body: JSON.stringify({ active: nextActive }),
+        }, '更新分享状态失败', '更新分享状态时网络异常');
+        if (!data) return;
 
-            this.replaceShareItem(data.share);
-            this.renderManageSummary();
-            this.renderShareList();
-            if (this.manageEditingToken === token) this.openManageEditor(token);
-            this.showToast(nextActive ? '分享已启用' : '分享已停用', 'success');
-        } catch (_) {
-            this.showToast('更新分享状态时网络异常', 'error');
-        }
+        this.replaceShareItem(data.share);
+        this.refreshManageView();
+        if (this.manageEditingToken === token) this.openManageEditor(token);
+        this.showToast(nextActive ? '分享已启用' : '分享已停用', 'success');
     }
 
     async deleteShare(token) {
@@ -814,25 +795,17 @@ class ShareManager {
         const ok = await this.showConfirm('删除分享', `确定要删除这个分享吗？\n${share.url || ''}`, '删除');
         if (!ok) return;
 
-        try {
-            const response = await fetch(`/api/shares/${encodeURIComponent(token)}`, {
-                method: 'DELETE',
-                headers: { 'X-CSRFToken': this.csrfToken },
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                return this.showToast(data.error || '删除分享失败', 'error');
-            }
+        const data = await this.requestJson(`/api/shares/${encodeURIComponent(token)}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': this.csrfToken },
+        }, '删除分享失败', '删除分享时网络异常');
+        if (!data) return;
 
-            this.currentShares = this.currentShares.filter((item) => item.token !== token);
-            this.shareManagedCount.textContent = String(this.currentShares.length);
-            this.renderManageSummary();
-            this.renderShareList();
-            if (this.manageEditingToken === token) this.closeManageEditor();
-            this.showToast('分享已删除', 'success');
-        } catch (_) {
-            this.showToast('删除分享时网络异常', 'error');
-        }
+        this.currentShares = this.currentShares.filter((item) => item.token !== token);
+        this.shareManagedCount.textContent = String(this.currentShares.length);
+        this.refreshManageView();
+        if (this.manageEditingToken === token) this.closeManageEditor();
+        this.showToast('分享已删除', 'success');
     }
 
     async showConfirm(title, message, confirmText) {
@@ -846,6 +819,43 @@ class ShareManager {
         const index = this.currentShares.findIndex((item) => item.token === nextShare.token);
         if (index >= 0) this.currentShares.splice(index, 1, nextShare);
         else this.currentShares.unshift(nextShare);
+    }
+
+    refreshManageView() {
+        this.renderManageSummary();
+        this.renderShareList();
+    }
+
+    async copyTextWithToast(text, successMessage, errorMessage = '复制失败，请手动复制', successType = 'success', errorType = 'error') {
+        const ok = await window.shareUtils?.copyText(text || '');
+        this.showToast(ok ? successMessage : errorMessage, ok ? successType : errorType);
+        return ok;
+    }
+
+    async requestJson(url, options, errorMessage, networkErrorMessage) {
+        try {
+            const response = await fetch(url, options);
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                this.showToast(data.error || errorMessage, 'error');
+                return null;
+            }
+            return data;
+        } catch (_) {
+            this.showToast(networkErrorMessage, 'error');
+            return null;
+        }
+    }
+
+    toLocalDateTimeInputValue(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hour = String(date.getHours()).padStart(2, '0');
+        const minute = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hour}:${minute}`;
     }
 
     formatDateTime(value) {
