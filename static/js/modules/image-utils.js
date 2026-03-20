@@ -114,6 +114,7 @@ class ImageUtils {
             plugins: this.getAvailablePlugins(),
             download: false,
             counter: true,
+            actualSize: false,
             showZoomInOutIcons: true,
             enableZoomAfter: 0,
             mobileSettings: { showCloseButton: true },
