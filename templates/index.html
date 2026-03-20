@@ -23,7 +23,7 @@
     <meta name="twitter:description" content="{{ meta_description }}">
     {% if meta_image %}<meta name="twitter:image" content="{{ meta_image }}">{% endif %}
     <link rel="canonical" href="{{ request.url }}">
-    {% if page_mode == 'doc' and page_meta and page_meta.template == 'post' %}
+    {% if current_file and page_meta and page_meta.template == 'post' %}
     <script type="application/ld+json">
         {
             "@context": "https://schema.org",

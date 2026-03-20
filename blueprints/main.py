@@ -594,7 +594,6 @@ def _render_document(filename, file_tree=None, docs_endpoint='main.docs_doc'):
         can_delete_comment=can_delete_comment,
         page_meta=page_meta,
         site_settings=_get_site_settings(),
-        page_mode='doc',
         absolute_url=_absolute_url,
         comments_enabled_flag=comments_enabled(),
         docs_endpoint=docs_endpoint,
@@ -1113,7 +1112,6 @@ def docs_dir(dirname):
         can_upload=can_upload,
         page_meta={'title': dirname or site_settings['site_name']},
         site_settings=site_settings,
-        page_mode='directory',
         docs_endpoint='main.docs_doc',
     )
 
@@ -1358,9 +1356,7 @@ def docs_search():
         can_upload=False,
         page_meta={'title': f'搜索: {query}' if query else '搜索文档'},
         site_settings=site_settings,
-        page_mode='docs_search',
         docs_endpoint='main.docs_doc',
-        search_query=query,
     )
 
 
