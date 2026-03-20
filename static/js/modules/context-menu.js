@@ -92,6 +92,10 @@ class ContextMenuManager {
                 }
                 break;
 
+            case 'share':
+                window.shareManager?.openShareModal(target.type, target.path, target.name);
+                break;
+
             case 'delete':
                 if (target.type === 'dir') {
                     window.fileOperations?.deleteDirectory(target.path, target.name);
@@ -216,6 +220,10 @@ class ContextMenuManager {
             <button data-action="create-doc">
                 <i data-lucide="file-plus"></i>
                 新建文档
+            </button>
+            <button data-action="share">
+                <i data-lucide="share-2"></i>
+                分享
             </button>
             <button data-action="rename">
                 <i data-lucide="edit-3"></i>

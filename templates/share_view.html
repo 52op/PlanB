@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      data-default-theme="{{ site_settings.default_theme_color if site_settings else 'blue' }}"
+      data-default-mode="{{ site_settings.default_theme_mode if site_settings else 'light' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ current_title or share_link.title }} - 分享访问</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/toastui/toastui-editor.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lightgallery.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
+    <script>
+      (function () {
+        try {
+          var color = localStorage.getItem('theme_color');
+          var mode = localStorage.getItem('theme_mode');
+          if (color) document.documentElement.setAttribute('data-theme-color', color);
+          if (mode) document.documentElement.setAttribute('data-theme', mode);
+        } catch (e) {
+          // ignore
+        }
+      })();
+    </script>
+    <script src="{{ url_for('static', filename='vendor/lucide/lucide.min.js') }}" defer></script>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background:
+                radial-gradient(circle at top, color-mix(in srgb, var(--color-primary-light) 35%, transparent), transparent 42%),
+                linear-gradient(180deg, color-mix(in srgb, var(--color-background) 94%, white 6%), var(--color-background));
+            color: var(--color-text);
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .share-page {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 28px 22px 42px;
+        }
+
+        .share-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .share-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .share-brand-title {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .share-brand-subtitle {
+            font-size: 13px;
+            color: var(--color-text-muted);
+        }
+
+        .share-top-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 10px;
+            position: relative;
+        }
+
+        .share-action-btn,
+        .share-link-inline button,
+        .share-editor-actions button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 40px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+        }
+
+        .share-action-btn:hover,
+        .share-link-inline button:hover,
+        .share-editor-actions button:hover {
+            transform: translateY(-1px);
+            border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border));
+            background: color-mix(in srgb, var(--color-primary-light) 24%, var(--color-surface));
+        }
+
+        .share-action-btn.primary,
+        .share-editor-actions button.primary {
+            background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 72%, #0f766e));
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .share-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 148px;
+            align-items: stretch;
+            gap: 20px;
+            padding: 28px;
+            border-radius: 28px;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+            background:
+                radial-gradient(circle at top right, color-mix(in srgb, var(--color-primary-light) 48%, transparent), transparent 34%),
+                linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 96%, white 4%), var(--color-surface));
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+        }
+
+        .share-hero-main {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .share-hero-side {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .share-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--color-primary-light) 62%, transparent);
+            color: var(--color-primary-dark);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .share-hero h1 {
+            margin: 16px 0 10px;
+            font-size: clamp(26px, 4vw, 42px);
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+        }
+
+        .share-hero p {
+            margin: 0;
+            max-width: 720px;
+            color: var(--color-text-muted);
+            line-height: 1.8;
+        }
+
+        .share-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .share-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--color-background) 86%, white 14%);
+            border: 1px solid color-mix(in srgb, var(--color-border) 86%, transparent);
+            font-size: 12px;
+            color: var(--color-text-muted);
+            font-weight: 700;
+        }
+
+        .share-hero-qr {
+            margin-top: auto;
+            margin-left: auto;
+            width: 132px;
+            padding: 0;
+            border: none;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .share-hero-qr-title {
+            display: none;
+        }
+
+        .share-hero-qr-tip {
+            display: none;
+        }
+
+        .share-link-inline,
+        #shareTocToggleBtn {
+            display: none !important;
+        }
+
+        .share-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 22px;
+            margin-top: 22px;
+            align-items: start;
+        }
+
+        .share-layout.toc-collapsed {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .share-main-card,
+        .share-side-card {
+            border-radius: 24px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-surface) 96%, white 4%);
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+        }
+
+        .share-main-card {
+            padding: 26px;
+        }
+
+        .share-side-card {
+            padding: 20px;
+            position: sticky;
+            top: 20px;
+        }
+
+        .share-layout.toc-collapsed .share-side-card {
+            display: none;
+        }
+
+        .share-side-card h3,
+        .share-main-card h3 {
+            margin: 0 0 16px;
+            font-size: 18px;
+        }
+
+        .share-side-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .share-side-header h3 {
+            margin: 0;
+        }
+
+        .share-toc-dock {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 40;
+            display: none;
+            box-shadow: 0 18px 34px rgba(15, 23, 42, 0.14);
+            backdrop-filter: blur(10px);
+        }
+
+        .share-toc-dock.show {
+            display: inline-flex;
+        }
+
+        .share-breadcrumb {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+            font-size: 13px;
+            color: var(--color-text-muted);
+        }
+
+        .share-breadcrumb a {
+            text-decoration: none;
+            color: var(--color-primary-dark);
+            font-weight: 700;
+        }
+
+        .share-empty,
+        .share-state-card {
+            padding: 30px;
+            text-align: center;
+            border-radius: 24px;
+            border: 1px dashed var(--color-border);
+            background: color-mix(in srgb, var(--color-surface) 92%, white 8%);
+        }
+
+        .share-state-card h2 {
+            margin: 14px 0 12px;
+            font-size: 28px;
+        }
+
+        .share-state-card p {
+            margin: 0 auto;
+            max-width: 480px;
+            color: var(--color-text-muted);
+            line-height: 1.8;
+        }
+
+        .share-lock-form {
+            max-width: 360px;
+            margin: 24px auto 0;
+            display: grid;
+            gap: 14px;
+        }
+
+        .share-lock-form input {
+            height: 46px;
+            padding: 0 14px;
+            border-radius: 14px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+        }
+
+        .share-lock-form button {
+            height: 46px;
+            border-radius: 14px;
+            border: none;
+            background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 72%, #0f766e));
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .share-error-text {
+            color: #c2410c;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .share-directory-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .share-node-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 18px 18px;
+            border-radius: 20px;
+            border: 1px solid var(--color-border);
+            text-decoration: none;
+            background: color-mix(in srgb, var(--color-surface) 94%, white 6%);
+            transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+        }
+
+        .share-node-card:hover {
+            transform: translateY(-1px);
+            border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+            background: color-mix(in srgb, var(--color-primary-light) 20%, var(--color-surface));
+        }
+
+        .share-node-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--color-primary-light) 76%, transparent);
+            color: var(--color-primary-dark);
+            flex: 0 0 auto;
+        }
+
+        .share-node-main {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .share-node-main strong {
+            display: block;
+            font-size: 15px;
+            line-height: 1.4;
+        }
+
+        .share-node-main span {
+            display: block;
+            margin-top: 4px;
+            color: var(--color-text-muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .share-node-arrow {
+            color: var(--color-text-muted);
+            flex: 0 0 auto;
+        }
+
+        .share-doc-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .share-doc-toolbar .share-doc-toolbar-left {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .share-doc-toolbar .share-doc-toolbar-right {
+            color: var(--color-text-muted);
+            font-size: 13px;
+        }
+
+        .share-doc-toolbar .share-doc-toolbar-right a {
+            color: var(--color-primary-dark);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .share-document-viewer {
+            min-height: 200px;
+        }
+
+        .share-markdown {
+            color: var(--color-text);
+            line-height: 1.9;
+        }
+
+        .share-markdown img {
+            max-width: 100%;
+            border-radius: 16px;
+        }
+
+        .share-markdown pre {
+            position: relative;
+        }
+
+        .share-code-copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            height: 30px;
+            padding: 0 10px;
+            border-radius: 10px;
+            border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+            background: rgba(255, 255, 255, 0.92);
+            color: var(--color-text-muted);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .share-code-copy-btn:hover {
+            color: var(--color-primary-dark);
+            border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+            background: color-mix(in srgb, var(--color-primary-light) 18%, white 82%);
+        }
+
+        .share-editor-panel {
+            display: none;
+        }
+
+        .share-editor-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .share-qrcode-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 124px;
+            min-width: 124px;
+            min-height: 124px;
+            border-radius: 18px;
+            border: 1px dashed color-mix(in srgb, var(--color-border) 84%, transparent);
+            background: color-mix(in srgb, var(--color-background) 94%, white 6%);
+            overflow: hidden;
+        }
+
+        .share-qrcode-box img,
+        .share-qrcode-box canvas {
+            width: 104px !important;
+            height: 104px !important;
+        }
+
+        .share-menu-wrap {
+            position: relative;
+        }
+
+        .share-popover {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            width: min(360px, calc(100vw - 28px));
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-surface) 97%, white 3%);
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+            display: none;
+            z-index: 20;
+        }
+
+        .share-popover.show {
+            display: block;
+        }
+
+        .share-popover-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--color-text);
+        }
+
+        .share-popover-subtitle {
+            margin-top: 6px;
+            color: var(--color-text-muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .share-popover-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .share-popover-grid .share-action-btn {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .share-toc {
+            display: grid;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .share-toc .toc ul {
+            list-style: none;
+            padding-left: 14px;
+            margin: 6px 0;
+        }
+
+        .share-toc .toc > ul {
+            padding-left: 0;
+        }
+
+        .share-toc .toc a {
+            text-decoration: none;
+            color: var(--color-text-muted);
+            line-height: 1.7;
+        }
+
+        .share-toc .toc a:hover {
+            color: var(--color-primary-dark);
+        }
+
+        .share-toc-empty {
+            color: var(--color-text-muted);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.38);
+            padding: 20px;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            width: min(100%, 440px);
+            padding: 22px;
+            border-radius: 20px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            margin: 0 0 10px;
+            font-size: 22px;
+        }
+
+        .modal-content p {
+            margin: 0;
+            color: var(--color-text-muted);
+            line-height: 1.8;
+        }
+
+        .modal-content .form-control,
+        .modal-content input[type="text"] {
+            width: 100%;
+            height: 44px;
+            margin-top: 14px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            background: var(--color-background);
+            color: var(--color-text);
+            font: inherit;
+            box-sizing: border-box;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .modal-actions .btn {
+            height: 40px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .modal-actions .btn-primary {
+            background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 72%, #0f766e));
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .app-toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 2000;
+            min-width: 220px;
+            max-width: 380px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+            display: none;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .app-toast.show {
+            display: block;
+        }
+
+        .app-toast.success {
+            background: color-mix(in srgb, var(--color-primary-light) 62%, white 38%);
+            color: var(--color-primary-dark);
+            border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border));
+        }
+
+        .app-toast.error {
+            background: rgba(254, 242, 242, 0.98);
+            color: #b91c1c;
+            border-color: #fecaca;
+        }
+
+        .app-toast.info {
+            background: color-mix(in srgb, var(--color-background) 88%, white 12%);
+            color: var(--color-text);
+        }
+
+        @media (max-width: 980px) {
+            .share-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .share-side-card {
+                position: static;
+            }
+
+            .share-hero {
+                grid-template-columns: 1fr;
+            }
+
+            .share-hero-side {
+                align-items: flex-end;
+            }
+
+            .share-hero-qr {
+                margin-left: auto;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .share-page {
+                padding: 18px 14px 30px;
+            }
+
+            .share-topbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .share-top-actions {
+                justify-content: flex-start;
+            }
+
+            .share-hero,
+            .share-main-card,
+            .share-side-card {
+                padding: 20px;
+                border-radius: 20px;
+            }
+
+            .share-hero h1 {
+                font-size: 26px;
+            }
+
+            .share-link-inline .share-link-row {
+                flex-direction: column;
+            }
+
+            .share-popover {
+                left: 0;
+                right: auto;
+                width: min(100%, 360px);
+            }
+
+            .share-popover-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .share-toc-dock {
+                right: 14px;
+                bottom: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="share-page"
+         data-share-view="true"
+         data-share-token="{{ share_link.token }}"
+         data-current-relative-path="{{ current_relative_path or '' }}"
+         data-view-kind="{{ view_kind or share_state }}"
+         data-allow-edit="{{ 'true' if allow_share_edit else 'false' }}"
+         data-share-title="{{ current_title or share_link.title }}"
+         data-share-url="{{ current_share_url }}"
+         data-site-name="{{ site_settings.site_name if site_settings else 'Planning' }}">
+        <div class="share-topbar">
+            <div class="share-brand">
+                <div class="share-brand-title">{{ site_settings.site_name if site_settings else 'Planning' }}</div>
+                <div class="share-brand-subtitle">安全分享 · 目录与文档可直接浏览{% if allow_share_edit %}，并支持在线编辑{% endif %}</div>
+            </div>
+            <div class="share-top-actions">
+                <a href="{{ url_for('main.index') }}" class="share-action-btn">
+                    <i data-lucide="house"></i>
+                    返回站点
+                </a>
+                {% if view_kind == 'file' and toc %}
+                <button type="button" class="share-action-btn" id="shareTocToggleBtn">
+                    <i data-lucide="panel-right-open"></i>
+                    目录栏
+                </button>
+                {% endif %}
+                {% if share_state == 'ready' %}
+                <button type="button" class="share-action-btn" data-share-page-action="copy-link">
+                    <i data-lucide="link-2"></i>
+                    复制链接
+                </button>
+                <div class="share-menu-wrap">
+                    <button type="button" class="share-action-btn primary" id="shareActionMenuBtn">
+                        <i data-lucide="send"></i>
+                        分享出去
+                    </button>
+                    <div class="share-popover" id="shareActionPopover">
+                        <div class="share-popover-title">转发方式</div>
+                        <div class="share-popover-subtitle">复制文案、扫码访问，或者直接跳转到常用平台继续转发。</div>
+                        <div class="share-popover-grid">
+                            <button type="button" class="share-action-btn" data-share-page-action="copy-text">
+                                <i data-lucide="copy"></i>
+                                复制文案
+                            </button>
+                            <button type="button" class="share-action-btn" data-share-page-action="wechat">
+                                <i data-lucide="message-circle"></i>
+                                微信
+                            </button>
+                            <button type="button" class="share-action-btn" data-share-page-action="qq">
+                                <i data-lucide="messages-square"></i>
+                                QQ
+                            </button>
+                            <button type="button" class="share-action-btn" data-share-page-action="qzone">
+                                <i data-lucide="orbit"></i>
+                                QZone
+                            </button>
+                            <button type="button" class="share-action-btn" data-share-page-action="weibo">
+                                <i data-lucide="rss"></i>
+                                微博
+                            </button>
+                            <button type="button" class="share-action-btn" data-share-page-action="system">
+                                <i data-lucide="send"></i>
+                                系统分享
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <section class="share-hero">
+            <div class="share-hero-main">
+                <span class="share-eyebrow">
+                    <i data-lucide="{% if share_link.target_type == 'dir' %}folder-open{% else %}file-text{% endif %}"></i>
+                    {{ '目录分享' if share_link.target_type == 'dir' else '文档分享' }}
+                </span>
+                <h1>{{ current_title or share_link.title }}</h1>
+                {% if share_state == 'locked' %}
+                <p>该分享已开启访问密码。输入正确密码后即可查看内容，分享链接保持不变。</p>
+                {% elif share_state == 'expired' %}
+                <p>这个分享链接已经超过有效期限，当前无法继续访问。如有需要，请联系分享者重新生成新的分享链接。</p>
+                {% elif view_kind == 'dir' %}
+                <p>你正在浏览分享出来的目录内容。可以继续进入子目录或打开文档查看，结构会始终保持在分享范围之内。</p>
+                {% else %}
+                <p>你正在查看一份分享出来的文档内容。链接支持直接转发、扫码打开{% if allow_share_edit %}，并且当前分享已允许在线编辑{% endif %}。</p>
+                {% endif %}
+                <div class="share-badges">
+                    <span class="share-badge"><i data-lucide="shield-check"></i> {{ '已加密' if share_link.is_password_protected else '公开访问' }}</span>
+                    <span class="share-badge"><i data-lucide="square-pen"></i> {{ '允许编辑' if share_link.allow_edit else '只读浏览' }}</span>
+                    <span class="share-badge"><i data-lucide="timer"></i> {{ share_link.expires_at.strftime('%Y-%m-%d %H:%M') if share_link.expires_at else '永久有效' }}</span>
+                </div>
+            </div>
+            <div class="share-hero-side">
+                <div class="share-link-inline">
+                    <label for="shareInlineUrl">当前分享链接</label>
+                    <div class="share-link-row">
+                        <input id="shareInlineUrl" type="text" readonly value="{{ current_share_url }}">
+                        <button type="button" data-share-page-action="copy-link">复制</button>
+                    </div>
+                </div>
+                <div class="share-hero-qr">
+                    <div class="share-hero-qr-title">扫码访问</div>
+                    <div class="share-qrcode-box" id="sharePageQrCode"></div>
+                    <div class="share-hero-qr-tip">微信中可直接扫码打开。桌面端也可以截图二维码后转发。</div>
+                </div>
+            </div>
+        </section>
+
+        {% if share_state in ['locked', 'expired'] %}
+        <div style="margin-top: 22px;">
+            <div class="share-state-card">
+                <div class="share-eyebrow">
+                    <i data-lucide="{% if share_state == 'locked' %}lock{% else %}clock-3{% endif %}"></i>
+                    {{ '需要密码' if share_state == 'locked' else '分享已过期' }}
+                </div>
+                <h2>{{ '继续访问此分享' if share_state == 'locked' else '这个分享已经失效' }}</h2>
+                <p>
+                    {% if share_state == 'locked' %}
+                    输入分享密码后即可进入当前内容。密码验证成功后，在同一个浏览器内会保持访问状态。
+                    {% else %}
+                    分享者设置的有效时间已经结束，所以当前链接不再可用。你仍然可以把失效信息反馈给分享者，让其重新生成一条新的分享链接。
+                    {% endif %}
+                </p>
+                {% if share_state == 'locked' %}
+                <form method="post" class="share-lock-form">
+                    {% if password_error %}<div class="share-error-text">{{ password_error }}</div>{% endif %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="password" name="password" placeholder="请输入分享密码" autocomplete="current-password">
+                    <button type="submit">验证并进入</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="share-layout{% if not (view_kind == 'file' and toc) %} toc-collapsed{% endif %}" id="shareLayout">
+            <main class="share-main-card">
+                <nav class="share-breadcrumb" aria-label="面包屑">
+                    {% for item in breadcrumb_items %}
+                        {% if item.url and not loop.last %}
+                        <a href="{{ item.url }}">{{ item.label }}</a>
+                        {% else %}
+                        <span>{{ item.label }}</span>
+                        {% endif %}
+                        {% if not loop.last %}<span>/</span>{% endif %}
+                    {% endfor %}
+                </nav>
+
+                {% if view_kind == 'dir' %}
+                <h3>目录内容</h3>
+                <div class="share-directory-grid">
+                    {% for entry in directory_entries %}
+                    <a class="share-node-card" href="{{ entry.url }}">
+                        <span class="share-node-icon"><i data-lucide="{% if entry.type == 'dir' %}folder-open{% else %}file-text{% endif %}"></i></span>
+                        <span class="share-node-main">
+                            <strong>{{ entry.title }}</strong>
+                            <span>{{ entry.meta }}</span>
+                        </span>
+                        <span class="share-node-arrow"><i data-lucide="chevron-right"></i></span>
+                    </a>
+                    {% else %}
+                    <div class="share-empty">当前目录里还没有可以浏览的子目录或文档。</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="share-doc-toolbar">
+                    <div class="share-doc-toolbar-left">
+                        {% if allow_share_edit %}
+                        <button type="button" class="share-action-btn primary" id="shareEditBtn">
+                            <i data-lucide="square-pen"></i>
+                            编辑文档
+                        </button>
+                        {% endif %}
+                        {% if share_link.target_type == 'dir' %}
+                        <a href="{{ share_root_url }}" class="share-action-btn">
+                            <i data-lucide="arrow-left"></i>
+                            回到分享根目录
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="share-doc-toolbar-right">
+                        {% if page_meta and page_meta.updated_display %}
+                        最近更新于 {{ page_meta.updated_display }}
+                        {% elif page_meta and page_meta.date_display %}
+                        发布于 {{ page_meta.date_display }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div id="shareDocumentViewer" class="share-document-viewer toastui-editor-contents share-markdown">
+                    {{ content|safe }}
+                </div>
+                {% if allow_share_edit %}
+                <div id="shareEditorPanel" class="share-editor-panel">
+                    <div id="shareEditorMount"></div>
+                    <div class="share-editor-actions">
+                        <button type="button" id="shareCancelEditBtn">取消</button>
+                        <button type="button" class="primary" id="shareSaveEditBtn">保存修改</button>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+            </main>
+
+            {% if view_kind == 'file' and toc %}
+            <aside class="share-side-card" id="shareTocSidebar">
+                <div class="share-side-header">
+                    <h3>文档目录</h3>
+                    <button type="button" class="share-action-btn" id="shareTocCloseBtn">
+                        <i data-lucide="panel-right-close"></i>
+                        收起
+                    </button>
+                </div>
+                <div class="share-toc">
+                    <div class="toc">
+                        {{ toc|safe }}
+                    </div>
+                </div>
+            </aside>
+            {% endif %}
+        </div>
+        {% if view_kind == 'file' and toc %}
+        <button type="button" class="share-action-btn share-toc-dock" id="shareTocDockBtn" title="显示目录">
+            <i data-lucide="panel-right-open"></i>
+            目录
+        </button>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <div id="appToast" class="app-toast"></div>
+
+    <script src="{{ url_for('static', filename='vendor/toastui/toastui-editor-all.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/lightgallery/lightgallery.umd.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/qrcode.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/ui-utils.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/share-utils.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/image-utils.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/share-view.js') }}" defer></script>
+</body>
+</html>

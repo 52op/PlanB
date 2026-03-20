@@ -1,11 +1,12 @@
 import os
 from xml.sax.saxutils import escape
 
-from flask import Blueprint, Response, flash, render_template, request, redirect, url_for, abort, current_app, send_from_directory
+from flask import Blueprint, Response, flash, render_template, request, redirect, url_for, abort, current_app, send_from_directory, session
 from flask_login import current_user
 
 from models import DocumentViewStat, SystemSetting, db
 from services import (
+    build_share_session_key,
     get_adjacent_posts,
     InvalidPathError,
     check_global_access,
@@ -21,12 +22,15 @@ from services import (
     get_default_file_for_dir,
     get_directory_articles,
     get_document_payload,
+    get_share_link_by_token,
     get_docs_root,
     get_flat_files_list,
+    is_share_expired,
     get_markdown_files,
     get_post_by_slug,
     get_posts,
     get_public_post_tree,
+    resolve_shared_path,
     get_safe_redirect_target,
     has_valid_global_access_cookie,
     paginate_posts,
@@ -35,6 +39,7 @@ from services import (
     resolve_docs_path,
     update_comment,
 )
+from services.docs import _parse_markdown_file
 
 
 main_bp = Blueprint('main', __name__, template_folder='templates')
@@ -309,6 +314,108 @@ def _build_directory_content(dirname, file_tree, can_upload):
 
     sections.append('</section>')
     return ''.join(sections)
+
+
+def _share_relative_from_root(share_link, normalized_path):
+    base_path = (share_link.target_path or '').strip('/')
+    current_path = (normalized_path or '').strip('/')
+    if not base_path:
+        return current_path
+    if current_path == base_path:
+        return ''
+    if current_path.startswith(base_path + '/'):
+        return current_path[len(base_path) + 1:]
+    return current_path
+
+
+def _build_share_page_url(token, relative_path=''):
+    if relative_path:
+        return url_for('main.share_view', token=token, path=relative_path)
+    return url_for('main.share_view', token=token)
+
+
+def _count_directory_immediate_children(abs_dir_path):
+    dir_count = 0
+    file_count = 0
+    for name in os.listdir(abs_dir_path):
+        abs_child_path = os.path.join(abs_dir_path, name)
+        if os.path.isdir(abs_child_path):
+            dir_count += 1
+        elif os.path.isfile(abs_child_path) and name.lower().endswith('.md'):
+            file_count += 1
+    return dir_count, file_count
+
+
+def _build_share_breadcrumbs(share_link, current_path, current_title=''):
+    items = [{
+        'label': share_link.title,
+        'url': _build_share_page_url(share_link.token, ''),
+    }]
+
+    if share_link.target_type != 'dir':
+        if current_title and current_title != share_link.title:
+            items.append({'label': current_title, 'url': None})
+        return items
+
+    current_relative = _share_relative_from_root(share_link, current_path)
+    if not current_relative:
+        return items
+
+    parts = [part for part in current_relative.split('/') if part]
+    accumulated = ''
+    for index, part in enumerate(parts):
+        accumulated = part if not accumulated else f'{accumulated}/{part}'
+        is_last = index == len(parts) - 1
+        label = current_title if is_last and current_title else part
+        if is_last and current_path.endswith('.md'):
+            items.append({'label': label, 'url': None})
+        else:
+            items.append({
+                'label': label,
+                'url': _build_share_page_url(share_link.token, accumulated),
+            })
+    return items
+
+
+def _build_share_directory_entries(share_link, current_dir_path):
+    _, _, absolute_dir_path = resolve_docs_path(current_dir_path, allow_directory=True)
+    entries = []
+
+    sorted_names = sorted(
+        os.listdir(absolute_dir_path),
+        key=lambda name: (
+            0 if os.path.isdir(os.path.join(absolute_dir_path, name)) else 1,
+            name.lower(),
+        ),
+    )
+
+    for name in sorted_names:
+        absolute_child_path = os.path.join(absolute_dir_path, name)
+        normalized_child_path = os.path.join(current_dir_path, name).replace('\\', '/') if current_dir_path else name
+
+        if os.path.isdir(absolute_child_path):
+            child_dirs, child_files = _count_directory_immediate_children(absolute_child_path)
+            entries.append({
+                'type': 'dir',
+                'name': name,
+                'title': name,
+                'meta': f'{child_dirs} 个子目录 · {child_files} 个文档' if (child_dirs or child_files) else '空目录',
+                'url': _build_share_page_url(share_link.token, _share_relative_from_root(share_link, normalized_child_path)),
+            })
+            continue
+
+        if os.path.isfile(absolute_child_path) and name.lower().endswith('.md'):
+            payload = _parse_markdown_file(normalized_child_path)
+            metadata = payload.get('metadata') if payload else {}
+            entries.append({
+                'type': 'file',
+                'name': name,
+                'title': (metadata or {}).get('title') or os.path.splitext(name)[0],
+                'meta': (metadata or {}).get('summary') or 'Markdown 文档',
+                'url': _build_share_page_url(share_link.token, _share_relative_from_root(share_link, normalized_child_path)),
+            })
+
+    return entries
 
 
 def _render_archive_listing(file_tree, include_private=False):
@@ -1001,6 +1108,114 @@ def dir_view(dirname):
         return access_redirect
 
     return redirect(_get_docs_endpoint(dirname=dirname))
+
+
+@main_bp.route('/share/<string:token>', methods=['GET', 'POST'])
+def share_view(token):
+    share_link = get_share_link_by_token(token)
+    if not share_link:
+        abort(404)
+
+    site_settings = _get_site_settings()
+    password_error = ''
+    requested_relative_path = (request.args.get('path') or '').strip()
+    share_root_url = url_for('main.share_view', token=share_link.token, _external=True)
+    requested_share_url = url_for(
+        'main.share_view',
+        token=share_link.token,
+        path=requested_relative_path if requested_relative_path else None,
+        _external=True,
+    )
+    unlocked = not share_link.is_password_protected or bool(session.get(build_share_session_key(share_link.token)))
+
+    if request.method == 'POST' and share_link.is_password_protected:
+        submitted_password = request.form.get('password', '')
+        if share_link.check_password(submitted_password):
+            session[build_share_session_key(share_link.token)] = True
+            return redirect(_build_share_page_url(share_link.token, requested_relative_path))
+        password_error = '分享密码错误，请重试。'
+        unlocked = False
+
+    if is_share_expired(share_link):
+        return render_template(
+            'share_view.html',
+            site_settings=site_settings,
+            share_link=share_link,
+            share_state='expired',
+            share_root_url=share_root_url,
+            current_share_url=requested_share_url,
+            current_title=share_link.title,
+            breadcrumb_items=[{'label': share_link.title, 'url': share_root_url}],
+        )
+
+    if not unlocked:
+        return render_template(
+            'share_view.html',
+            site_settings=site_settings,
+            share_link=share_link,
+            share_state='locked',
+            share_root_url=share_root_url,
+            current_share_url=requested_share_url,
+            current_title=share_link.title,
+            breadcrumb_items=[{'label': share_link.title, 'url': share_root_url}],
+            password_error=password_error,
+        )
+
+    try:
+        current_path, absolute_path, resolved_relative_path = resolve_shared_path(share_link, requested_relative_path)
+    except InvalidPathError:
+        abort(404)
+
+    if not os.path.exists(absolute_path):
+        abort(404)
+
+    current_share_url = url_for(
+        'main.share_view',
+        token=share_link.token,
+        path=resolved_relative_path if resolved_relative_path else None,
+        _external=True,
+    )
+
+    if os.path.isdir(absolute_path):
+        current_title = os.path.basename(current_path.rstrip('/')) if current_path else share_link.title
+        return render_template(
+            'share_view.html',
+            site_settings=site_settings,
+            share_link=share_link,
+            share_state='ready',
+            view_kind='dir',
+            share_root_url=share_root_url,
+            current_share_url=current_share_url,
+            current_path=current_path,
+            current_title=current_title,
+            current_relative_path=resolved_relative_path,
+            breadcrumb_items=_build_share_breadcrumbs(share_link, current_path, current_title),
+            directory_entries=_build_share_directory_entries(share_link, current_path),
+        )
+
+    payload = _parse_markdown_file(current_path)
+    if payload is None:
+        abort(404)
+
+    page_meta = payload.get('metadata') or {}
+    current_title = page_meta.get('title') or share_link.title
+    return render_template(
+        'share_view.html',
+        site_settings=site_settings,
+        share_link=share_link,
+        share_state='ready',
+        view_kind='file',
+        share_root_url=share_root_url,
+        current_share_url=current_share_url,
+        current_path=current_path,
+        current_title=current_title,
+        current_relative_path=resolved_relative_path,
+        breadcrumb_items=_build_share_breadcrumbs(share_link, current_path, current_title),
+        page_meta=page_meta,
+        content=payload.get('html') or '',
+        toc=payload.get('toc') or '',
+        allow_share_edit=bool(share_link.allow_edit),
+    )
 
 
 @main_bp.route('/docs/search')

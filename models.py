@@ -85,6 +85,36 @@ class DocumentViewStat(db.Model):
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
 
+class ShareLink(db.Model):
+    __tablename__ = 'share_links'
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    target_type = db.Column(db.String(10), nullable=False)  # file / dir
+    target_path = db.Column(db.String(255), nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)
+    allow_edit = db.Column(db.Boolean, nullable=False, default=False)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    created_by = db.relationship('User', backref=db.backref('share_links', lazy=True))
+
+    def set_password(self, password):
+        password_value = (password or '').strip()
+        self.password_hash = generate_password_hash(password_value) if password_value else None
+
+    def check_password(self, password):
+        if not self.password_hash:
+            return True
+        return check_password_hash(self.password_hash, (password or '').strip())
+
+    @property
+    def is_password_protected(self):
+        return bool(self.password_hash)
+
+
 class EmailVerificationCode(db.Model):
     __tablename__ = 'email_verification_codes'
     id = db.Column(db.Integer, primary_key=True)

@@ -1,16 +1,23 @@
 import os
+from datetime import datetime, timedelta
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session, url_for
 from flask_login import login_required, current_user
-from models import SystemSetting, Image, User, db
+from models import SystemSetting, Image, ShareLink, User, db
 from services import (
     InvalidPathError,
+    build_share_session_key,
+    build_share_title,
     check_permission,
     delete_media_file,
     force_https_url,
+    generate_share_token,
     get_all_images_with_status,
+    get_share_link_by_token,
+    is_share_expired,
     get_local_images,
     normalize_relative_path,
+    resolve_shared_path,
     resolve_docs_path,
     sync_front_matter,
     update_all_image_references,
@@ -57,6 +64,56 @@ def _ensure_directory_name(name):
         raise ValueError('目录名不能为空或只包含特殊字符')
     
     return safe_name
+
+
+def _parse_share_expiry(raw_value):
+    value = (raw_value or '').strip()
+    if not value or value == 'never':
+        return None
+
+    shortcuts = {
+        '1d': timedelta(days=1),
+        '7d': timedelta(days=7),
+        '30d': timedelta(days=30),
+        '90d': timedelta(days=90),
+    }
+    if value in shortcuts:
+        return datetime.utcnow() + shortcuts[value]
+
+    try:
+        expires_at = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError('有效期格式无效') from exc
+
+    if expires_at <= datetime.utcnow():
+        raise ValueError('有效期必须晚于当前时间')
+    return expires_at
+
+
+def _build_share_response(share_link):
+    return {
+        'token': share_link.token,
+        'url': url_for('main.share_view', token=share_link.token, _external=True),
+        'title': share_link.title,
+        'target_type': share_link.target_type,
+        'target_path': share_link.target_path,
+        'allow_edit': bool(share_link.allow_edit),
+        'requires_password': bool(share_link.is_password_protected),
+        'expires_at': share_link.expires_at.isoformat() if share_link.expires_at else None,
+    }
+
+
+def _get_share_for_api(token, require_edit=False, require_access=False):
+    share_link = get_share_link_by_token(token)
+    if not share_link:
+        return None, jsonify({'error': '分享不存在'}), 404
+    if is_share_expired(share_link):
+        return None, jsonify({'error': '分享已过期'}), 410
+    if require_edit and not share_link.allow_edit:
+        return None, jsonify({'error': '当前分享未开启编辑权限'}), 403
+    if require_access and share_link.is_password_protected and not session.get(build_share_session_key(share_link.token)):
+        return None, jsonify({'error': '请先输入分享密码'}), 403
+    return share_link, None, None
 
 
 @api_bp.route('/users/suggest')
@@ -353,6 +410,123 @@ def delete_directory():
 
     os.rmdir(abs_dir_path)
     return jsonify({'success': True})
+
+
+@api_bp.route('/shares', methods=['POST'])
+@login_required
+def create_share():
+    data = request.get_json() or {}
+    target_type = (data.get('target_type') or '').strip().lower()
+    target_path = data.get('target_path', '')
+    target_name = data.get('target_name', '')
+    password = (data.get('password') or '').strip()
+    allow_edit = bool(data.get('allow_edit'))
+
+    if target_type not in {'file', 'dir'}:
+        return jsonify({'error': '分享目标类型无效'}), 400
+
+    try:
+        expires_at = _parse_share_expiry(data.get('expires_at'))
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
+
+    try:
+        if target_type == 'file':
+            _, normalized_target_path, absolute_target_path = resolve_docs_path(target_path)
+            if not os.path.isfile(absolute_target_path):
+                return jsonify({'error': '目标文档不存在'}), 404
+            if not check_permission(current_user, normalized_target_path, 'read'):
+                return jsonify({'error': '没有该文档的分享权限'}), 403
+            if allow_edit and not check_permission(current_user, normalized_target_path, 'edit'):
+                return jsonify({'error': '没有该文档的编辑权限，无法创建可编辑分享'}), 403
+        else:
+            _, normalized_target_path, absolute_target_path = resolve_docs_path(target_path, allow_directory=True)
+            if not os.path.isdir(absolute_target_path):
+                return jsonify({'error': '目标目录不存在'}), 404
+            if not check_permission(current_user, normalized_target_path, 'read'):
+                return jsonify({'error': '没有该目录的分享权限'}), 403
+            if allow_edit and not check_permission(current_user, normalized_target_path, 'edit'):
+                return jsonify({'error': '没有该目录的编辑权限，无法创建可编辑分享'}), 403
+    except InvalidPathError:
+        return jsonify({'error': '目标路径无效'}), 400
+
+    share_link = ShareLink()
+    share_link.target_type = target_type
+    share_link.target_path = normalized_target_path
+    share_link.title = build_share_title(target_type, normalized_target_path, target_name)
+    share_link.allow_edit = allow_edit
+    share_link.expires_at = expires_at
+    share_link.created_by_user_id = current_user.id
+    share_link.set_password(password)
+
+    for _ in range(8):
+        token = generate_share_token()
+        if not ShareLink.query.filter_by(token=token).first():
+            share_link.token = token
+            break
+    if not share_link.token:
+        return jsonify({'error': '生成分享链接失败，请稍后重试'}), 500
+
+    db.session.add(share_link)
+    db.session.commit()
+
+    if not share_link.is_password_protected:
+        session[build_share_session_key(share_link.token)] = True
+
+    return jsonify({'success': True, 'share': _build_share_response(share_link)})
+
+
+@api_bp.route('/shares/<string:token>/raw')
+def get_share_raw(token):
+    share_link, error_response, status_code = _get_share_for_api(token, require_edit=True, require_access=True)
+    if error_response is not None:
+        return error_response, status_code
+
+    target_relative_path = request.args.get('path', '')
+    try:
+        normalized_target_path, absolute_target_path, _ = resolve_shared_path(share_link, target_relative_path)
+    except InvalidPathError:
+        return jsonify({'error': '分享路径无效'}), 400
+
+    if not normalized_target_path.endswith('.md') or not os.path.isfile(absolute_target_path):
+        return jsonify({'error': '目标文档不存在'}), 404
+
+    with open(absolute_target_path, 'r', encoding='utf-8') as file_obj:
+        content = file_obj.read()
+    return jsonify({'success': True, 'content': content, 'path': normalized_target_path})
+
+
+@api_bp.route('/shares/<string:token>/save', methods=['POST'])
+def save_shared_document(token):
+    share_link, error_response, status_code = _get_share_for_api(token, require_edit=True, require_access=True)
+    if error_response is not None:
+        return error_response, status_code
+
+    data = request.get_json() or {}
+    target_relative_path = data.get('path', '')
+    content = data.get('content')
+    ensure_front_matter = bool(data.get('ensure_front_matter'))
+
+    if content is None:
+        return jsonify({'error': '缺少文档内容'}), 400
+
+    try:
+        normalized_target_path, absolute_target_path, _ = resolve_shared_path(share_link, target_relative_path)
+    except InvalidPathError:
+        return jsonify({'error': '分享路径无效'}), 400
+
+    if not normalized_target_path.endswith('.md') or not os.path.isfile(absolute_target_path):
+        return jsonify({'error': '目标文档不存在'}), 404
+
+    try:
+        final_content = sync_front_matter(content, normalized_target_path, ensure_front_matter=ensure_front_matter)
+        with open(absolute_target_path, 'w', encoding='utf-8') as file_obj:
+            file_obj.write(final_content)
+        update_all_image_references()
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+    return jsonify({'success': True, 'content': final_content})
 
 @api_bp.route('/images/all')
 @login_required

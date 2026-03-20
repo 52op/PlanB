@@ -38,6 +38,7 @@ from .mailer import mailer_is_configured, notification_allowed, record_notificat
 from .paths import InvalidPathError, get_docs_root, normalize_relative_path, resolve_docs_path
 from .permissions import check_permission
 from .rate_limit import check_rate_limit, format_wait_time, get_client_ip, record_login_failure, record_login_success
+from .share_links import build_share_session_key, build_share_title, generate_share_token, get_share_link_by_token, is_share_expired, resolve_shared_path
 from .urls import force_https_url, get_safe_redirect_target
 
 __all__ = [
@@ -92,6 +93,12 @@ __all__ = [
     'send_logged_mail',
     'send_mail',
     'sync_front_matter',
+    'build_share_session_key',
+    'build_share_title',
+    'generate_share_token',
+    'get_share_link_by_token',
+    'is_share_expired',
+    'resolve_shared_path',
     'update_comment',
     'update_all_image_references',
     'upload_media_file',

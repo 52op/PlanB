@@ -1121,6 +1121,272 @@
             border-color: var(--color-primary-dark);
             color: var(--color-surface);
         }
+        .share-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1300;
+            background: rgba(15, 23, 42, 0.36);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+        }
+        .share-modal-backdrop.show {
+            display: flex;
+        }
+        .share-modal {
+            width: min(100%, 940px);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 28px;
+            box-shadow: 0 28px 64px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+        }
+        .share-modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 24px 26px 0;
+        }
+        .share-modal-eyebrow {
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: var(--color-primary-dark);
+            text-transform: uppercase;
+        }
+        .share-modal-header h3,
+        .share-result-hero h4 {
+            margin: 6px 0 0;
+            font-size: 28px;
+            color: var(--color-text);
+        }
+        .share-modal-close {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-muted);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .share-modal-body {
+            padding: 22px 26px 26px;
+        }
+        .share-modal-panel {
+            display: grid;
+            gap: 20px;
+        }
+        .share-target-card,
+        .share-link-box,
+        .share-qrcode-card,
+        .share-result-actions,
+        .share-result-layout {
+            box-sizing: border-box;
+        }
+        .share-target-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 18px;
+            border-radius: 22px;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+            background:
+                radial-gradient(circle at top right, color-mix(in srgb, var(--color-primary-light) 45%, transparent), transparent 36%),
+                linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 96%, white 4%), var(--color-surface));
+        }
+        .share-target-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: color-mix(in srgb, var(--color-primary-light) 70%, transparent);
+            color: var(--color-primary-dark);
+            flex: 0 0 auto;
+        }
+        .share-target-main {
+            min-width: 0;
+        }
+        .share-target-main strong,
+        .share-target-main span {
+            display: block;
+        }
+        .share-target-main strong {
+            font-size: 17px;
+            color: var(--color-text);
+        }
+        .share-target-main span {
+            margin-top: 6px;
+            color: var(--color-text-muted);
+            font-size: 13px;
+            word-break: break-all;
+        }
+        .share-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+        .share-form-field {
+            display: grid;
+            gap: 8px;
+        }
+        .share-form-field span {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text-muted);
+        }
+        .share-form-field input,
+        .share-form-field select {
+            height: 46px;
+            padding: 0 14px;
+            border-radius: 14px;
+            border: 1px solid var(--color-border);
+            background: var(--color-background);
+            color: var(--color-text);
+            font: inherit;
+        }
+        .share-switch-row {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 16px 18px;
+            border-radius: 18px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-background) 86%, white 14%);
+        }
+        .share-switch-row strong,
+        .share-switch-row small {
+            display: block;
+        }
+        .share-switch-row strong {
+            font-size: 15px;
+            color: var(--color-text);
+        }
+        .share-switch-row small {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--color-text-muted);
+            line-height: 1.6;
+        }
+        .share-switch-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--color-primary);
+            flex: 0 0 auto;
+        }
+        .share-form-footer {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-top: 4px;
+        }
+        .share-form-hint {
+            color: var(--color-text-muted);
+            font-size: 13px;
+            line-height: 1.8;
+            max-width: 520px;
+        }
+        .share-result-hero {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .share-result-hero p {
+            margin: 10px 0 0;
+            color: var(--color-text-muted);
+            line-height: 1.8;
+        }
+        .share-link-box {
+            display: flex;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 20px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-background) 88%, white 12%);
+        }
+        .share-link-box input {
+            flex: 1 1 auto;
+            min-width: 0;
+            height: 44px;
+            padding: 0 14px;
+            border-radius: 14px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font: inherit;
+        }
+        .share-result-layout {
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr);
+            gap: 18px;
+            align-items: stretch;
+        }
+        .share-qrcode-card {
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-surface) 94%, white 6%);
+        }
+        .share-qrcode-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--color-text);
+        }
+        .share-qrcode-box {
+            min-height: 216px;
+            margin-top: 14px;
+            border-radius: 18px;
+            border: 1px dashed var(--color-border);
+            background: color-mix(in srgb, var(--color-background) 90%, white 10%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .share-qrcode-tip {
+            margin-top: 12px;
+            color: var(--color-text-muted);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        .share-result-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            align-content: start;
+        }
+        .share-primary-btn,
+        .share-secondary-btn {
+            height: 44px;
+            border-radius: 14px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .share-primary-btn {
+            background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 72%, #0f766e));
+            color: #fff;
+            border-color: transparent;
+        }
+        .share-secondary-btn:hover {
+            background: color-mix(in srgb, var(--color-primary-light) 24%, var(--color-surface));
+            border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+        }
         .app-toast {
             position: fixed !important;
             right: 24px !important;
@@ -1165,6 +1431,22 @@
             color: #dc2626 !important;
             border-color: #fca5a5 !important;
             border-width: 2px !important;
+        }
+        @media (max-width: 860px) {
+            .share-modal {
+                width: min(100%, 720px);
+            }
+            .share-form {
+                grid-template-columns: 1fr;
+            }
+            .share-form-footer,
+            .share-result-hero {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .share-result-layout {
+                grid-template-columns: 1fr;
+            }
         }
         .app-toast.info {
             background: var(--color-primary-light) !important;
@@ -2565,6 +2847,16 @@
                     <button id="uploadBtn" class="action-btn"><i data-lucide="upload" class="icon-inline"></i> 上传</button>
                     <input type="file" id="uploadInput" accept=".md" style="display: none;">
                     {% endif %}
+                    {% if page_mode not in ['posts', 'archive'] and (current_file or current_dir is not none) %}
+                    <button
+                        id="shareBtn"
+                        class="action-btn"
+                        data-target-type="{{ 'file' if current_file else 'dir' }}"
+                        data-target-path="{{ current_file or current_dir or '' }}"
+                        data-target-name="{{ page_meta.title if current_file and page_meta and page_meta.title else (current_dir or '根目录') }}"
+                        data-site-name="{{ site_settings.site_name if site_settings else 'Planning' }}"
+                    ><i data-lucide="share-2" class="icon-inline"></i> 分享</button>
+                    {% endif %}
                 </div>
                 {% else %}
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -2895,6 +3187,9 @@
     <div class="context-menu" id="treeContextMenu">
         <button type="button" data-action="create-doc"><i data-lucide="file-plus-2" class="icon-inline"></i> 新建文档</button>
         <button type="button" data-action="create-dir"><i data-lucide="folder-plus" class="icon-inline"></i> 新建目录</button>
+        {% if current_user.is_authenticated %}
+        <button type="button" data-action="share"><i data-lucide="share-2" class="icon-inline"></i> 分享</button>
+        {% endif %}
         <hr style="margin: 4px 0; border: none; border-top: 1px solid var(--color-border);">
         <button type="button" data-action="rename"><i data-lucide="square-pen" class="icon-inline"></i> 重命名</button>
         <button type="button" data-action="delete"><i data-lucide="trash-2" class="icon-inline"></i> 删除</button>
@@ -2906,9 +3201,11 @@
     <script src="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.js') }}" defer></script>
 	<script src="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.js') }}" defer></script>
     <script src="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/qrcode.min.js') }}" defer></script>
 
     <!-- Modular JavaScript -->
     <script src="{{ url_for('static', filename='js/modules/ui-utils.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/share-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/context-menu.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/search-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/theme-manager.js') }}" defer></script>
@@ -2916,6 +3213,7 @@
     <script src="{{ url_for('static', filename='js/modules/upload-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/front-matter-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/editor-manager.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/share-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 
     <script>
