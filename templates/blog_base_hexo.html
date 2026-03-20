@@ -99,6 +99,10 @@
                             <span class="theme-name">Hexo</span>
                             <span class="theme-desc">清新卡片</span>
                         </a>
+                        <a href="{{ url_for('main.switch_theme', theme='astro') }}" class="theme-option {{ 'active' if current_theme == 'astro' else '' }}">
+                            <span class="theme-name">Astro</span>
+                            <span class="theme-desc">星云内容站</span>
+                        </a>
                     </div>
                 </div>
                 <button type="button" class="header-icon" id="themeToggle" title="切换主题">

@@ -1,0 +1,252 @@
+{% extends 'blog_base_astro.html' %}
+
+{% block og_type %}article{% endblock %}
+
+{% set page_cover = page_meta.cover if page_meta.cover and page_meta.cover not in ['NONE', '__NONE__', 'false', 'False'] else '' %}
+{% block hero %}
+<div class="hero-banner"{% if page_cover %} style="background-image: linear-gradient(135deg, rgba(70, 85, 189, 0.84), rgba(255, 122, 90, 0.52)), url('{{ absolute_url(page_cover) }}')"{% endif %}>
+    <div class="hero-content">
+        <span class="hero-kicker">Article</span>
+        <h1 class="hero-title">{{ page_meta.title }}</h1>
+        {% if page_meta.summary %}
+        <p class="hero-subtitle">{{ page_meta.summary }}</p>
+        {% endif %}
+        <div class="hero-meta">
+            {% if page_meta.date_display %}
+            <div class="hero-meta-item"><i data-lucide="calendar"></i><span>{{ page_meta.date_display }}</span></div>
+            {% endif %}
+            {% if page_meta.category_name %}
+            <div class="hero-meta-item"><i data-lucide="folder"></i><span>{{ page_meta.category_name }}</span></div>
+            {% endif %}
+            {% if page_meta.reading_minutes %}
+            <div class="hero-meta-item"><i data-lucide="clock"></i><span>{{ page_meta.reading_minutes }} 分钟</span></div>
+            {% endif %}
+            {% if page_meta.view_count %}
+            <div class="hero-meta-item"><i data-lucide="eye"></i><span>{{ page_meta.view_count }} 次浏览</span></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block sidebar %}
+{% if toc %}
+<div class="widget toc-widget">
+    <div class="widget-title">
+        <i data-lucide="list"></i>
+        <span>目录</span>
+    </div>
+    <nav id="postToc">
+        {{ toc|safe }}
+    </nav>
+</div>
+{% endif %}
+
+<div class="widget author-widget">
+    {% if site_settings and site_settings.site_logo_url %}
+    <img src="{{ site_settings.site_logo_url }}" alt="{{ site_settings.site_name if site_settings else 'Planning' }}" class="author-avatar site-logo-image">
+    {% else %}
+    <div class="author-avatar">{{ (site_settings.site_name[:1] if site_settings else 'P')|upper }}</div>
+    {% endif %}
+    <div class="author-name">{{ site_settings.site_name if site_settings else 'Planning' }}</div>
+    <div class="author-bio">{{ site_settings.site_tagline if site_settings else '记录生活，分享技术' }}</div>
+</div>
+
+{% if archive_groups %}
+<div class="widget">
+    <div class="widget-title">
+        <i data-lucide="archive"></i>
+        <span>近期归档</span>
+    </div>
+    <ul class="archive-list">
+        {% for group in archive_groups[:6] %}
+        <li class="archive-item">
+            <a href="{{ url_for('main.archive') }}#archive-{{ group.label|replace(' ', '-') }}" class="archive-link">{{ group.label }}</a>
+            <span class="archive-count">{{ group.count }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% set comment_page_value = request.args.get('comment_page', type=int) %}
+{% set comment_return_to = url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_page_value) if comment_page_value and comment_page_value > 1 else url_for('main.post_detail', slug=page_meta.slug) %}
+{% set comment_total = comment_pagination.total if comment_pagination else (comments|length if comments else 0) %}
+
+{% macro render_comment(comment, depth=0) %}
+<div class="comment-item" style="margin-left: {{ depth * 20 }}px;">
+    {% if comment.user and comment.user.avatar_url %}
+    <img src="{{ comment.user.avatar_url }}" alt="Avatar" class="comment-avatar">
+    {% else %}
+    <div class="comment-avatar-fallback">{{ (comment.user.nickname or comment.user.username)[:1]|upper if comment.user else '?' }}</div>
+    {% endif %}
+    <div class="comment-content-wrapper">
+        <div class="comment-header">
+            <span class="comment-author">
+                {{ comment.user.nickname or comment.user.username if comment.user else '匿名' }}
+                {% if comment.user and comment.user.role == 'admin' %}
+                <span style="display: inline-block; padding: 2px 8px; background: rgba(110, 118, 255, 0.12); color: var(--primary); border-radius: 999px; font-size: 11px; margin-left: 6px;">管理员</span>
+                {% endif %}
+            </span>
+            <span class="comment-time">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '' }}</span>
+        </div>
+        <div class="comment-body">{{ comment.rendered_content|safe }}</div>
+        <div style="display: flex; gap: 12px; margin-top: 12px;">
+            {% if current_user.is_authenticated and current_user.email_verified %}
+            <button type="button" onclick="toggleReplyForm('reply-{{ comment.id }}')" style="padding: 6px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; font-size: 13px;">回复</button>
+            {% endif %}
+            {% if can_delete_comment(comment, current_user) %}
+            <form method="POST" action="{{ url_for('main.remove_comment', comment_id=comment.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+                <button type="submit" style="padding: 6px 12px; background: #fff2f2; border: 1px solid #ffd0d0; color: #c33; border-radius: 999px; cursor: pointer; font-size: 13px;">删除</button>
+            </form>
+            {% endif %}
+        </div>
+
+        {% if current_user.is_authenticated and current_user.email_verified %}
+        <form id="reply-{{ comment.id }}" style="display: none; margin-top: 12px;" method="POST" action="{{ url_for('main.post_comment', filename=current_file) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="parent_id" value="{{ comment.id }}">
+            <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+            <textarea name="content" placeholder="回复 {{ comment.user.nickname or comment.user.username if comment.user else '这条评论' }}" required style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); font-family: inherit; resize: vertical;"></textarea>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                <button type="submit" class="btn" style="padding: 8px 16px; font-size: 13px;">提交</button>
+                <button type="button" onclick="toggleReplyForm('reply-{{ comment.id }}')" style="padding: 8px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: 13px;">取消</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if comment.visible_replies %}
+    {% for reply in comment.visible_replies %}
+    {{ render_comment(reply, depth + 1) }}
+    {% endfor %}
+{% endif %}
+{% endmacro %}
+
+<article class="article-container">
+    <div class="article-header">
+        <h1 class="article-title">{{ page_meta.title }}</h1>
+        <div class="article-meta">
+            {% if page_meta.date_display %}
+            <span><i data-lucide="calendar"></i> {{ page_meta.date_display }}</span>
+            {% endif %}
+            {% if page_meta.updated_display %}
+            <span><i data-lucide="refresh-cw"></i> {{ page_meta.updated_display }}</span>
+            {% endif %}
+            {% if page_meta.reading_minutes %}
+            <span><i data-lucide="clock"></i> {{ page_meta.reading_minutes }} 分钟</span>
+            {% endif %}
+            {% if page_meta.view_count %}
+            <span><i data-lucide="eye"></i> {{ page_meta.view_count }} 次浏览</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="article-content">
+        {{ content|safe }}
+    </div>
+
+    {% if page_meta.tags %}
+    <div class="article-tags">
+        <i data-lucide="tag"></i>
+        {% for tag in page_meta.tags %}
+        <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</article>
+
+{% if previous_post or next_post %}
+<nav class="article-nav">
+    {% if previous_post %}
+    <a href="{{ previous_post.url }}" class="article-nav-item">
+        <span class="article-nav-label">← 上一篇</span>
+        <span class="article-nav-title">{{ previous_post.title }}</span>
+    </a>
+    {% else %}
+    <div class="article-nav-item article-nav-item-disabled">
+        <span class="article-nav-label">← 上一篇</span>
+        <span class="article-nav-title">没有了</span>
+    </div>
+    {% endif %}
+
+    {% if next_post %}
+    <a href="{{ next_post.url }}" class="article-nav-item">
+        <span class="article-nav-label">下一篇 →</span>
+        <span class="article-nav-title">{{ next_post.title }}</span>
+    </a>
+    {% else %}
+    <div class="article-nav-item article-nav-item-disabled">
+        <span class="article-nav-label">下一篇 →</span>
+        <span class="article-nav-title">没有了</span>
+    </div>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% if comments_enabled_flag %}
+<section class="comments-section" id="comments">
+    <h2 class="comments-title">
+        <i data-lucide="message-circle"></i>
+        评论 ({{ comment_total }})
+    </h2>
+
+    {% if current_user.is_authenticated %}
+        {% if current_user.email_verified %}
+        <form class="comment-form" method="POST" action="{{ url_for('main.post_comment', filename=current_file) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+            <textarea name="content" placeholder="写下你的评论，支持 Markdown 语法..." required></textarea>
+            <div class="comment-form-footer">
+                <span style="color: var(--text-muted); font-size: 13px;">当前身份：{{ current_user.username }}</span>
+                <button type="submit" class="btn">发表评论</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="comment-note-box">请先完成邮箱验证后再参与评论</div>
+        {% endif %}
+    {% else %}
+    <div class="comment-note-box">请先 <a href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}">登录</a> 后再参与评论</div>
+    {% endif %}
+
+    <div class="comment-list">
+        {% for comment in comments %}
+        {{ render_comment(comment) }}
+        {% else %}
+        <div class="empty-state comment-empty-state">
+            <div class="empty-state-icon">💬</div>
+            <p class="empty-state-text">还没有评论，来留下第一条吧</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if comment_pagination and comment_pagination.total_pages > 1 %}
+    <nav class="pagination">
+        {% if comment_pagination.has_prev %}
+        <a href="{{ url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_pagination.prev_page) }}#comments" class="page-link"><i data-lucide="chevron-left"></i></a>
+        {% endif %}
+        <span class="page-number current">{{ comment_pagination.page }} / {{ comment_pagination.total_pages }}</span>
+        {% if comment_pagination.has_next %}
+        <a href="{{ url_for('main.post_detail', slug=page_meta.slug, comment_page=comment_pagination.next_page) }}#comments" class="page-link"><i data-lucide="chevron-right"></i></a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endif %}
+
+<script>
+function toggleReplyForm(id) {
+    const form = document.getElementById(id);
+    if (form.style.display === 'none' || !form.style.display) {
+        form.style.display = 'block';
+    } else {
+        form.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

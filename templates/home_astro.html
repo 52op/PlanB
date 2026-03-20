@@ -1,0 +1,142 @@
+{% extends 'blog_base_astro.html' %}
+
+{% set featured_cover = featured_post.cover if featured_post and featured_post.cover and featured_post.cover not in ['NONE', '__NONE__', 'false', 'False'] else '' %}
+{% block hero %}
+<div class="hero-banner"{% if featured_cover %} style="background-image: linear-gradient(135deg, rgba(70, 85, 189, 0.82), rgba(255, 122, 90, 0.58)), url('{{ absolute_url(featured_cover) }}')"{% endif %}>
+    <div class="hero-content">
+        <span class="hero-kicker">Astro Style Theme</span>
+        <h1 class="hero-title">{{ site_settings.home_title or site_settings.site_name or 'Welcome' }}</h1>
+        <p class="hero-subtitle">{{ site_settings.home_description or site_settings.site_tagline or '记录生活，分享技术' }}</p>
+        <div class="hero-meta">
+            <div class="hero-meta-item">
+                <i data-lucide="file-text"></i>
+                <span>{{ archive_groups|sum(attribute='count') if archive_groups else 0 }} 篇文章</span>
+            </div>
+            <div class="hero-meta-item">
+                <i data-lucide="tag"></i>
+                <span>{{ tags|length if tags else 0 }} 个标签</span>
+            </div>
+            <div class="hero-meta-item">
+                <i data-lucide="folder"></i>
+                <span>{{ category_groups|length if category_groups else 0 }} 个分类</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if featured_post or posts %}
+    {% if featured_post %}
+    <article class="post-card post-card-featured">
+        {% if featured_cover %}
+        <img src="{{ absolute_url(featured_cover) }}" alt="{{ featured_post.title }}" class="post-cover">
+        {% endif %}
+        <div class="post-body">
+            <div class="feature-badge">精选推荐</div>
+            <div class="post-meta">
+                {% if featured_post.date_display %}
+                <span class="post-meta-item"><i data-lucide="calendar"></i>{{ featured_post.date_display }}</span>
+                {% endif %}
+                {% if featured_post.category_name %}
+                <span class="post-meta-item"><i data-lucide="folder"></i>{{ featured_post.category_name }}</span>
+                {% endif %}
+                {% if featured_post.reading_minutes %}
+                <span class="post-meta-item"><i data-lucide="clock"></i>{{ featured_post.reading_minutes }} 分钟</span>
+                {% endif %}
+            </div>
+            <h2 class="post-title"><a href="{{ featured_post.url }}">{{ featured_post.title }}</a></h2>
+            <p class="post-excerpt">{{ featured_post.summary or '这是一篇精选文章，点击查看详情。' }}</p>
+            <div class="post-footer">
+                {% if featured_post.tags %}
+                <div class="post-tags">
+                    {% for tag in featured_post.tags[:5] %}
+                    <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <a href="{{ featured_post.url }}" class="read-more">阅读全文<i data-lucide="arrow-right"></i></a>
+            </div>
+        </div>
+    </article>
+    {% endif %}
+
+    {% if posts %}
+    <div class="post-list">
+        {% for post in posts %}
+        <article class="post-card">
+            {% set post_cover = post.cover if post.cover and post.cover not in ['NONE', '__NONE__', 'false', 'False'] else '' %}
+            {% if post_cover %}
+            <img src="{{ absolute_url(post_cover) }}" alt="{{ post.title }}" class="post-cover">
+            {% endif %}
+            <div class="post-body">
+                <div class="post-meta">
+                    {% if post.date_display %}
+                    <span class="post-meta-item"><i data-lucide="calendar"></i>{{ post.date_display }}</span>
+                    {% endif %}
+                    {% if post.category_name %}
+                    <span class="post-meta-item"><i data-lucide="folder"></i>{{ post.category_name }}</span>
+                    {% endif %}
+                    {% if post.reading_minutes %}
+                    <span class="post-meta-item"><i data-lucide="clock"></i>{{ post.reading_minutes }} 分钟</span>
+                    {% endif %}
+                    {% if post.view_count %}
+                    <span class="post-meta-item"><i data-lucide="eye"></i>{{ post.view_count }}</span>
+                    {% endif %}
+                </div>
+                <h2 class="post-title"><a href="{{ post.url }}">{{ post.title }}</a></h2>
+                <p class="post-excerpt">{{ post.summary or '这篇文章还没有摘要。' }}</p>
+                <div class="post-footer">
+                    {% if post.tags %}
+                    <div class="post-tags">
+                        {% for tag in post.tags[:5] %}
+                        <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <a href="{{ post.url }}" class="read-more">阅读全文<i data-lucide="arrow-right"></i></a>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if category_groups %}
+    <section class="home-category-section">
+        <div class="section-heading">
+            <span class="section-kicker">Explore Categories</span>
+            <h2>按分类浏览</h2>
+            <p>除了最新文章流，你也可以直接按主题进入对应内容板块。</p>
+        </div>
+        <div class="category-grid">
+            {% for category in category_groups %}
+            <article class="category-panel">
+                <div class="category-panel-top">
+                    <div>
+                        <h2 class="category-panel-title"><a href="{{ category.url }}">{{ category.name }}</a></h2>
+                        {% if category.latest_date_display %}
+                        <p class="category-panel-meta">最近更新：{{ category.latest_date_display }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="category-panel-count">{{ category.count }} 篇</span>
+                </div>
+                {% if category.latest_post %}
+                <p class="category-panel-highlight">最新文章：<a href="{{ category.latest_post.url }}">{{ category.latest_post.title }}</a></p>
+                {% endif %}
+                <a href="{{ category.url }}" class="read-more">进入分类<i data-lucide="arrow-right"></i></a>
+            </article>
+            {% endfor %}
+        </div>
+        <div class="home-more-link">
+            <a href="{{ url_for('main.posts') }}" class="btn">查看全部文章</a>
+        </div>
+    </section>
+    {% endif %}
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📝</div>
+        <p class="empty-state-text">还没有发布文章，敬请期待...</p>
+    </div>
+{% endif %}
+{% endblock %}

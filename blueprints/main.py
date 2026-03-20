@@ -75,7 +75,7 @@ def _get_blog_theme():
     """获取当前博客主题配置 - 优先从用户Cookie读取，其次从数据库，最后从配置文件"""
     # 1. 优先从用户 Cookie 读取
     user_theme = request.cookies.get('user_blog_theme')
-    valid_themes = ['default', 'indigo', 'hexo']
+    valid_themes = ['default', 'indigo', 'hexo', 'astro']
     if user_theme and user_theme in valid_themes:
         return user_theme
     
@@ -99,6 +99,8 @@ def _get_template_name(base_name):
         return f"{base_name}_hexo.html"
     elif theme == 'indigo':
         return f"{base_name}_indigo.html"
+    elif theme == 'astro':
+        return f"{base_name}_astro.html"
     # default 主题使用原始模板名
     return f"{base_name}.html"
 
@@ -748,7 +750,7 @@ def _render_category_overview(file_tree, include_private=False):
 def switch_theme(theme):
     """切换博客主题"""
     # 验证主题名称
-    valid_themes = ['default', 'indigo', 'hexo']
+    valid_themes = ['default', 'indigo', 'hexo', 'astro']
     if theme not in valid_themes:
         flash('无效的主题选择')
         return redirect(request.referrer or url_for('main.index'))

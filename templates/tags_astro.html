@@ -1,0 +1,32 @@
+{% extends 'blog_base_astro.html' %}
+
+{% block hero %}
+<div class="hero-banner hero-banner-compact">
+    <div class="hero-content">
+        <span class="hero-kicker">Tag Cloud</span>
+        <h1 class="hero-title">标签云</h1>
+        <p class="hero-subtitle">浏览所有标签</p>
+        <div class="hero-meta">
+            <div class="hero-meta-item"><i data-lucide="tag"></i><span>{{ tags|length if tags else 0 }} 个标签</span></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if tags %}
+    <div class="tag-cloud-page">
+        {% for tag in tags %}
+        <a href="{{ url_for('main.tag', tag_name=tag.name) }}" class="tag tag-cloud-pill">
+            <span>{{ tag.name }}</span>
+            <span class="tag-cloud-count">{{ tag.count }}</span>
+        </a>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🏷️</div>
+        <p class="empty-state-text">还没有标签</p>
+    </div>
+{% endif %}
+{% endblock %}

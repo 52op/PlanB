@@ -536,6 +536,7 @@
                             <option value="default" {% if (settings.blog_theme or 'default') == 'default' %}selected{% endif %}>默认风格</option>
                             <option value="indigo" {% if settings.blog_theme == 'indigo' %}selected{% endif %}>Indigo 风格（推荐）</option>
                             <option value="hexo" {% if settings.blog_theme == 'hexo' %}selected{% endif %}>Hexo 风格</option>
+                            <option value="astro" {% if settings.blog_theme == 'astro' %}selected{% endif %}>Astro 风格</option>
                         </select>
                         <small style="color:#6c757d;">选择博客页面的显示风格，修改后立即生效无需重启。</small>
                     </div>
