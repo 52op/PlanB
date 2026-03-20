@@ -7,3 +7,4 @@ blueprints/__pycache__/
 blog/
 .codex-tmp/
 static/uploads/
+agents.md

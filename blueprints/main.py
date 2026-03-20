@@ -519,7 +519,7 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
 def _render_homepage(file_tree, posts):
     site_settings = _get_site_settings()
     featured = posts[0] if posts else None
-    recent_posts = posts[1:7] if len(posts) > 1 else []
+    recent_posts = posts[1:] if len(posts) > 1 else []
     return render_template(
         _get_template_name('home'),
         file_tree=file_tree,
@@ -690,8 +690,6 @@ def index():
     file_tree = get_markdown_files()
     home_type = site_settings['home_default_type']
     home_target = site_settings['home_default_target']
-    blog_home_count = site_settings['blog_home_count'] or 12
-
     # 文档模式：显示文档首页
     if site_settings['site_mode'] == 'docs':
         # 优先使用后台设置的首页默认展示
@@ -724,20 +722,7 @@ def index():
     if not _blog_enabled(site_settings):
         return redirect(url_for('main.docs_home'))
 
-    if home_type == 'dir':
-        try:
-            _, home_dir, abs_dir = resolve_docs_path(home_target, allow_directory=True)
-        except InvalidPathError:
-            home_dir = ''
-            abs_dir = None
-
-        if abs_dir and os.path.isdir(abs_dir):
-            posts = get_directory_articles(home_dir)
-            if posts:
-                title = '最新文章' if not home_dir else f'分类：{os.path.basename(home_dir)}'
-                return _render_blog_listing(title, posts, get_public_post_tree(), category_path=home_dir)
-
-    posts = get_posts(limit=blog_home_count)
+    posts = get_posts()
     if posts:
         return _render_homepage(get_public_post_tree(), posts)
 
