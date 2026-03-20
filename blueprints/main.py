@@ -122,9 +122,12 @@ def _get_site_settings():
     site_mode = (SystemSetting.get('site_mode', 'blog') or 'blog').strip() or 'blog'
     blog_enabled = (SystemSetting.get('blog_enabled', 'true') or 'true').strip().lower() != 'false'
     show_docs_entry_in_blog = (SystemSetting.get('show_docs_entry_in_blog', 'true') or 'true').strip().lower() != 'false'
+    site_logo = SystemSetting.get('site_logo', '') or ''
 
     return {
         'site_name': SystemSetting.get('site_name', 'Planning') or 'Planning',
+        'site_logo': site_logo,
+        'site_logo_url': _absolute_url(site_logo) if site_logo else '',
         'site_tagline': SystemSetting.get('site_tagline', '轻量 Markdown 内容站') or '轻量 Markdown 内容站',
         'home_title': SystemSetting.get('home_title', '') or '',
         'home_description': SystemSetting.get('home_description', '') or '',

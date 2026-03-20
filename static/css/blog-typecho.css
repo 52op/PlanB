@@ -85,6 +85,20 @@ img {
     color: var(--text-color);
 }
 
+.site-title-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.site-title-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
 .site-nav {
     display: flex;
     gap: 20px;

@@ -108,13 +108,19 @@ img {
 .site-avatar {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-radius: 12%;
+    /* background: linear-gradient(135deg, var(--primary), var(--accent)); */
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.site-logo-image {
+    object-fit: cover;
+    overflow: hidden;
 }
 
 .header-nav {
@@ -453,15 +459,16 @@ img {
 .author-avatar {
     width: 80px;
     height: 80px;
-    border-radius: 50%;
+    border-radius: 12%;
     margin: 0 auto 12px;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    /* background: linear-gradient(135deg, var(--primary), var(--accent)); */
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 32px;
     font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .author-name {

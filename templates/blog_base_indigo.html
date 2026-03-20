@@ -114,7 +114,11 @@
     <aside class="blog-sidebar" id="blogSidebar">
         <div class="sidebar-header">
             <a href="{{ url_for('main.blog_home') }}">
+                {% if site_settings and site_settings.site_logo_url %}
+                <img src="{{ site_settings.site_logo_url }}" alt="{{ base_site_name }}" class="sidebar-avatar sidebar-logo-image">
+                {% else %}
                 <div class="sidebar-avatar">{{ (base_site_name[:1] or 'P')|upper }}</div>
+                {% endif %}
             </a>
             <h1 class="sidebar-title">{{ base_site_name }}</h1>
             <p class="sidebar-subtitle">{{ site_settings.site_tagline if site_settings else '记录生活，分享技术' }}</p>

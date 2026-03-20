@@ -76,8 +76,13 @@
         <header class="site-header">
             <div class="site-header-left">
                 <div class="site-brand">
-                    <div class="site-brand-title">{{ site_settings.site_name if site_settings else 'Planning' }}</div>
-                    <div class="site-brand-subtitle">{{ site_settings.site_tagline if site_settings else '轻量 Markdown 内容站' }}</div>
+                    {% if site_settings and site_settings.site_logo_url %}
+                    <img src="{{ site_settings.site_logo_url }}" alt="{{ base_site_name }}" class="site-brand-logo">
+                    {% endif %}
+                    <div class="site-brand-text">
+                        <div class="site-brand-title">{{ site_settings.site_name if site_settings else 'Planning' }}</div>
+                        <div class="site-brand-subtitle">{{ site_settings.site_tagline if site_settings else '轻量 Markdown 内容站' }}</div>
+                    </div>
                 </div>
             </div>
             <div class="site-header-right">
@@ -117,7 +122,12 @@
         <!-- 移动端顶部导航栏 -->
         <div class="mobile-header">
             <button class="menu-btn menu-btn-icon" id="leftMenuBtn" title="文档目录"><i data-lucide="panel-left"></i></button>
-            <h2>{{ site_settings.site_name if site_settings else 'Planning' }}</h2>
+            <div class="mobile-site-brand">
+                {% if site_settings and site_settings.site_logo_url %}
+                <img src="{{ site_settings.site_logo_url }}" alt="{{ base_site_name }}" class="mobile-site-logo">
+                {% endif %}
+                <h2>{{ site_settings.site_name if site_settings else 'Planning' }}</h2>
+            </div>
             <div style="display:flex; align-items:center; gap:8px;">
                 <button class="menu-btn menu-btn-icon" id="openSearchBtnMobile" title="搜索"><i data-lucide="search"></i></button>
                 <button class="menu-btn menu-btn-icon" id="themeToggleBtnMobile" title="主题"><i data-lucide="palette"></i></button>

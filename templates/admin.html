@@ -265,6 +265,11 @@
                         <input type="text" name="site_name" value="{{ settings.site_name or 'Planning' }}" placeholder="例如：宏旭知识库">
                     </div>
                     <div class="form-group">
+                        <label>站点 Logo 地址</label>
+                        <input type="text" name="site_logo" value="{{ settings.site_logo or '' }}" placeholder="例如：/static/uploads/site-logo.png 或 https://example.com/logo.png">
+                        <small style="color:#6c757d;">留空则继续使用当前文字/首字母占位样式。</small>
+                    </div>
+                    <div class="form-group">
                         <label>站点副标题</label>
                         <input type="text" name="site_tagline" value="{{ settings.site_tagline or '轻量 Markdown 内容站' }}" placeholder="一句简短介绍">
                     </div>

@@ -50,6 +50,32 @@
             margin-bottom: 24px;
             letter-spacing: 0.5px;
         }
+        .login-brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .login-brand img {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            object-fit: cover;
+            box-shadow: 0 8px 18px rgba(15, 79, 168, 0.14);
+            flex-shrink: 0;
+        }
+        .login-brand-text {
+            min-width: 0;
+        }
+        .login-brand-text h2 {
+            margin-bottom: 6px;
+            text-align: left;
+        }
+        .login-brand-text .sub-title {
+            text-align: left;
+            margin: 0;
+        }
         .sub-title {
             text-align: center;
             font-size: 13px;
@@ -201,8 +227,15 @@
 </head>
 <body>
     <div class="login-box">
-        <h2>{{ site_settings.site_name if site_settings else 'Planning' }}</h2>
-        <p class="sub-title">{{ site_settings.site_tagline if site_settings else '轻量 Markdown 内容站' }}</p>
+        <div class="login-brand">
+            {% if site_settings and site_settings.site_logo_url %}
+            <img src="{{ site_settings.site_logo_url }}" alt="{{ site_settings.site_name if site_settings else 'Planning' }}">
+            {% endif %}
+            <div class="login-brand-text">
+                <h2>{{ site_settings.site_name if site_settings else 'Planning' }}</h2>
+                <p class="sub-title">{{ site_settings.site_tagline if site_settings else '轻量 Markdown 内容站' }}</p>
+            </div>
+        </div>
         
         {% with messages = get_flashed_messages() %}
             {% if messages %}

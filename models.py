@@ -215,6 +215,8 @@ def init_db(app):
             SystemSetting.set('show_docs_entry_in_blog', 'true')
         if SystemSetting.get('blog_theme') is None:
             SystemSetting.set('blog_theme', 'default')
+        if SystemSetting.get('site_logo') is None:
+            SystemSetting.set('site_logo', '')
 
         # 建立默认管理员
         admin = User.query.filter_by(username='admin').first()

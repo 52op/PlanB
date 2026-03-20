@@ -28,7 +28,11 @@
     <header class="top-header">
         <div class="header-inner">
             <a href="{{ url_for('main.blog_home') }}" class="site-brand">
+                {% if site_settings and site_settings.site_logo_url %}
+                <img src="{{ site_settings.site_logo_url }}" alt="{{ base_site_name }}" class="site-avatar site-logo-image">
+                {% else %}
                 <div class="site-avatar">{{ (base_site_name[:1] or 'P')|upper }}</div>
+                {% endif %}
                 <span>{{ base_site_name }}</span>
             </a>
             
@@ -150,7 +154,11 @@
             {% block sidebar %}
             <!-- Author Widget -->
             <div class="widget author-widget">
+                {% if site_settings and site_settings.site_logo_url %}
+                <img src="{{ site_settings.site_logo_url }}" alt="{{ base_site_name }}" class="author-avatar site-logo-image">
+                {% else %}
                 <div class="author-avatar">{{ (base_site_name[:1] or 'P')|upper }}</div>
+                {% endif %}
                 <div class="author-name">{{ base_site_name }}</div>
                 <div class="author-bio">{{ site_settings.site_tagline if site_settings else '记录生活，分享技术' }}</div>
                 <div class="site-stats">

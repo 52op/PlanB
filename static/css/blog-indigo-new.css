@@ -310,7 +310,7 @@ body.sidebar-collapsed .header-toggle .icon-close {
     height: 80px;
     margin: 0 auto 16px;
     border-radius: 50%;
-    background: var(--brand-gradient);
+    /* background: var(--brand-gradient); */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -318,6 +318,11 @@ body.sidebar-collapsed .header-toggle .icon-close {
     font-weight: 700;
     color: white;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-logo-image {
+    object-fit: cover;
+    overflow: hidden;
 }
 
 .sidebar-title {

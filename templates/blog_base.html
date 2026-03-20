@@ -27,7 +27,12 @@
     <header class="site-header">
         <div class="header-inner">
             <h1 class="site-title">
-                <a href="{{ url_for('main.blog_home') }}">{{ base_site_name }}</a>
+                <a href="{{ url_for('main.blog_home') }}" class="site-title-link">
+                    {% if site_settings and site_settings.site_logo_url %}
+                    <img src="{{ site_settings.site_logo_url }}" alt="{{ base_site_name }}" class="site-title-logo">
+                    {% endif %}
+                    <span>{{ base_site_name }}</span>
+                </a>
             </h1>
             <nav class="site-nav">
                 <a href="{{ url_for('main.blog_home') }}" class="{{ 'active' if request.endpoint in ['main.blog_home', 'main.index'] else '' }}">首页</a>
