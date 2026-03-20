@@ -613,45 +613,60 @@ class ShareManager {
         }
 
         this.shareManageEmpty.style.display = 'none';
-        this.shareManageList.innerHTML = this.currentShares.map((share) => {
-            const status = share.is_active ? '启用中' : '已停用';
-            const toggleLabel = share.is_active ? '停用' : '启用';
-            const expires = share.expires_at ? this.formatDateTime(share.expires_at) : '永久有效';
-            const created = share.created_at ? this.formatDateTime(share.created_at) : '--';
-            const title = this.escapeHtml(share.title || '未命名分享');
-            const url = this.escapeHtml(share.url || '');
-            const token = this.escapeHtml(share.token || '');
-            const targetMeta = this.manageScope === 'all'
-                ? `<span class="share-manage-target">${share.target_type === 'dir' ? '目录' : '文档'}：${this.escapeHtml(share.target_path || '/')}</span>`
-                : '';
+        this.shareManageList.innerHTML = this.currentShares
+            .map((share) => this.renderShareListItem(share))
+            .join('');
+    }
 
-            return `
-                <article class="share-manage-item">
-                    <div class="share-manage-item-head">
-                        <div class="share-manage-item-main">
-                            <strong>${title}</strong>
-                            <span>${url}</span>
-                            ${targetMeta}
-                        </div>
-                        <div class="share-manage-badges">
-                            <span class="share-manage-badge ${share.is_active ? 'is-active' : 'is-inactive'}">${status}</span>
-                            <span class="share-manage-badge">${share.allow_edit ? '允许编辑' : '只读浏览'}</span>
-                            <span class="share-manage-badge">${share.requires_password ? '已加密' : '公开访问'}</span>
-                        </div>
+    renderShareListItem(share) {
+        const title = this.escapeHtml(share.title || '未命名分享');
+        const url = this.escapeHtml(share.url || '');
+        const token = this.escapeHtml(share.token || '');
+        const created = share.created_at ? this.formatDateTime(share.created_at) : '--';
+        const expires = share.expires_at ? this.formatDateTime(share.expires_at) : '永久有效';
+        const targetMeta = this.renderShareTargetMeta(share);
+        const status = this.getShareStatusMeta(share);
+
+        return `
+            <article class="share-manage-item">
+                <div class="share-manage-item-head">
+                    <div class="share-manage-item-main">
+                        <strong>${title}</strong>
+                        <span>${url}</span>
+                        ${targetMeta}
                     </div>
-                    <div class="share-manage-meta">
-                        <span>创建于 ${created}</span>
-                        <span>到期 ${this.escapeHtml(expires)}</span>
+                    <div class="share-manage-badges">
+                        <span class="share-manage-badge ${status.className}">${status.label}</span>
+                        <span class="share-manage-badge">${share.allow_edit ? '允许编辑' : '只读浏览'}</span>
+                        <span class="share-manage-badge">${share.requires_password ? '已加密' : '公开访问'}</span>
                     </div>
-                    <div class="share-manage-actions">
-                        <button type="button" class="share-secondary-btn" data-share-manage-action="copy-link" data-share-token="${token}">复制链接</button>
-                        <button type="button" class="share-secondary-btn" data-share-manage-action="edit" data-share-token="${token}">编辑设置</button>
-                        <button type="button" class="share-secondary-btn" data-share-manage-action="toggle-active" data-share-token="${token}">${toggleLabel}</button>
-                        <button type="button" class="share-secondary-btn danger" data-share-manage-action="delete" data-share-token="${token}">删除</button>
-                    </div>
-                </article>
-            `;
-        }).join('');
+                </div>
+                <div class="share-manage-meta">
+                    <span>创建于 ${created}</span>
+                    <span>到期 ${this.escapeHtml(expires)}</span>
+                </div>
+                <div class="share-manage-actions">
+                    <button type="button" class="share-secondary-btn" data-share-manage-action="copy-link" data-share-token="${token}">复制链接</button>
+                    <button type="button" class="share-secondary-btn" data-share-manage-action="edit" data-share-token="${token}">编辑设置</button>
+                    <button type="button" class="share-secondary-btn" data-share-manage-action="toggle-active" data-share-token="${token}">${status.toggleLabel}</button>
+                    <button type="button" class="share-secondary-btn danger" data-share-manage-action="delete" data-share-token="${token}">删除</button>
+                </div>
+            </article>
+        `;
+    }
+
+    renderShareTargetMeta(share) {
+        if (this.manageScope !== 'all') return '';
+        const targetTypeLabel = share.target_type === 'dir' ? '目录' : '文档';
+        return `<span class="share-manage-target">${targetTypeLabel}：${this.escapeHtml(share.target_path || '/')}</span>`;
+    }
+
+    getShareStatusMeta(share) {
+        return {
+            label: share.is_active ? '启用中' : '已停用',
+            toggleLabel: share.is_active ? '停用' : '启用',
+            className: share.is_active ? 'is-active' : 'is-inactive',
+        };
     }
 
     findShare(token) {
