@@ -310,14 +310,18 @@
         function toggleUserMenu(event) {
             event.stopPropagation();
             const menu = document.getElementById('userDropdownMenu');
+            const dropdown = event.currentTarget.closest('.header-user-dropdown');
             menu.classList.toggle('show');
+            dropdown?.classList.toggle('open', menu.classList.contains('show'));
         }
 
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
             const menu = document.getElementById('userDropdownMenu');
+            const dropdown = document.querySelector('.header-user-dropdown');
             if (menu && !e.target.closest('.header-user-dropdown')) {
                 menu.classList.remove('show');
+                dropdown?.classList.remove('open');
             }
             
             // Close sidebar when clicking outside on mobile

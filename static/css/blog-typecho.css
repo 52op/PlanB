@@ -102,6 +102,7 @@ img {
 .site-nav {
     display: flex;
     gap: 20px;
+    align-items: center;
 }
 
 .site-nav a {
@@ -287,6 +288,7 @@ img {
     background: var(--bg-color);
     padding: 30px;
     box-shadow: var(--shadow);
+    min-width: 0;
 }
 
 /* Post List */

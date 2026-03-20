@@ -176,6 +176,208 @@
             margin-bottom: 20px;
             border: 1px solid #c3e6cb;
         }
+        .logo-setting-panel {
+            display: grid;
+            gap: 14px;
+        }
+        .logo-setting-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .logo-setting-actions .btn {
+            padding: 8px 14px;
+            font-size: 14px;
+        }
+        .logo-preview-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        .logo-preview-thumb,
+        .logo-preview-fallback {
+            width: 72px;
+            height: 72px;
+            border-radius: 16px;
+            flex: 0 0 auto;
+        }
+        .logo-preview-thumb {
+            display: none;
+            object-fit: cover;
+            box-shadow: 0 8px 20px rgba(15, 79, 168, 0.12);
+            background: #fff;
+        }
+        .logo-preview-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f4fa8, #4f7ec8);
+            color: #fff;
+            font-size: 28px;
+            font-weight: 700;
+            box-shadow: 0 8px 20px rgba(15, 79, 168, 0.15);
+        }
+        .logo-preview-meta {
+            min-width: 0;
+            display: grid;
+            gap: 6px;
+        }
+        .logo-preview-title {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .logo-preview-path {
+            color: #64748b;
+            font-size: 13px;
+            word-break: break-all;
+        }
+        .logo-preview-tip {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+        .logo-media-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.42);
+            backdrop-filter: blur(6px);
+            z-index: 1100;
+        }
+        .logo-media-modal.show {
+            display: flex;
+        }
+        .logo-media-dialog {
+            width: min(1080px, 100%);
+            max-height: min(86vh, 820px);
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .logo-media-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 22px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        .logo-media-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+        .logo-media-header p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: #64748b;
+        }
+        .logo-media-close {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid #dbe2ea;
+            background: #fff;
+            color: #334155;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .logo-media-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 22px;
+            border-bottom: 1px solid #eef2f7;
+            background: #fff;
+        }
+        .logo-media-status {
+            color: #64748b;
+            font-size: 13px;
+        }
+        .logo-media-grid {
+            padding: 22px;
+            overflow: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 16px;
+        }
+        .logo-media-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #fff;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        .logo-media-item:hover {
+            transform: translateY(-2px);
+            border-color: #93c5fd;
+            box-shadow: 0 10px 24px rgba(15, 79, 168, 0.12);
+        }
+        .logo-media-item.is-selected {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+        }
+        .logo-media-image {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            display: block;
+            background: #f1f5f9;
+        }
+        .logo-media-item-body {
+            padding: 12px;
+            display: grid;
+            gap: 8px;
+        }
+        .logo-media-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .logo-media-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .logo-media-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #e2e8f0;
+            color: #475569;
+        }
+        .logo-media-badge.synced {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .logo-media-badge.orphan {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+        .logo-media-empty {
+            padding: 48px 24px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+        }
         .stats-grid {
             display:grid;
             grid-template-columns: repeat(4, minmax(0,1fr));
@@ -191,6 +393,24 @@
         .stat-card strong { display:block; font-size:28px; margin-top:8px; color:#2c3e50; }
         .chart-card canvas { width:100%; max-height:280px; }
         @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+        @media (max-width: 768px) {
+            .logo-preview-card {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .logo-media-modal {
+                padding: 12px;
+            }
+            .logo-media-header,
+            .logo-media-toolbar {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+            .logo-media-grid {
+                padding: 16px;
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+        }
     </style>
     <script src="{{ url_for('static', filename='vendor/chartjs/chart.min.js') }}" defer></script>
     {% block head %}{% endblock %}
@@ -266,8 +486,25 @@
                     </div>
                     <div class="form-group">
                         <label>站点 Logo 地址</label>
-                        <input type="text" name="site_logo" value="{{ settings.site_logo or '' }}" placeholder="例如：/static/uploads/site-logo.png 或 https://example.com/logo.png">
-                        <small style="color:#6c757d;">留空则继续使用当前文字/首字母占位样式。</small>
+                        <div class="logo-setting-panel">
+                            <input type="text" id="siteLogoInput" name="site_logo" value="{{ settings.site_logo or '' }}" placeholder="例如：/static/uploads/site-logo.png、static/uploads/logo.png 或 https://example.com/logo.png">
+                            <div class="logo-setting-actions">
+                                <button type="button" class="btn" id="uploadSiteLogoBtn">上传 Logo</button>
+                                <button type="button" class="btn" id="pickSiteLogoBtn">从媒体库选择</button>
+                                <button type="button" class="btn btn-danger" id="clearSiteLogoBtn">清空 Logo</button>
+                            </div>
+                            <input type="file" id="siteLogoFileInput" accept="image/*" style="display:none;">
+                            <div class="logo-preview-card">
+                                <img id="siteLogoPreview" class="logo-preview-thumb" alt="站点 Logo 预览">
+                                <div id="siteLogoFallback" class="logo-preview-fallback">{{ (settings.site_name or 'P')[:1]|upper }}</div>
+                                <div class="logo-preview-meta">
+                                    <div class="logo-preview-title">当前 Logo 预览</div>
+                                    <div class="logo-preview-path" id="siteLogoPathText">未设置</div>
+                                    <div class="logo-preview-tip">上传或从媒体库选择后，记得点击下方“保存设置”。</div>
+                                </div>
+                            </div>
+                        </div>
+                        <small style="color:#6c757d;">留空则继续使用当前文字/首字母占位样式。上传或从媒体库选择后会自动回填到这个地址字段。</small>
                     </div>
                     <div class="form-group">
                         <label>站点副标题</label>
@@ -463,91 +700,6 @@
         
 
         <div class="card">
-            <div class="card-header">用户管理</div>
-            <div class="card-body">
-                <form method="GET" action="{{ url_for('admin.admin_dashboard') }}" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
-                    <input type="text" name="user_q" value="{{ user_keyword or '' }}" placeholder="搜索用户名或邮箱" class="form-control" style="flex:1; min-width:180px;">
-                    <select name="user_role" class="form-control" style="width:150px;">
-                        <option value="all" {% if user_role == 'all' %}selected{% endif %}>全部角色</option>
-                        <option value="admin" {% if user_role == 'admin' %}selected{% endif %}>admin</option>
-                        <option value="regular" {% if user_role == 'regular' %}selected{% endif %}>regular</option>
-                        <option value="guest" {% if user_role == 'guest' %}selected{% endif %}>guest</option>
-                    </select>
-                    <select name="user_verified" class="form-control" style="width:150px;">
-                        <option value="all" {% if user_verified == 'all' %}selected{% endif %}>全部验证状态</option>
-                        <option value="yes" {% if user_verified == 'yes' %}selected{% endif %}>已验证</option>
-                        <option value="no" {% if user_verified == 'no' %}selected{% endif %}>未验证</option>
-                    </select>
-                    <button type="submit" class="btn">筛选用户</button>
-                </form>
-                <form method="POST" action="{{ url_for('admin.admin_add_user') }}" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="text" name="username" placeholder="新用户名" required class="form-control" style="flex:1;">
-                    <input type="password" name="password" placeholder="密码" required class="form-control" style="flex:1;">
-                    <select name="role" class="form-control" style="flex:1;">
-                        <option value="regular">普通用户 (regular)</option>
-                        <option value="admin">系统管理员 (admin)</option>
-                    </select>
-                    <button type="submit" class="btn">新增用户</button>
-                </form>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>用户名</th>
-                            <th>邮箱</th>
-                            <th>已验证</th>
-                            <th>角色分配</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for u in users %}
-                        <tr>
-                            <td>{{ u.id }}</td>
-                            <td><a href="{{ url_for('admin.admin_user_detail', user_id=u.id) }}" style="color:#0056b3; text-decoration:none;">{{ u.username }}</a></td>
-                            <td>{{ u.email or '-' }}</td>
-                            <td>{{ '✅' if u.email_verified else '❌' }}</td>
-                            <td>
-                                <form method="POST" action="{{ url_for('admin.admin_update_user', user_id=u.id) }}" id="update_form_{{ u.id }}" style="display:none;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                </form>
-                                {% if u.username == 'admin' %}
-                                {{ u.role }}
-                                {% else %}
-                                <select name="role" form="update_form_{{ u.id }}" class="form-control" style="width: auto; padding: 2px; height: auto;">
-                                    <option value="regular" {% if u.role == 'regular' %}selected{% endif %}>regular</option>
-                                    <option value="guest" {% if u.role == 'guest' %}selected{% endif %}>guest</option>
-                                    <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
-                                </select>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if not u.email_verified %}
-                                <form method="POST" action="{{ url_for('admin.admin_verify_user_email', user_id=u.id) }}" style="display:inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button class="btn btn-sm" type="submit" style="margin-right: 5px;">标记验证</button>
-                                </form>
-                                {% endif %}
-                                <input type="password" name="new_password" form="update_form_{{ u.id }}" placeholder="新密码" style="width: 80px; font-size: 0.8em; padding: 2px; margin-right: 5px;">
-                                <button class="btn btn-sm" type="submit" form="update_form_{{ u.id }}" style="margin-right: 5px;">更新资料</button>
-                                
-                                {% if u.username != 'admin' %}
-                                <form method="POST" action="{{ url_for('admin.admin_delete_user', user_id=u.id) }}" style="display: inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('确定删除该用户吗？');">删除</button>
-                                </form>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card">
             <div class="card-header">目录权限规则 (基于指定用户)</div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('admin.admin_add_permission') }}" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
@@ -670,6 +822,23 @@
 
     </div>
 
+    <div class="logo-media-modal" id="siteLogoMediaModal">
+        <div class="logo-media-dialog" role="dialog" aria-modal="true" aria-labelledby="siteLogoMediaTitle">
+            <div class="logo-media-header">
+                <div>
+                    <h3 id="siteLogoMediaTitle">从媒体库选择 Logo</h3>
+                    <p>选择一张已上传图片回填到站点 Logo 设置。</p>
+                </div>
+                <button type="button" class="logo-media-close" id="closeSiteLogoMediaModal" aria-label="关闭">×</button>
+            </div>
+            <div class="logo-media-toolbar">
+                <div class="logo-media-status" id="siteLogoMediaStatus">正在读取媒体库...</div>
+                <button type="button" class="btn btn-sm" id="reloadSiteLogoMediaBtn">刷新列表</button>
+            </div>
+            <div class="logo-media-grid" id="siteLogoMediaGrid"></div>
+        </div>
+    </div>
+
     <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Highlight active menu item
@@ -760,6 +929,245 @@
             r.addEventListener('change', refreshHomeDefaultVisibility);
         });
         refreshHomeDefaultVisibility();
+
+        const siteLogoInput = document.getElementById('siteLogoInput');
+        const siteLogoPreview = document.getElementById('siteLogoPreview');
+        const siteLogoFallback = document.getElementById('siteLogoFallback');
+        const siteLogoPathText = document.getElementById('siteLogoPathText');
+        const siteLogoFileInput = document.getElementById('siteLogoFileInput');
+        const uploadSiteLogoBtn = document.getElementById('uploadSiteLogoBtn');
+        const pickSiteLogoBtn = document.getElementById('pickSiteLogoBtn');
+        const clearSiteLogoBtn = document.getElementById('clearSiteLogoBtn');
+        const siteLogoMediaModal = document.getElementById('siteLogoMediaModal');
+        const siteLogoMediaGrid = document.getElementById('siteLogoMediaGrid');
+        const siteLogoMediaStatus = document.getElementById('siteLogoMediaStatus');
+        const closeSiteLogoMediaModal = document.getElementById('closeSiteLogoMediaModal');
+        const reloadSiteLogoMediaBtn = document.getElementById('reloadSiteLogoMediaBtn');
+        const csrfToken = {{ csrf_token()|tojson }};
+        let siteLogoMediaLoaded = false;
+
+        function buildAbsoluteAssetUrl(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            if (/^https?:\/\//i.test(raw)) {
+                return raw;
+            }
+            if (raw.startsWith('/')) {
+                return window.location.origin + raw;
+            }
+            return window.location.origin + '/' + raw.replace(/^\/+/, '');
+        }
+
+        function normalizeLogoValue(urlValue) {
+            const raw = String(urlValue || '').trim();
+            if (!raw) return '';
+            try {
+                const parsed = new URL(raw, window.location.origin);
+                if (parsed.origin === window.location.origin) {
+                    return parsed.pathname + (parsed.search || '');
+                }
+                return parsed.toString();
+            } catch (error) {
+                return raw;
+            }
+        }
+
+        function updateSiteLogoPreview() {
+            if (!siteLogoInput || !siteLogoPreview || !siteLogoFallback || !siteLogoPathText) return;
+            const rawValue = String(siteLogoInput.value || '').trim();
+            const previewUrl = buildAbsoluteAssetUrl(rawValue);
+
+            if (rawValue && previewUrl) {
+                siteLogoPreview.src = previewUrl;
+                siteLogoPreview.style.display = 'block';
+                siteLogoFallback.style.display = 'none';
+                siteLogoPathText.textContent = rawValue;
+                return;
+            }
+
+            siteLogoPreview.removeAttribute('src');
+            siteLogoPreview.style.display = 'none';
+            siteLogoFallback.style.display = 'flex';
+            siteLogoPathText.textContent = '未设置';
+        }
+
+        function setSiteLogoValue(nextValue) {
+            if (!siteLogoInput) return;
+            siteLogoInput.value = normalizeLogoValue(nextValue);
+            updateSiteLogoPreview();
+        }
+
+        async function uploadSiteLogo(file) {
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            if (uploadSiteLogoBtn) {
+                uploadSiteLogoBtn.disabled = true;
+                uploadSiteLogoBtn.textContent = '上传中...';
+            }
+
+            try {
+                const response = await fetch('/api/media_upload', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: formData,
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success || !result.url) {
+                    throw new Error(result.error || 'Logo 上传失败');
+                }
+                setSiteLogoValue(result.url);
+                siteLogoMediaLoaded = false;
+                alert('Logo 已上传并回填，记得点击“保存设置”。');
+            } catch (error) {
+                alert(error.message || 'Logo 上传失败');
+            } finally {
+                if (uploadSiteLogoBtn) {
+                    uploadSiteLogoBtn.disabled = false;
+                    uploadSiteLogoBtn.textContent = '上传 Logo';
+                }
+                if (siteLogoFileInput) {
+                    siteLogoFileInput.value = '';
+                }
+            }
+        }
+
+        function closeMediaModal() {
+            if (siteLogoMediaModal) {
+                siteLogoMediaModal.classList.remove('show');
+            }
+        }
+
+        async function loadSiteLogoMedia(forceReload) {
+            if (!siteLogoMediaGrid || !siteLogoMediaStatus) return;
+            if (siteLogoMediaLoaded && !forceReload) return;
+
+            siteLogoMediaGrid.innerHTML = '';
+            siteLogoMediaStatus.textContent = '正在读取媒体库...';
+
+            try {
+                const response = await fetch('/api/images/all', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const result = await response.json();
+                if (!response.ok || !Array.isArray(result.images)) {
+                    throw new Error(result.error || '读取媒体库失败');
+                }
+
+                const currentValue = normalizeLogoValue(siteLogoInput ? siteLogoInput.value : '');
+                const usableImages = result.images
+                    .filter((image) => image && image.url && image.url !== '#')
+                    .reverse();
+
+                siteLogoMediaStatus.textContent = usableImages.length
+                    ? `共 ${usableImages.length} 张图片，可点击任意卡片作为站点 Logo。`
+                    : '媒体库中暂无可用图片。';
+
+                if (!usableImages.length) {
+                    siteLogoMediaGrid.innerHTML = '<div class="logo-media-empty">还没有可选图片，你可以先上传一张 Logo 再回来选择。</div>';
+                    siteLogoMediaLoaded = true;
+                    return;
+                }
+
+                usableImages.forEach((image) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'logo-media-item';
+                    const normalizedValue = normalizeLogoValue(image.url);
+                    if (normalizedValue === currentValue) {
+                        button.classList.add('is-selected');
+                    }
+
+                    let badgeClass = 'synced';
+                    let badgeText = image.is_referenced ? '已引用' : '未引用';
+                    if (image.status === 'orphan') {
+                        badgeClass = 'orphan';
+                        badgeText = '孤立文件';
+                    }
+
+                    button.innerHTML = `
+                        <img src="${image.url}" alt="${image.filename}" class="logo-media-image">
+                        <div class="logo-media-item-body">
+                            <div class="logo-media-name" title="${image.filename}">${image.filename}</div>
+                            <div class="logo-media-badges">
+                                <span class="logo-media-badge ${badgeClass}">${badgeText}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    button.addEventListener('click', function () {
+                        setSiteLogoValue(image.url);
+                        closeMediaModal();
+                        alert('已从媒体库选择 Logo，记得点击“保存设置”。');
+                    });
+
+                    siteLogoMediaGrid.appendChild(button);
+                });
+
+                siteLogoMediaLoaded = true;
+            } catch (error) {
+                siteLogoMediaStatus.textContent = '读取媒体库失败';
+                siteLogoMediaGrid.innerHTML = `<div class="logo-media-empty">${error.message || '读取媒体库失败，请稍后重试。'}</div>`;
+            }
+        }
+
+        if (siteLogoInput) {
+            siteLogoInput.addEventListener('input', updateSiteLogoPreview);
+            updateSiteLogoPreview();
+        }
+
+        if (uploadSiteLogoBtn && siteLogoFileInput) {
+            uploadSiteLogoBtn.addEventListener('click', function () {
+                siteLogoFileInput.click();
+            });
+            siteLogoFileInput.addEventListener('change', function (event) {
+                const file = event.target.files && event.target.files[0];
+                uploadSiteLogo(file);
+            });
+        }
+
+        if (pickSiteLogoBtn && siteLogoMediaModal) {
+            pickSiteLogoBtn.addEventListener('click', function () {
+                siteLogoMediaModal.classList.add('show');
+                loadSiteLogoMedia(false);
+            });
+        }
+
+        if (clearSiteLogoBtn) {
+            clearSiteLogoBtn.addEventListener('click', function () {
+                setSiteLogoValue('');
+            });
+        }
+
+        if (closeSiteLogoMediaModal) {
+            closeSiteLogoMediaModal.addEventListener('click', closeMediaModal);
+        }
+
+        if (reloadSiteLogoMediaBtn) {
+            reloadSiteLogoMediaBtn.addEventListener('click', function () {
+                siteLogoMediaLoaded = false;
+                loadSiteLogoMedia(true);
+            });
+        }
+
+        if (siteLogoMediaModal) {
+            siteLogoMediaModal.addEventListener('click', function (event) {
+                if (event.target === siteLogoMediaModal) {
+                    closeMediaModal();
+                }
+            });
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && siteLogoMediaModal.classList.contains('show')) {
+                    closeMediaModal();
+                }
+            });
+        }
     });
     </script>
     {% block scripts %}{% endblock %}

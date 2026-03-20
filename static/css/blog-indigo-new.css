@@ -279,19 +279,25 @@ body.sidebar-collapsed .header-toggle .icon-close {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 12px;
+    padding: 0 14px;
     height: 40px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
     color: white;
     font-size: 14px;
+    font-weight: 500;
     text-decoration: none;
+    box-shadow: 0 10px 24px rgba(27, 39, 94, 0.18);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     transition: var(--transition);
 }
 
 .header-user-info:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.28);
     color: white;
+    transform: translateY(-1px);
 }
 
 .header-user-info svg {
@@ -1561,73 +1567,90 @@ body.mobile-sidebar-open .mobile-menu-toggle .icon-close {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 12px;
-    background: transparent;
-    border: none;
-    border-radius: 20px;
+    height: 40px;
+    padding: 0 12px 0 8px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 14px;
     cursor: pointer;
-    transition: background-color 0.2s;
-    color: var(--text-primary);
+    transition: var(--transition);
+    color: white;
+    box-shadow: 0 10px 24px rgba(27, 39, 94, 0.18);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
 }
 
 .header-user-btn:hover {
-    background: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
 }
 
 .user-avatar {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid var(--border-color);
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    box-shadow: 0 4px 10px rgba(23, 33, 68, 0.16);
 }
 
 .user-avatar-fallback {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: var(--primary-color);
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .user-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     max-width: 100px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: white;
 }
 
 .dropdown-icon {
-    width: 16px;
-    height: 16px;
-    transition: transform 0.2s;
+    width: 14px;
+    height: 14px;
+    color: rgba(255, 255, 255, 0.88);
+    transition: transform 0.2s ease, color 0.2s ease;
 }
 
 .header-user-btn:hover .dropdown-icon {
     transform: rotate(180deg);
 }
 
+.header-user-dropdown.open .dropdown-icon {
+    transform: rotate(180deg);
+}
+
 .user-dropdown-menu {
     position: absolute;
-    top: calc(100% + 8px);
+    top: calc(100% + 10px);
     right: 0;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    min-width: 180px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(24, 36, 74, 0.18);
+    min-width: 196px;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
     transition: all 0.2s;
     z-index: 1000;
+    overflow: hidden;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
 }
 
 .user-dropdown-menu.show {
@@ -1640,25 +1663,33 @@ body.mobile-sidebar-open .mobile-menu-toggle .icon-close {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 16px;
+    padding: 12px 14px;
     color: var(--text-primary);
     text-decoration: none;
-    transition: background-color 0.2s;
+    font-weight: 500;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .dropdown-item:hover {
-    background: var(--bg-secondary);
+    background: rgba(63, 81, 181, 0.08);
+    color: var(--link-hover);
 }
 
 .dropdown-item i {
     width: 18px;
     height: 18px;
+    color: var(--link-color);
 }
 
 .dropdown-divider {
     height: 1px;
     background: var(--border-color);
-    margin: 4px 0;
+    margin: 2px 10px;
+}
+
+[data-theme="dark"] .user-dropdown-menu {
+    background: rgba(30, 30, 46, 0.94);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Comment Avatar */

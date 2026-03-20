@@ -1,10 +1,10 @@
 {% extends "admin.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lightgallery.min.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-zoom.min.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-rotate.min.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-thumbnail.min.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lightgallery.min.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.css') }}" />
 {% endblock %}
 
 {% block content %}
@@ -194,10 +194,10 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/lightgallery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/zoom/lg-zoom.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/rotate/lg-rotate.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/thumbnail/lg-thumbnail.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lightgallery.umd.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.js') }}"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -229,6 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             lightGalleryInstance.destroy();
 
                             lightGalleryInstance = lightGallery(gallery, {
+                                licenseKey: 'GPLv3',
                                 plugins: [lgZoom, lgRotate, lgThumbnail],
                                 speed: 500,
                                 selector: 'a',
@@ -413,6 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         lightGalleryInstance = lightGallery(gallery, {
+            licenseKey: 'GPLv3',
             plugins: [lgZoom, lgRotate, lgThumbnail],
             speed: 500,
             selector: 'a',
