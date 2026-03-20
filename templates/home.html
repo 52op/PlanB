@@ -67,6 +67,41 @@
         {% endfor %}
         {% endif %}
     </div>
+
+    {% if category_groups %}
+    <section class="home-category-section">
+        <div class="category-overview-header">
+            <h2 class="category-overview-title">按分类浏览</h2>
+            <p class="category-overview-subtitle">如果你更习惯按主题找内容，可以从这里直接进入对应板块。</p>
+        </div>
+        <div class="category-grid">
+            {% for category in category_groups %}
+            <article class="category-card">
+                <div class="category-card-top">
+                    <div>
+                        <h3 class="category-card-title">
+                            <a href="{{ category.url }}">{{ category.name }}</a>
+                        </h3>
+                        {% if category.latest_date_display %}
+                        <p class="category-card-meta">最近更新：{{ category.latest_date_display }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="category-card-count">{{ category.count }}</span>
+                </div>
+                {% if category.latest_post %}
+                <p class="category-card-highlight">
+                    最新文章：
+                    <a href="{{ category.latest_post.url }}">{{ category.latest_post.title }}</a>
+                </p>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        <p class="home-more-link">
+            <a href="{{ url_for('main.posts') }}">查看全部文章列表 →</a>
+        </p>
+    </section>
+    {% endif %}
 {% else %}
     <div class="empty-state">
         <p>还没有发布文章</p>

@@ -133,6 +133,45 @@
         {% endfor %}
     </div>
     {% endif %}
+
+    {% if category_groups %}
+    <section class="home-category-section">
+        <div class="section-heading">
+            <h2>按分类浏览</h2>
+            <p>除了最新文章流，你也可以直接按主题进入对应内容板块。</p>
+        </div>
+        <div class="category-grid">
+            {% for category in category_groups %}
+            <article class="category-panel">
+                <div class="category-panel-top">
+                    <div>
+                        <h2 class="category-panel-title">
+                            <a href="{{ category.url }}">{{ category.name }}</a>
+                        </h2>
+                        {% if category.latest_date_display %}
+                        <p class="category-panel-meta">最近更新：{{ category.latest_date_display }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="category-panel-count">{{ category.count }} 篇</span>
+                </div>
+                {% if category.latest_post %}
+                <p class="category-panel-highlight">
+                    最新文章：
+                    <a href="{{ category.latest_post.url }}">{{ category.latest_post.title }}</a>
+                </p>
+                {% endif %}
+                <a href="{{ category.url }}" class="read-more">
+                    进入分类
+                    <i data-lucide="arrow-right"></i>
+                </a>
+            </article>
+            {% endfor %}
+        </div>
+        <div class="home-more-link">
+            <a href="{{ url_for('main.posts') }}" class="btn">查看全部文章</a>
+        </div>
+    </section>
+    {% endif %}
 {% else %}
     <div class="empty-state">
         <div class="empty-state-icon">📝</div>

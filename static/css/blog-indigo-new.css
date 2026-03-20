@@ -1878,6 +1878,31 @@ body.mobile-sidebar-open .mobile-menu-toggle .icon-close {
     transform: translateX(2px);
 }
 
+.home-category-section {
+    margin-top: 40px;
+}
+
+.section-heading {
+    margin-bottom: 22px;
+}
+
+.section-heading h2 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+
+.section-heading p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.home-more-link {
+    margin-top: 24px;
+    text-align: center;
+}
+
 @media (max-width: 768px) {
     .category-grid {
         grid-template-columns: 1fr;

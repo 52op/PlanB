@@ -520,11 +520,13 @@ def _render_homepage(file_tree, posts):
     site_settings = _get_site_settings()
     featured = posts[0] if posts else None
     recent_posts = posts[1:] if len(posts) > 1 else []
+    category_groups = _build_category_overview(posts)[:6]
     return render_template(
         _get_template_name('home'),
         file_tree=file_tree,
         featured_post=featured,
         posts=recent_posts,
+        category_groups=category_groups,
         tags=get_all_tags()[:18],
         archive_groups=get_archive_groups()[:6],
         site_settings=site_settings,

@@ -1281,6 +1281,23 @@ html {
     text-decoration: underline;
 }
 
+.home-category-section {
+    margin-top: 40px;
+}
+
+.home-more-link {
+    margin-top: 20px;
+}
+
+.home-more-link a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+.home-more-link a:hover {
+    text-decoration: underline;
+}
+
 @media (max-width: 768px) {
     .category-grid {
         grid-template-columns: 1fr;
