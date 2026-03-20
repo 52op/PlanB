@@ -152,6 +152,165 @@ def _comment_redirect_target(default_target):
     return target if '#comments' in target else f'{target}#comments'
 
 
+def _find_directory_nodes(tree_nodes, target_dir):
+    normalized_target = (target_dir or '').strip('/')
+    if not normalized_target:
+        return tree_nodes
+
+    for node in tree_nodes:
+        if node.get('type') != 'dir':
+            continue
+        node_path = (node.get('path') or '').strip('/')
+        if node_path == normalized_target:
+            return node.get('children') or []
+        matched_children = _find_directory_nodes(node.get('children') or [], normalized_target)
+        if matched_children is not None:
+            return matched_children
+    return None
+
+
+def _count_tree_nodes(nodes):
+    dir_count = 0
+    file_count = 0
+    for node in nodes:
+        if node.get('type') == 'dir':
+            dir_count += 1
+        elif node.get('type') == 'file':
+            file_count += 1
+    return dir_count, file_count
+
+
+def _count_tree_descendants(nodes):
+    dir_count = 0
+    file_count = 0
+    for node in nodes:
+        if node.get('type') == 'dir':
+            dir_count += 1
+            child_dirs, child_files = _count_tree_descendants(node.get('children') or [])
+            dir_count += child_dirs
+            file_count += child_files
+        elif node.get('type') == 'file':
+            file_count += 1
+    return dir_count, file_count
+
+
+def _render_directory_listing_nodes(nodes, depth=0):
+    if not nodes:
+        return ''
+
+    parts = []
+    for node in nodes:
+        node_type = node.get('type')
+        node_name = escape(str(node.get('name') or ''))
+        node_path = str(node.get('path') or '').replace('\\', '/').strip('/')
+
+        if node_type == 'dir':
+            child_nodes = node.get('children') or []
+            direct_dirs, direct_files = _count_tree_nodes(child_nodes)
+            if child_nodes:
+                meta_text = f'{direct_dirs} 个子目录 · {direct_files} 个文档'
+            else:
+                meta_text = '空目录'
+            child_html = _render_directory_listing_nodes(child_nodes, depth + 1)
+            parts.append(
+                '<section class="directory-node directory-node-dir" style="--directory-depth:{depth};">'
+                '<a class="directory-node-link" href="{href}">'
+                '<span class="directory-node-icon"><i data-lucide="folder-open"></i></span>'
+                '<span class="directory-node-main">'
+                '<strong>{name}</strong>'
+                '<span>{meta}</span>'
+                '</span>'
+                '<span class="directory-node-arrow"><i data-lucide="chevron-right"></i></span>'
+                '</a>'
+                '{children}'
+                '</section>'.format(
+                    depth=depth,
+                    href=_get_docs_endpoint(dirname=node_path),
+                    name=node_name,
+                    meta=escape(meta_text),
+                    children=(
+                        f'<div class="directory-node-children">{child_html}</div>'
+                        if child_html else ''
+                    ),
+                )
+            )
+            continue
+
+        if node_type == 'file':
+            display_name = escape(os.path.splitext(str(node.get('name') or ''))[0])
+            parts.append(
+                '<a class="directory-node directory-node-file" href="{href}" style="--directory-depth:{depth};">'
+                '<span class="directory-node-icon"><i data-lucide="file-text"></i></span>'
+                '<span class="directory-node-main">'
+                '<strong>{name}</strong>'
+                '<span>Markdown 文档</span>'
+                '</span>'
+                '</a>'.format(
+                    href=_get_docs_endpoint(filename=node_path),
+                    depth=depth,
+                    name=display_name,
+                )
+            )
+    return ''.join(parts)
+
+
+def _build_directory_content(dirname, file_tree, can_upload):
+    current_dir_label = dirname or '/'
+    child_nodes = _find_directory_nodes(file_tree, dirname) or []
+    direct_dirs, direct_files = _count_tree_nodes(child_nodes)
+    total_dirs, total_files = _count_tree_descendants(child_nodes)
+
+    helper_text = (
+        '可以通过下方结构直接继续进入子目录或打开文档。'
+        if child_nodes else
+        '当前目录还是空的，后续上传或创建内容后，这里会立即展示出来。'
+    )
+    upload_text = (
+        '您拥有上传权限，可以通过右上角菜单向这个目录新增 .md 文件。'
+        if can_upload else
+        '如果您拥有权限，也可以通过右上角菜单向这个目录上传 .md 文件。'
+    )
+
+    sections = [
+        '<section class="directory-landing">',
+        '<div class="directory-hero">',
+        '<div class="directory-hero-top">',
+        '<span class="directory-badge">目录视图</span>',
+        '<div class="directory-stats">',
+        '<div class="directory-stat" data-tooltip="当前层子目录" title="当前层子目录" aria-label="当前层子目录"><span class="directory-stat-icon"><i data-lucide="folder-tree"></i></span><strong>{0}</strong></div>'.format(direct_dirs),
+        '<div class="directory-stat" data-tooltip="当前层文档" title="当前层文档" aria-label="当前层文档"><span class="directory-stat-icon"><i data-lucide="file-text"></i></span><strong>{0}</strong></div>'.format(direct_files),
+        '<div class="directory-stat" data-tooltip="全部下级目录" title="全部下级目录" aria-label="全部下级目录"><span class="directory-stat-icon"><i data-lucide="folders"></i></span><strong>{0}</strong></div>'.format(total_dirs),
+        '<div class="directory-stat" data-tooltip="全部下级文档" title="全部下级文档" aria-label="全部下级文档"><span class="directory-stat-icon"><i data-lucide="files"></i></span><strong>{0}</strong></div>'.format(total_files),
+        '</div>',
+        '</div>',
+        f'<h2>您选中了目录 <code>{escape(current_dir_label)}</code></h2>',
+        f'<p>{escape(helper_text)}</p>',
+        f'<p class="directory-upload-hint">{escape(upload_text)}</p>',
+        '</div>',
+    ]
+
+    if child_nodes:
+        sections.extend([
+            '<section class="directory-browser">',
+            '<div class="directory-browser-header">',
+            '<div>',
+            '<h3>目录内容</h3>',
+            '<p>按层级展开展示当前目录下的子目录与文档。</p>',
+            '</div>',
+            '<span class="directory-browser-badge">共 {0} 项</span>'.format(len(child_nodes)),
+            '</div>',
+            '<div class="directory-browser-tree">',
+            _render_directory_listing_nodes(child_nodes),
+            '</div>',
+            '</section>',
+        ])
+    else:
+        sections.append('<div class="empty-listing">当前目录还没有可展示的目录或文档。</div>')
+
+    sections.append('</section>')
+    return ''.join(sections)
+
+
 def _render_archive_listing(file_tree, include_private=False):
     site_settings = _get_site_settings()
     return render_template(
@@ -806,7 +965,6 @@ def docs_dir(dirname):
         return access_redirect
 
     file_tree = get_markdown_files()
-    docs_root = get_docs_root()
     try:
         _, dirname, target_dir = resolve_docs_path(dirname, allow_directory=True)
     except InvalidPathError:
@@ -815,13 +973,9 @@ def docs_dir(dirname):
     if not os.path.isdir(target_dir):
         abort(404)
 
-    default_file = get_default_file_for_dir(docs_root, dirname)
-    if default_file:
-        return redirect(_get_docs_endpoint(filename=default_file))
-
     can_upload = check_permission(current_user, dirname, 'upload')
     site_settings = _get_site_settings()
-    content_html = '<h3>您选中了目录【{0}】</h3><p>如果您拥有权限，可以通过右上角的菜单向此目录上传 .md 文件。</p>'.format(dirname or '/')
+    content_html = _build_directory_content(dirname, file_tree, can_upload)
     return render_template(
         'index.html',
         file_tree=file_tree,
