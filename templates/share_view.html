@@ -842,13 +842,13 @@
                 </span>
                 <h1>{{ current_title or share_link.title }}</h1>
                 {% if share_state == 'locked' %}
-                <p>该分享已开启访问密码。输入正确密码后即可查看内容，分享链接保持不变。</p>
+                <p>该分享已开启访问密码。输入正确密码后即可查看内容，分享链接本身不会变化。</p>
                 {% elif share_state == 'expired' %}
-                <p>这个分享链接已经超过有效期限，当前无法继续访问。如有需要，请联系分享者重新生成新的分享链接。</p>
+                <p>这个分享链接已经超过有效期限制，当前无法继续访问。如有需要，请联系分享者重新生成新的分享链接。</p>
                 {% elif view_kind == 'dir' %}
-                <p>你正在浏览分享出来的目录内容。可以继续进入子目录或打开文档查看，结构会始终保持在分享范围之内。</p>
+                <p>你正在浏览一个分享出来的目录内容。可以继续进入子目录或打开文档查看，浏览范围会始终限制在该分享目录之内。</p>
                 {% else %}
-                <p>你正在查看一份分享出来的文档内容。链接支持直接转发、扫码打开{% if allow_share_edit %}，并且当前分享已允许在线编辑{% endif %}。</p>
+                <p>你正在查看一份分享出来的文档内容。链接支持直接转发、扫码打开{% if allow_share_edit %}，并且当前分享允许在线编辑{% endif %}。</p>
                 {% endif %}
                 <div class="share-badges">
                     <span class="share-badge"><i data-lucide="shield-check"></i> {{ '已加密' if share_link.is_password_protected else '公开访问' }}</span>
@@ -867,7 +867,7 @@
                 <div class="share-hero-qr">
                     <div class="share-hero-qr-title">扫码访问</div>
                     <div class="share-qrcode-box" id="sharePageQrCode"></div>
-                    <div class="share-hero-qr-tip">微信中可直接扫码打开。桌面端也可以截图二维码后转发。</div>
+                    <div class="share-hero-qr-tip">微信中可直接扫码打开。桌面端也可以截图二维码后再转发。</div>
                 </div>
             </div>
         </section>
