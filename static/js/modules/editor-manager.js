@@ -83,31 +83,134 @@ class EditorManager {
         return raw;
     }
 
-    buildSizedImageMarkup(url, altText) {
-        const widthInput = window.prompt('设置图片宽度（如 320、50%、240px，留空按原图）', '');
-        if (widthInput === null) {
-            return { cancelled: true, markup: '' };
-        }
+    escapeHtmlAttribute(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        }[char] || char));
+    }
 
-        const heightInput = window.prompt('设置图片高度（可留空自动）', '');
-        if (heightInput === null) {
-            return { cancelled: true, markup: '' };
-        }
-
-        const widthValue = this.normalizeImageSize(widthInput);
-        const heightValue = this.normalizeImageSize(heightInput);
-        if (!widthValue && !heightValue) {
-            return { cancelled: false, markup: '' };
-        }
+    buildImageHtmlMarkup(url, altText, widthValue, heightValue) {
+        if (!widthValue && !heightValue) return '';
 
         const styleParts = [];
         if (widthValue) styleParts.push(`width: ${widthValue}`);
         if (heightValue) styleParts.push(`height: ${heightValue}`);
 
-        return {
-            cancelled: false,
-            markup: `<img src="${url}" alt="${altText}" style="${styleParts.join('; ')};" />`,
-        };
+        return `<img src="${this.escapeHtmlAttribute(url)}" alt="${this.escapeHtmlAttribute(altText)}" style="${styleParts.join('; ')};" />`;
+    }
+
+    buildSizedImageMarkup(url, altText) {
+        return new Promise((resolve) => {
+            const dialog = document.createElement('div');
+            dialog.className = 'modal-overlay show';
+            dialog.innerHTML = `
+                <div class="modal-content image-size-modal">
+                    <h3>插入图片尺寸</h3>
+                    <p class="image-size-modal-hint">留空按原图插入为 Markdown 图片；填写宽度或高度后，会自动插入为带尺寸的 HTML <code>&lt;img&gt;</code> 标签。</p>
+                    <div class="image-size-form">
+                        <label class="image-size-field">
+                            <span>宽度</span>
+                            <input type="text" id="imageSizeWidth" class="form-control" placeholder="如 320、50%、240px">
+                        </label>
+                        <label class="image-size-field">
+                            <span>高度</span>
+                            <input type="text" id="imageSizeHeight" class="form-control" placeholder="可留空自动">
+                        </label>
+                    </div>
+                    <div class="image-size-presets">
+                        <div class="image-size-presets-title">常用预设</div>
+                        <div class="image-size-preset-list">
+                            <button type="button" class="btn btn-secondary image-size-preset" data-width="" data-height="">原图</button>
+                            <button type="button" class="btn btn-secondary image-size-preset" data-width="320px" data-height="">宽 320</button>
+                            <button type="button" class="btn btn-secondary image-size-preset" data-width="480px" data-height="">宽 480</button>
+                            <button type="button" class="btn btn-secondary image-size-preset" data-width="50%" data-height="">宽 50%</button>
+                            <button type="button" class="btn btn-secondary image-size-preset" data-width="100%" data-height="">宽 100%</button>
+                            <button type="button" class="btn btn-secondary image-size-preset" data-width="320px" data-height="320px">1:1</button>
+                            <button type="button" class="btn btn-secondary image-size-preset" data-width="400px" data-height="300px">4:3</button>
+                            <button type="button" class="btn btn-secondary image-size-preset" data-width="480px" data-height="270px">16:9</button>
+                        </div>
+                    </div>
+                    <div class="image-size-preview-tip">
+                        你也可以手动输入宽高，支持纯数字、<code>px</code> 和百分比。
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="imageSizeCancelBtn">取消</button>
+                        <button type="button" class="btn btn-primary" id="imageSizeConfirmBtn">确定插入</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(dialog);
+
+            const widthInput = dialog.querySelector('#imageSizeWidth');
+            const heightInput = dialog.querySelector('#imageSizeHeight');
+            const confirmBtn = dialog.querySelector('#imageSizeConfirmBtn');
+            const cancelBtn = dialog.querySelector('#imageSizeCancelBtn');
+            const presetButtons = dialog.querySelectorAll('.image-size-preset');
+
+            const cleanup = () => {
+                dialog.removeEventListener('click', handleOverlayClick);
+                dialog.removeEventListener('keydown', handleKeydown, true);
+                confirmBtn?.removeEventListener('click', handleConfirm);
+                cancelBtn?.removeEventListener('click', handleCancel);
+                presetButtons.forEach((button) => button.removeEventListener('click', handlePresetClick));
+                if (dialog.parentNode) {
+                    dialog.parentNode.removeChild(dialog);
+                }
+            };
+
+            const handleConfirm = () => {
+                const widthValue = this.normalizeImageSize(widthInput?.value || '');
+                const heightValue = this.normalizeImageSize(heightInput?.value || '');
+                cleanup();
+                resolve({
+                    cancelled: false,
+                    markup: this.buildImageHtmlMarkup(url, altText, widthValue, heightValue),
+                });
+            };
+
+            const handleCancel = () => {
+                cleanup();
+                resolve({ cancelled: true, markup: '' });
+            };
+
+            const handlePresetClick = (event) => {
+                const button = event.currentTarget;
+                if (!(button instanceof HTMLElement)) return;
+                widthInput.value = button.dataset.width || '';
+                heightInput.value = button.dataset.height || '';
+                widthInput.focus();
+            };
+
+            const handleOverlayClick = (event) => {
+                if (event.target === dialog) {
+                    handleCancel();
+                }
+            };
+
+            const handleKeydown = (event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    handleCancel();
+                } else if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) {
+                    event.preventDefault();
+                    handleConfirm();
+                }
+            };
+
+            confirmBtn?.addEventListener('click', handleConfirm);
+            cancelBtn?.addEventListener('click', handleCancel);
+            presetButtons.forEach((button) => button.addEventListener('click', handlePresetClick));
+            dialog.addEventListener('click', handleOverlayClick);
+            dialog.addEventListener('keydown', handleKeydown, true);
+
+            widthInput?.focus();
+            widthInput?.select();
+        });
     }
 
     updateSidebarIcon(isHidden) {
@@ -203,10 +306,9 @@ class EditorManager {
             const result = await response.json();
 
             if (result.success) {
-                const customImage = this.buildSizedImageMarkup(result.url, 'Image');
+                const customImage = await this.buildSizedImageMarkup(result.url, 'Image');
 
                 if (customImage.cancelled) {
-                    callback(result.url, 'Image');
                     return;
                 }
 
@@ -227,23 +329,28 @@ class EditorManager {
         }
     }
 
-    replaceRecentlyInsertedImage(url, markup) {
+    replaceRecentlyInsertedImage(url, markup, attempt = 0) {
         if (!this.editorInstance) return;
 
         const standardMarkup = `![Image](${url})`;
-        const selection = this.editorInstance.getSelection?.();
-        if (!Array.isArray(selection) || !Array.isArray(selection[1])) {
+        const content = this.editorInstance.getMarkdown?.();
+        if (!content) {
             return;
         }
 
-        const end = selection[1];
-        const start = [end[0], Math.max(0, end[1] - standardMarkup.length)];
-        const selectedText = this.editorInstance.getSelectedText?.(start, end);
+        const replaceIndex = content.lastIndexOf(standardMarkup);
+        if (replaceIndex === -1) {
+            if (attempt < 6) {
+                setTimeout(() => this.replaceRecentlyInsertedImage(url, markup, attempt + 1), 60);
+            } else {
+                window.uiUtils?.showToast?.('图片已插入，但未能自动应用尺寸，请删除后重试', 'warning');
+            }
+            return;
+        }
 
-        if (selectedText === standardMarkup) {
-            this.editorInstance.replaceSelection(markup, start, end);
-            const cursorAt = [start[0], start[1] + markup.length];
-            this.editorInstance.setSelection?.(cursorAt, cursorAt);
+        const nextContent = `${content.slice(0, replaceIndex)}${markup}${content.slice(replaceIndex + standardMarkup.length)}`;
+        if (nextContent !== content) {
+            this.editorInstance.setMarkdown(nextContent, false);
             this.editorInstance.focus?.();
         }
     }
