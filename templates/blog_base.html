@@ -27,12 +27,14 @@
     <header class="site-header">
         <div class="header-inner">
             <h1 class="site-title">
-                <a href="{{ url_for('main.index') }}">{{ base_site_name }}</a>
+                <a href="{{ url_for('main.blog_home') }}">{{ base_site_name }}</a>
             </h1>
             <nav class="site-nav">
-                <a href="{{ url_for('main.index') }}" class="{{ 'active' if request.endpoint == 'main.index' else '' }}">首页</a>
+                <a href="{{ url_for('main.blog_home') }}" class="{{ 'active' if request.endpoint in ['main.blog_home', 'main.index'] else '' }}">首页</a>
+                <a href="{{ url_for('main.posts') }}" class="{{ 'active' if request.endpoint == 'main.posts' else '' }}">文章</a>
+                <a href="{{ url_for('main.category', dirname='') }}" class="{{ 'active' if request.endpoint == 'main.category' else '' }}">分类</a>
                 <a href="{{ url_for('main.archive') }}" class="{{ 'active' if request.endpoint == 'main.archive' else '' }}">归档</a>
-                <a href="{{ url_for('main.tags_page') }}" class="{{ 'active' if request.endpoint == 'main.tags_page' else '' }}">标签</a>
+                <a href="{{ url_for('main.tags_page') }}" class="{{ 'active' if request.endpoint in ['main.tags_page', 'main.tag'] else '' }}">标签</a>
                 {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}
                 <a href="{{ url_for('main.docs_home') }}">文档</a>
                 {% endif %}

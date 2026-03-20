@@ -27,16 +27,17 @@
     <!-- Header -->
     <header class="top-header">
         <div class="header-inner">
-            <a href="{{ url_for('main.index') }}" class="site-brand">
+            <a href="{{ url_for('main.blog_home') }}" class="site-brand">
                 <div class="site-avatar">{{ (base_site_name[:1] or 'P')|upper }}</div>
                 <span>{{ base_site_name }}</span>
             </a>
             
             <nav class="header-nav">
-                <a href="{{ url_for('main.index') }}" class="nav-link {{ 'active' if request.endpoint == 'main.index' else '' }}">首页</a>
-                <a href="{{ url_for('main.posts') }}" class="nav-link {{ 'active' if request.endpoint in ['main.posts', 'main.tag', 'main.category'] else '' }}">文章</a>
+                <a href="{{ url_for('main.blog_home') }}" class="nav-link {{ 'active' if request.endpoint in ['main.blog_home', 'main.index'] else '' }}">首页</a>
+                <a href="{{ url_for('main.posts') }}" class="nav-link {{ 'active' if request.endpoint == 'main.posts' else '' }}">文章</a>
+                <a href="{{ url_for('main.category', dirname='') }}" class="nav-link {{ 'active' if request.endpoint == 'main.category' else '' }}">分类</a>
                 <a href="{{ url_for('main.archive') }}" class="nav-link {{ 'active' if request.endpoint == 'main.archive' else '' }}">归档</a>
-                <a href="{{ url_for('main.tags_page') }}" class="nav-link {{ 'active' if request.endpoint == 'main.tags_page' else '' }}">标签</a>
+                <a href="{{ url_for('main.tags_page') }}" class="nav-link {{ 'active' if request.endpoint in ['main.tags_page', 'main.tag'] else '' }}">标签</a>
                 {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}
                 <a href="{{ url_for('main.docs_home') }}" class="nav-link">文档</a>
                 {% endif %}

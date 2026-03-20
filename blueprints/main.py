@@ -539,6 +539,13 @@ def _render_homepage(file_tree, posts):
     )
 
 
+def _render_blog_home():
+    posts = get_posts()
+    if posts:
+        return _render_homepage(get_public_post_tree(), posts)
+    return redirect(url_for('main.docs_home'))
+
+
 def _render_document(filename, file_tree=None):
     if file_tree is None:
         file_tree = get_markdown_files()
@@ -674,6 +681,13 @@ def switch_theme(theme):
     return resp
 
 
+@main_bp.route('/blog')
+def blog_home():
+    site_settings = _get_site_settings()
+    _abort_if_blog_disabled(site_settings)
+    return _render_blog_home()
+
+
 @main_bp.route('/')
 def index():
     site_settings = _get_site_settings()
@@ -722,11 +736,7 @@ def index():
     if not _blog_enabled(site_settings):
         return redirect(url_for('main.docs_home'))
 
-    posts = get_posts()
-    if posts:
-        return _render_homepage(get_public_post_tree(), posts)
-
-    return redirect(url_for('main.docs_home'))
+    return _render_blog_home()
 
 
 @main_bp.route('/docs')
@@ -948,6 +958,7 @@ def sitemap():
     }
     if _blog_enabled(site_settings):
         urls.update({
+            _absolute_url(url_for('main.blog_home')),
             _absolute_url(url_for('main.posts')),
             _absolute_url(url_for('main.archive')),
             _absolute_url(url_for('main.search')),
