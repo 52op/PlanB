@@ -510,6 +510,7 @@
     <script src="{{ url_for('static', filename='js/modules/context-menu.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/theme-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/file-operations.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/image-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/upload-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/front-matter-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/editor-manager.js') }}" defer></script>
@@ -814,47 +815,6 @@
             // ==========================================
             // 编辑器相关逻辑
             // ==========================================
-            const renderView = document.getElementById('renderView');
-            let docsLightGallery = null;
-
-            function setupDocumentImagePreview() {
-                const renderImages = renderView ? renderView.querySelectorAll('img') : [];
-                if (!renderImages.length) return;
-
-                renderImages.forEach(function (img, index) {
-                    if (img.closest('.lg-container')) return;
-                    let anchor = img.parentElement;
-                    if (!anchor || anchor.tagName !== 'A') {
-                        anchor = document.createElement('a');
-                        anchor.href = img.currentSrc || img.src;
-                        anchor.className = 'doc-image-link';
-                        anchor.dataset.subHtml = img.alt || '';
-                        img.parentNode.insertBefore(anchor, img);
-                        anchor.appendChild(img);
-                    } else {
-                        anchor.classList.add('doc-image-link');
-                        if (!anchor.getAttribute('href')) {
-                            anchor.setAttribute('href', img.currentSrc || img.src);
-                        }
-                    }
-                    anchor.dataset.galleryId = `doc-image-${index}`;
-                });
-
-                if (docsLightGallery) {
-                    docsLightGallery.destroy();
-                }
-
-                docsLightGallery = lightGallery(renderView, {
-                    licenseKey: 'GPLv3',
-                    selector: '.doc-image-link',
-                    plugins: [lgZoom, lgRotate, lgThumbnail],
-                    download: false,
-                    counter: true,
-                    mobileSettings: { showCloseButton: true }
-                });
-            }
-
-            setupDocumentImagePreview();
         });
     </script>
 

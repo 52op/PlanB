@@ -8,60 +8,54 @@ class ImageUtils {
     }
 
     initializeLightGallery() {
-        // 延迟初始化，等待页面加载完成
-        document.addEventListener('DOMContentLoaded', () => {
-            this.setupDocumentImagePreview();
-        });
+        const initialize = () => this.setupDocumentImagePreview();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initialize, { once: true });
+            return;
+        }
+        initialize();
     }
 
     setupDocumentImagePreview() {
-        const contentArea = document.querySelector('.content-area, .markdown-body');
-        if (!contentArea) return;
+        const renderView = document.getElementById('renderView');
+        const renderImages = renderView ? renderView.querySelectorAll('img') : [];
+        if (!renderView || !renderImages.length || typeof window.lightGallery !== 'function') {
+            return;
+        }
 
-        // 为所有图片添加预览功能
-        const images = contentArea.querySelectorAll('img');
-        images.forEach(img => {
-            if (!img.parentElement.classList.contains('doc-image-link')) {
-                this.wrapImageWithLink(img);
+        renderImages.forEach((img, index) => {
+            if (img.closest('.lg-container')) return;
+
+            let anchor = img.parentElement;
+            if (!anchor || anchor.tagName !== 'A') {
+                anchor = document.createElement('a');
+                anchor.href = img.currentSrc || img.src;
+                anchor.className = 'doc-image-link';
+                anchor.dataset.subHtml = img.alt || '';
+                img.parentNode.insertBefore(anchor, img);
+                anchor.appendChild(img);
+            } else {
+                anchor.classList.add('doc-image-link');
+                if (!anchor.getAttribute('href')) {
+                    anchor.setAttribute('href', img.currentSrc || img.src);
+                }
             }
+
+            anchor.dataset.galleryId = `doc-image-${index}`;
         });
 
-        // 初始化 LightGallery
-        if (window.lightGallery && images.length > 0) {
-            this.lightGalleryInstance = window.lightGallery(contentArea, {
-                selector: '.doc-image-link',
-                plugins: [window.lgZoom, window.lgRotate, window.lgThumbnail],
-                speed: 400,
-                download: false,
-                actualSize: false,
-                zoom: true,
-                rotate: true,
-                flipHorizontal: false,
-                flipVertical: false,
-                thumbnail: true,
-                animateThumb: true,
-                zoomFromOrigin: false,
-                allowMediaOverlap: true,
-                toggleThumb: true
-            });
-        }
-    }
-
-    wrapImageWithLink(img) {
-        if (img.parentElement.tagName.toLowerCase() === 'a') return;
-
-        const link = document.createElement('a');
-        link.href = img.src;
-        link.className = 'doc-image-link';
-        link.setAttribute('data-src', img.src);
-
-        // 如果图片有alt属性，作为标题
-        if (img.alt) {
-            link.setAttribute('data-sub-html', `<h4>${img.alt}</h4>`);
+        if (this.lightGalleryInstance) {
+            this.lightGalleryInstance.destroy();
         }
 
-        img.parentNode.insertBefore(link, img);
-        link.appendChild(img);
+        this.lightGalleryInstance = window.lightGallery(renderView, {
+            licenseKey: 'GPLv3',
+            selector: '.doc-image-link',
+            plugins: [window.lgZoom, window.lgRotate, window.lgThumbnail],
+            download: false,
+            counter: true,
+            mobileSettings: { showCloseButton: true },
+        });
     }
 
     buildSizedImageMarkup(url, altText = 'Image') {
@@ -279,9 +273,9 @@ class ImageUtils {
     }
 
     refreshImagePreview() {
-        // 重新初始化图片预览
         if (this.lightGalleryInstance) {
             this.lightGalleryInstance.destroy();
+            this.lightGalleryInstance = null;
         }
 
         setTimeout(() => {
