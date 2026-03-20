@@ -5,6 +5,8 @@
     --sidebar-text: #b4c6d4;
     --sidebar-text-hover: #fff;
     --sidebar-active: #3f51b5;
+    --brand-gradient: linear-gradient(135deg, #4f6f9f 0%, #5d6396 100%);
+    --brand-shadow-color: rgba(79, 111, 159, 0.32);
     --content-bg: #f8f9fa;
     --card-bg: #ffffff;
     --text-primary: #34495e;
@@ -27,6 +29,8 @@
     --sidebar-text: #a0a0b0;
     --sidebar-text-hover: #fff;
     --sidebar-active: #5865f2;
+    --brand-gradient: linear-gradient(135deg, #445684 0%, #4d537d 100%);
+    --brand-shadow-color: rgba(68, 86, 132, 0.4);
     --content-bg: #0f0f1e;
     --card-bg: #1e1e2e;
     --text-primary: #e0e0e0;
@@ -106,7 +110,7 @@ body.sidebar-collapsed .page-header {
     top: 0;
     left: var(--sidebar-width);
     right: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--brand-gradient);
     color: white;
     padding: 80px 60px 60px;
     z-index: 90;
@@ -306,7 +310,7 @@ body.sidebar-collapsed .header-toggle .icon-close {
     height: 80px;
     margin: 0 auto 16px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--brand-gradient);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -693,7 +697,7 @@ body.sidebar-collapsed .tags-layout {
 
 /* Header Banner */
 .page-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--brand-gradient);
     color: white;
     padding: 60px 30px;
     text-align: center;
@@ -1741,7 +1745,7 @@ body.mobile-sidebar-open .mobile-menu-toggle .icon-close {
     right: 40px;
     width: 56px;
     height: 56px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--brand-gradient);
     color: white;
     border: none;
     border-radius: 50%;
@@ -1749,7 +1753,7 @@ body.mobile-sidebar-open .mobile-menu-toggle .icon-close {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 16px var(--brand-shadow-color);
     opacity: 0;
     visibility: hidden;
     transform: translateY(20px);
