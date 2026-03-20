@@ -662,6 +662,79 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
     )
 
 
+def _build_category_overview(posts):
+    grouped = {}
+    for post in posts:
+        category_path = str(post.get('category_path') or post.get('category') or '').strip('/').replace('\\', '/')
+        category_name = str(post.get('category_name') or os.path.basename(category_path) or '未分类').strip() or '未分类'
+        group = grouped.setdefault(category_path, {
+            'path': category_path,
+            'name': category_name,
+            'count': 0,
+            'posts': [],
+            'latest_date': '',
+            'latest_date_display': '',
+        })
+        group['count'] += 1
+        group['posts'].append(post)
+
+    categories = []
+    for category_path, group in grouped.items():
+        sorted_posts = sorted(
+            group['posts'],
+            key=lambda item: (
+                item.get('date') or '',
+                item.get('filename') or '',
+            ),
+            reverse=True,
+        )
+        latest_post = sorted_posts[0] if sorted_posts else {}
+        categories.append({
+            'path': category_path,
+            'name': group['name'],
+            'url': url_for('main.category', dirname=category_path) if category_path else '',
+            'count': group['count'],
+            'latest_date': latest_post.get('date') or '',
+            'latest_date_display': latest_post.get('updated_display') or latest_post.get('date_display') or '',
+            'latest_post': latest_post,
+            'recent_posts': sorted_posts[:3],
+        })
+
+    return sorted(
+        categories,
+        key=lambda item: (
+            item.get('latest_date') or '',
+            item.get('name') or '',
+        ),
+        reverse=True,
+    )
+
+
+def _render_category_overview(file_tree, include_private=False):
+    site_settings = _get_site_settings()
+    posts = get_posts(include_private=include_private)
+    categories = _build_category_overview(posts)
+    return render_template(
+        _get_template_name('category_overview'),
+        file_tree=file_tree,
+        current_file=None,
+        current_dir='',
+        content='',
+        toc='',
+        config=current_app.config.get('APP_CONFIG', {}),
+        can_edit=False,
+        can_upload=False,
+        category_groups=categories,
+        tags=get_all_tags(include_private=include_private)[:18],
+        archive_groups=get_archive_groups(include_private=include_private)[:8],
+        site_settings=site_settings,
+        page_title='分类',
+        page_description='按主题浏览所有公开文章分类。',
+        page_meta={'title': '分类'},
+        absolute_url=_absolute_url,
+    )
+
+
 @main_bp.route('/switch-theme/<theme>')
 def switch_theme(theme):
     """切换博客主题"""
@@ -844,6 +917,8 @@ def category(dirname):
     _abort_if_blog_disabled(site_settings)
     include_private = bool(getattr(current_user, 'is_authenticated', False))
     file_tree = get_public_post_tree(include_private=include_private)
+    if not (dirname or '').strip('/'):
+        return _render_category_overview(file_tree, include_private=include_private)
     try:
         _, dirname, target_dir = resolve_docs_path(dirname, allow_directory=True)
     except InvalidPathError:

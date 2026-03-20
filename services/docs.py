@@ -220,6 +220,7 @@ def _normalize_metadata(filename, raw_metadata, raw_content):
         'updated': _normalize_date_value(raw_metadata.get('updated'))[0],
         'updated_display': _normalize_date_value(raw_metadata.get('updated'))[1],
         'category': category,
+        'category_path': category,
         'category_name': str(raw_metadata.get('category_name') or _format_category_name(category)).strip(),
         'filename': filename,
         'slug': _slugify(raw_metadata.get('slug') or slug),

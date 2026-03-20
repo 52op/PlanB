@@ -1269,6 +1269,120 @@ img {
     }
 }
 
+/* Category Overview */
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+}
+
+.category-panel {
+    padding: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.category-panel:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+}
+
+.category-panel-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.category-panel-title {
+    margin: 0 0 6px;
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+.category-panel-title a,
+.category-panel-title span {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.category-panel-title a:hover {
+    color: var(--primary);
+}
+
+.category-panel-meta {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.category-panel-count {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    background: var(--surface-hover);
+    border-radius: 999px;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.category-panel-highlight {
+    margin: 0 0 16px;
+    color: var(--text-light);
+    line-height: 1.7;
+}
+
+.category-panel-highlight a {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.category-panel-highlight a:hover {
+    color: var(--primary);
+}
+
+.category-panel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.category-panel-item {
+    display: block;
+    padding: 10px 14px;
+    background: var(--surface-hover);
+    border-radius: 12px;
+    color: var(--text);
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.category-panel-item:hover {
+    background: rgba(73, 177, 245, 0.12);
+    transform: translateX(2px);
+}
+
+@media (max-width: 768px) {
+    .category-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .category-panel {
+        padding: 22px;
+        border-radius: 16px;
+    }
+
+    .category-panel-title {
+        font-size: 22px;
+    }
+}
+
 
 /* Theme Switcher */
 .theme-switcher {

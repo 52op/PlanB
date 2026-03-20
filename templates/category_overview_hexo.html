@@ -1,0 +1,63 @@
+{% extends 'blog_base_hexo.html' %}
+
+{% block hero %}
+<div class="hero-banner">
+    <div class="hero-content">
+        <h1 class="hero-title">{{ page_title }}</h1>
+        <p class="hero-subtitle">{{ page_description }}</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if category_groups %}
+<div class="category-grid">
+    {% for category in category_groups %}
+    <article class="category-panel">
+        <div class="category-panel-top">
+            <div>
+                <h2 class="category-panel-title">
+                    {% if category.url %}
+                    <a href="{{ category.url }}">{{ category.name }}</a>
+                    {% else %}
+                    <span>{{ category.name }}</span>
+                    {% endif %}
+                </h2>
+                {% if category.latest_date_display %}
+                <p class="category-panel-meta">最近更新：{{ category.latest_date_display }}</p>
+                {% endif %}
+            </div>
+            <span class="category-panel-count">{{ category.count }} 篇</span>
+        </div>
+
+        {% if category.latest_post %}
+        <p class="category-panel-highlight">
+            最新文章：
+            <a href="{{ category.latest_post.url }}">{{ category.latest_post.title }}</a>
+        </p>
+        {% endif %}
+
+        {% if category.recent_posts %}
+        <div class="category-panel-list">
+            {% for post in category.recent_posts %}
+            <a href="{{ post.url }}" class="category-panel-item">{{ post.title }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if category.url %}
+        <a href="{{ category.url }}" class="read-more">
+            查看分类文章
+            <i data-lucide="arrow-right"></i>
+        </a>
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon">📂</div>
+    <p class="empty-state-text">暂时还没有可显示的分类</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'blog_base.html' %}
+
+{% block content %}
+<section class="category-overview">
+    <header class="category-overview-header">
+        <h2 class="category-overview-title">{{ page_title }}</h2>
+        <p class="category-overview-subtitle">{{ page_description }}</p>
+    </header>
+
+    {% if category_groups %}
+    <div class="category-grid">
+        {% for category in category_groups %}
+        <article class="category-card">
+            <div class="category-card-top">
+                <div>
+                    <h3 class="category-card-title">
+                        {% if category.url %}
+                        <a href="{{ category.url }}">{{ category.name }}</a>
+                        {% else %}
+                        <span>{{ category.name }}</span>
+                        {% endif %}
+                    </h3>
+                    {% if category.latest_date_display %}
+                    <p class="category-card-meta">最近更新：{{ category.latest_date_display }}</p>
+                    {% endif %}
+                </div>
+                <span class="category-card-count">{{ category.count }}</span>
+            </div>
+
+            {% if category.latest_post %}
+            <p class="category-card-highlight">
+                最新文章：
+                <a href="{{ category.latest_post.url }}">{{ category.latest_post.title }}</a>
+            </p>
+            {% endif %}
+
+            {% if category.recent_posts %}
+            <ul class="category-card-list">
+                {% for post in category.recent_posts %}
+                <li>
+                    <a href="{{ post.url }}">{{ post.title }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if category.url %}
+            <a href="{{ category.url }}" class="category-card-link">进入分类 →</a>
+            {% endif %}
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>暂时还没有可显示的分类</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

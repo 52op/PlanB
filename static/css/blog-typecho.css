@@ -1169,3 +1169,128 @@ html {
         display: none;
     }
 }
+
+/* Category Overview */
+.category-overview-header {
+    margin-bottom: 28px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.category-overview-title {
+    margin: 0 0 8px;
+    font-size: 28px;
+    font-weight: 400;
+}
+
+.category-overview-subtitle {
+    margin: 0;
+    color: var(--text-light);
+}
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.category-card {
+    padding: 22px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+}
+
+.category-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.category-card-title {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 400;
+}
+
+.category-card-title a,
+.category-card-title span {
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.category-card-title a:hover {
+    color: var(--link-color);
+}
+
+.category-card-meta {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+.category-card-count {
+    min-width: 42px;
+    padding: 6px 10px;
+    background: var(--bg-gray);
+    color: var(--link-color);
+    font-size: 13px;
+    text-align: center;
+}
+
+.category-card-highlight {
+    margin: 0 0 14px;
+    color: var(--text-light);
+    line-height: 1.7;
+}
+
+.category-card-highlight a {
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.category-card-highlight a:hover {
+    color: var(--link-color);
+}
+
+.category-card-list {
+    margin: 0 0 18px;
+    padding-left: 18px;
+}
+
+.category-card-list li {
+    margin-bottom: 8px;
+}
+
+.category-card-list a {
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.category-card-list a:hover {
+    color: var(--link-color);
+}
+
+.category-card-link {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+.category-card-link:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .category-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .category-card {
+        padding: 18px;
+    }
+
+    .category-card-title {
+        font-size: 20px;
+    }
+}
