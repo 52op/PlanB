@@ -130,7 +130,7 @@
                     <i data-lucide="log-in"></i>
                 </a>
                 {% endif %}
-                <button class="menu-btn menu-btn-icon" id="rightMenuBtn" title="文章目录"><i data-lucide="panel-right"></i></button>
+                <button class="menu-btn menu-btn-icon" id="rightMenuBtn" title="文档目录"><i data-lucide="panel-right"></i></button>
             </div>
         </div>
 
@@ -139,8 +139,8 @@
             <div class="sidebar-header">
                 <div class="sidebar-brand">
                     <div class="sidebar-site">
-                        <div class="sidebar-site-name">{% if page_mode in ['posts', 'archive'] %}文章导航{% else %}文档目录{% endif %}</div>
-                        <div class="sidebar-site-tagline">{% if page_mode in ['posts', 'archive'] %}浏览公开文章、分类与归档入口{% else %}按目录浏览内容树并快速进入文档{% endif %}</div>
+                        <div class="sidebar-site-name">文档目录</div>
+                        <div class="sidebar-site-tagline">按目录浏览内容树并快速进入文档</div>
                     </div>
                     <div class="sidebar-actions">
                         <button class="sidebar-icon-btn" id="expandAllBtn" title="展开全部">
@@ -224,7 +224,7 @@
 
         <div class="sidebar-panel">
             <div class="sidebar-panel-title">
-                <strong>{% if page_mode in ['posts', 'archive'] %}内容树{% else %}内容目录{% endif %}</strong>
+                <strong>内容目录</strong>
                 <span class="sidebar-chip">{{ file_tree|length if file_tree else 0 }} 项</span>
             </div>
         {{ render_tree(file_tree) }}
@@ -235,9 +235,7 @@
     <div class="content" id="content">
         <div class="document-header">
             <div class="header-left">
-                {% if page_mode in ['posts', 'archive'] %}
-                <span><strong>{{ page_title or (site_settings.site_name if site_settings else '公开文章') }}</strong></span>
-                {% elif current_file %}
+                {% if current_file %}
                 <span><i data-lucide="book-open-text" class="icon-inline"></i> 正在阅读: <strong>{{ page_meta.title or current_file }}</strong></span>
                 {% elif current_dir %}
                 <span><i data-lucide="folder-open" class="icon-inline"></i> 当前浏览目录: <strong>{{ current_dir }}</strong></span>
@@ -258,7 +256,7 @@
                     <button id="uploadBtn" class="action-btn"><i data-lucide="upload" class="icon-inline"></i> 上传</button>
                     <input type="file" id="uploadInput" accept=".md" style="display: none;">
                     {% endif %}
-                    {% if page_mode not in ['posts', 'archive'] and (current_file or current_dir is not none) %}
+                    {% if current_file or current_dir is not none %}
                     <button
                         id="shareBtn"
                         class="action-btn"
@@ -279,92 +277,6 @@
             </div>
         </div>
 
-{% if page_mode == 'posts' %}
-        <div class="listing-hero">
-            <h1>{{ page_title or '公开文章' }}</h1>
-            <p>{{ page_description or '这里展示所有允许公开访问的文章内容。' }}</p>
-            <div class="listing-nav">
-                <a href="{{ url_for('main.posts') }}">全部文章</a>
-                <a href="{{ url_for('main.archive') }}">归档</a>
-                <a href="{{ url_for('main.search') }}">搜索</a>
-                {% if current_user.is_authenticated %}
-                <a href="{{ url_for('auth.account') }}">个人中心</a>
-                {% if current_user.role == 'admin' %}<a href="{{ url_for('admin.admin_dashboard') }}">后台</a>{% endif %}
-                {% else %}
-                <a href="{{ url_for('auth.login', next=request.path) }}">管理登录</a>
-                {% endif %}
-            </div>
-            <form class="search-inline" method="get" action="{{ url_for('main.search') }}">
-                <input type="text" name="q" placeholder="搜索标题、摘要、标签或正文关键词" value="{{ search_query or '' }}">
-                <button type="submit">搜索</button>
-            </form>
-        </div>
-        {% if posts %}
-        <div class="listing-grid">
-            {% for post in posts %}
-            <article class="post-list-card">
-                {% if post.cover %}<a href="{{ post.url }}"><div class="post-list-cover" style="background-image: linear-gradient(rgba(43, 31, 18, 0.12), rgba(43, 31, 18, 0.12)), url('{{ post.cover }}');"></div></a>{% endif %}
-                <div class="post-list-inner">
-                <div class="post-list-meta">
-                    {% if post.date_display %}<span><i data-lucide="calendar-days" class="icon-inline"></i> {{ post.date_display }}</span>{% endif %}
-                    {% if post.category_name %}<a href="{{ url_for('main.category', dirname=post.category) }}"><i data-lucide="folder-tree" class="icon-inline"></i> {{ post.category_name }}</a>{% endif %}
-                    {% if post.reading_minutes %}<span><i data-lucide="clock-3" class="icon-inline"></i> {{ post.reading_minutes }} 分钟阅读</span>{% endif %}
-                    {% if post.view_count %}<span><i data-lucide="eye" class="icon-inline"></i> {{ post.view_count }} 次阅读</span>{% endif %}
-                </div>
-                <h3><a href="{{ post.url }}">{{ post.title }}</a></h3>
-                <p>{{ post.search_snippet or post.summary or '点击进入正文阅读完整内容。' }}</p>
-                {% if post.tags %}
-                <div class="post-list-tags">
-                    {% for tag in post.tags[:4] %}<a href="{{ url_for('main.tag', tag_name=tag) }}"><i data-lucide="tag" class="icon-inline"></i> {{ tag }}</a>{% endfor %}
-                </div>
-                {% endif %}
-                <a class="read-link" href="{{ post.url }}">阅读文章 <i data-lucide="arrow-up-right" class="icon-inline"></i></a>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-        {% if pagination and pagination.total_pages > 1 %}
-        <div class="pagination-bar">
-            {% if pagination.has_prev %}<a href="{{ pagination.prev_url }}">上一页</a>{% endif %}
-            <span class="current">{{ pagination.page }} / {{ pagination.total_pages }}</span>
-            {% if pagination.has_next %}<a href="{{ pagination.next_url }}">下一页</a>{% endif %}
-        </div>
-        {% endif %}
-        {% else %}
-        <div class="empty-listing">{{ empty_message or '当前还没有可展示的公开文章。' }}</div>
-        {% endif %}
-{% elif page_mode == 'archive' %}
-        <div class="archive-hero">
-            <h1>{{ page_title or '文章归档' }}</h1>
-            <p>{{ page_description or '按时间线浏览公开文章。' }}</p>
-            <div class="listing-nav">
-                <a href="{{ url_for('main.posts') }}">全部文章</a>
-                <a href="{{ url_for('main.archive') }}">归档</a>
-                <a href="{{ url_for('main.search') }}">搜索</a>
-            </div>
-            <form class="search-inline" method="get" action="{{ url_for('main.search') }}">
-                <input type="text" name="q" placeholder="搜索公开文章" value="{{ search_query or '' }}">
-                <button type="submit">搜索</button>
-            </form>
-        </div>
-        {% if archive_groups %}
-        <div class="archive-group-list">
-            {% for group in archive_groups %}
-            <section class="archive-group-card" id="{{ group.label }}">
-                <h3>{{ group.label }} · {{ group.count }} 篇</h3>
-                {% for post in group.posts %}
-                <a class="archive-item-link" href="{{ post.url }}">
-                    <span>{{ post.title }}</span>
-                    <span>{{ post.date_display or group.label }}</span>
-                </a>
-                {% endfor %}
-            </section>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-listing">当前还没有可展示的归档内容。</div>
-        {% endif %}
-{% else %}
 {% if page_meta and page_meta.template == "post" %}
         <div class="post-intro">
             <div class="post-meta">
@@ -486,7 +398,6 @@
         </section>
         {% endif %}
         <footer class="site-footer">{% if site_settings and site_settings.footer_html %}{{ site_settings.footer_html|safe }}{% else %}&copy; <span id="footerYear"></span> {{ site_settings.site_name if site_settings else "Planning" }}{% endif %}</footer>
-{% endif %}
         
         <div id="editorView" style="display: none; height: calc(100vh - 150px);">
             <div style="margin-bottom: 15px;">
@@ -553,33 +464,12 @@
     <!-- 右侧 TOC -->
     <div class="toc-container" id="tocBox">
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px 10px 20px;">
-            <h3 style="margin: 0; padding: 0;">{% if page_mode in ['posts', 'archive'] %}站点信息{% else %}文档目录{% endif %}</h3>
+            <h3 style="margin: 0; padding: 0;">文档目录</h3>
             <button class="sidebar-icon-btn" id="toggleTocBtn" title="隐藏目录" style="flex-shrink: 0;">
                 <i data-lucide="panel-right-close"></i>
             </button>
         </div>
-        {% if page_mode in ['posts', 'archive'] %}
-        <div class="side-panel-block">
-            <div style="font-weight:700; margin-bottom:12px;">热门标签</div>
-            <div class="side-panel-tags">
-                {% for tag in tags[:12] %}
-                <a href="{{ url_for('main.tag', tag_name=tag.name if tag.name is defined else tag) }}"># {{ tag.name if tag.name is defined else tag }}</a>
-                {% else %}
-                <span style="color:#999;">暂无标签</span>
-                {% endfor %}
-            </div>
-        </div>
-        {% if archive_groups %}
-        <div class="side-panel-block">
-            <div style="font-weight:700; margin-bottom:12px;">归档索引</div>
-            <div class="side-panel-tags">
-                {% for group in archive_groups[:8] %}
-                <a href="{{ url_for('main.archive') }}#{{ group.label }}">{{ group.label }}</a>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-        {% elif toc %}
+        {% if toc %}
         {{ toc|safe }}
         {% else %}
         <div style="padding: 0 20px; color: #999;">暂无目录</div>
@@ -618,7 +508,6 @@
     <script src="{{ url_for('static', filename='js/modules/ui-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/share-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/context-menu.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modules/search-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/theme-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/file-operations.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/upload-manager.js') }}" defer></script>
