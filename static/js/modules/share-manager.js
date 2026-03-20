@@ -34,7 +34,7 @@ class ShareManager {
                         <div class="share-modal-eyebrow">分享设置</div>
                         <h3 id="shareModalTitle">创建分享</h3>
                     </div>
-                    <button type="button" class="share-modal-close" id="shareModalClose" aria-label="Close">
+                    <button type="button" class="share-modal-close" id="shareModalClose" aria-label="关闭分享弹窗">
                         <i data-lucide="x"></i>
                     </button>
                 </div>
@@ -122,9 +122,9 @@ class ShareManager {
                             <div class="share-result-actions">
                                 <button type="button" class="share-secondary-btn" data-share-action="copy-text">复制分享文案</button>
                                 <button type="button" class="share-secondary-btn" data-share-action="system">系统分享</button>
-                                <button type="button" class="share-secondary-btn" data-share-action="wechat">WeChat</button>
+                                <button type="button" class="share-secondary-btn" data-share-action="wechat">微信</button>
                                 <button type="button" class="share-secondary-btn" data-share-action="qq">QQ</button>
-                                <button type="button" class="share-secondary-btn" data-share-action="qzone">QZone</button>
+                                <button type="button" class="share-secondary-btn" data-share-action="qzone">QQ空间</button>
                                 <button type="button" class="share-secondary-btn" data-share-action="weibo">微博</button>
                             </div>
                         </div>
@@ -146,7 +146,7 @@ class ShareManager {
                                     <strong id="shareManageEditorTitle">编辑分享设置</strong>
                                     <span id="shareManageEditorHint">修改当前分享的有效期、密码和编辑权限。</span>
                                 </div>
-                                <button type="button" class="share-secondary-btn" id="cancelManageEditBtn">Cancel</button>
+                                <button type="button" class="share-secondary-btn" id="cancelManageEditBtn">取消编辑</button>
                             </div>
                             <div class="share-form share-manage-form-grid">
                                 <label class="share-form-field">
