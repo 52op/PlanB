@@ -355,6 +355,48 @@ class PlanningApp {
             childrenEl.style.display = open ? '' : 'none';
         };
 
+        const ensureActiveItemVisible = () => {
+            const activeItem =
+                sidebar.querySelector('.file-row.active') ||
+                sidebar.querySelector('.dir-item.active');
+            if (!activeItem) return;
+
+            const openSet = loadOpenSet();
+
+            // 如果当前激活的是目录，本身也要展开子级。
+            const activeRow = activeItem.closest('.tree-row');
+            const activeChildren = activeRow ? activeRow.nextElementSibling : null;
+            if (activeChildren && activeChildren.classList.contains('dir-children')) {
+                setChildrenOpen(activeChildren, true);
+                const activePath = activeChildren.dataset.path;
+                if (activePath) {
+                    openSet.add(activePath);
+                }
+            }
+
+            // 向上展开所有父级目录，确保当前项可见。
+            let parentChildren = activeItem.closest('.dir-children');
+            while (parentChildren) {
+                setChildrenOpen(parentChildren, true);
+                const parentPath = parentChildren.dataset.path;
+                if (parentPath) {
+                    openSet.add(parentPath);
+                }
+
+                const parentList = parentChildren.parentElement;
+                parentChildren = parentList ? parentList.closest('.dir-children') : null;
+            }
+
+            saveOpenSet(openSet);
+
+            requestAnimationFrame(() => {
+                activeItem.scrollIntoView({
+                    block: 'center',
+                    inline: 'nearest',
+                });
+            });
+        };
+
         const applyOpenStateFromStorage = () => {
             const openSet = loadOpenSet();
             sidebar.querySelectorAll('.dir-children[data-path]').forEach((childrenEl) => {
@@ -368,6 +410,9 @@ class PlanningApp {
 
         // 首次初始化：恢复展开状态
         applyOpenStateFromStorage();
+        requestAnimationFrame(() => {
+            ensureActiveItemVisible();
+        });
 
         // 展开/折叠全部
         const expandAllBtn = document.getElementById('expandAllBtn');
