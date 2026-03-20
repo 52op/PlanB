@@ -103,6 +103,13 @@ class EditorManager {
         return `<img src="${this.escapeHtmlAttribute(url)}" alt="${this.escapeHtmlAttribute(altText)}" style="${styleParts.join('; ')};" />`;
     }
 
+    markdownIndexToEditorPosition(content, index) {
+        const safeIndex = Math.max(0, Math.min(index, String(content || '').length));
+        const before = String(content || '').slice(0, safeIndex);
+        const lines = before.split('\n');
+        return [Math.max(1, lines.length), lines[lines.length - 1].length];
+    }
+
     buildSizedImageMarkup(url, altText) {
         return new Promise((resolve) => {
             const dialog = document.createElement('div');
@@ -350,8 +357,17 @@ class EditorManager {
 
         const nextContent = `${content.slice(0, replaceIndex)}${markup}${content.slice(replaceIndex + standardMarkup.length)}`;
         if (nextContent !== content) {
+            const cursorAt = this.markdownIndexToEditorPosition(nextContent, replaceIndex + markup.length);
+            const markdownScroll = document.querySelector('#toastEditor .CodeMirror-scroll');
+            const previousScrollTop = markdownScroll ? markdownScroll.scrollTop : null;
             this.editorInstance.setMarkdown(nextContent, false);
-            this.editorInstance.focus?.();
+            requestAnimationFrame(() => {
+                if (markdownScroll && previousScrollTop !== null) {
+                    markdownScroll.scrollTop = previousScrollTop;
+                }
+                this.editorInstance.setSelection?.(cursorAt, cursorAt);
+                this.editorInstance.focus?.();
+            });
         }
     }
 
