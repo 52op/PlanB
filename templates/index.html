@@ -214,7 +214,7 @@
                 {% else %}
                 <div class="tree-row">
                     <button type="button" class="ghost" tabindex="-1" aria-hidden="true"></button>
-                    <a class="file-row {{ 'active' if node.path == current_file else '' }}" href="{{ url_for(docs_endpoint or 'main.docs_doc', filename=node.path) }}" data-node-type="file" data-file-path="{{ node.path }}" data-node-name="{{ node.name }}"><span class="icon-box"><i data-lucide="file-text"></i></span> {{ node.name|replace('.md', '') }}</a>
+                    <a class="file-row {{ 'active' if node.path == current_file else '' }}" href="{{ url_for('main.docs_doc', filename=node.path) }}" data-node-type="file" data-file-path="{{ node.path }}" data-node-name="{{ node.name }}"><span class="icon-box"><i data-lucide="file-text"></i></span> {{ node.name|replace('.md', '') }}</a>
                 </div>
                 {% endif %}
             </li>
@@ -390,9 +390,9 @@
             </div>
             {% if comment_pagination and comment_pagination.total_pages > 1 %}
             <div class="pagination-bar" style="margin-top:16px;">
-                {% if comment_pagination.has_prev %}<a href="{{ url_for(docs_endpoint or 'main.docs_doc', filename=current_file, comment_page=comment_pagination.prev_page) }}#comments">上一页</a>{% endif %}
+                {% if comment_pagination.has_prev %}<a href="{{ url_for('main.docs_doc', filename=current_file, comment_page=comment_pagination.prev_page) }}#comments">上一页</a>{% endif %}
                 <span class="current">评论 {{ comment_pagination.page }} / {{ comment_pagination.total_pages }}</span>
-                {% if comment_pagination.has_next %}<a href="{{ url_for(docs_endpoint or 'main.docs_doc', filename=current_file, comment_page=comment_pagination.next_page) }}#comments">下一页</a>{% endif %}
+                {% if comment_pagination.has_next %}<a href="{{ url_for('main.docs_doc', filename=current_file, comment_page=comment_pagination.next_page) }}#comments">下一页</a>{% endif %}
             </div>
             {% endif %}
         </section>

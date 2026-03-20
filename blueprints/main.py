@@ -539,7 +539,7 @@ def _render_homepage(file_tree, posts):
     )
 
 
-def _render_document(filename, file_tree=None, docs_endpoint='main.docs_doc'):
+def _render_document(filename, file_tree=None):
     if file_tree is None:
         file_tree = get_markdown_files()
 
@@ -596,7 +596,6 @@ def _render_document(filename, file_tree=None, docs_endpoint='main.docs_doc'):
         site_settings=_get_site_settings(),
         absolute_url=_absolute_url,
         comments_enabled_flag=comments_enabled(),
-        docs_endpoint=docs_endpoint,
     )
 
 
@@ -986,7 +985,7 @@ def docs_doc(filename):
     if access_redirect:
         return access_redirect
 
-    return _render_document(filename, docs_endpoint='main.docs_doc')
+    return _render_document(filename)
 
 
 @main_bp.route('/doc/<path:filename>')
@@ -1112,7 +1111,6 @@ def docs_dir(dirname):
         can_upload=can_upload,
         page_meta={'title': dirname or site_settings['site_name']},
         site_settings=site_settings,
-        docs_endpoint='main.docs_doc',
     )
 
 
@@ -1356,7 +1354,6 @@ def docs_search():
         can_upload=False,
         page_meta={'title': f'搜索: {query}' if query else '搜索文档'},
         site_settings=site_settings,
-        docs_endpoint='main.docs_doc',
     )
 
 
