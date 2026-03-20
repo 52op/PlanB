@@ -21,6 +21,7 @@ from services import (
     get_all_tags,
     get_archive_groups,
     get_comments_for_filename,
+    get_recent_comment_entries,
     get_default_file_for_dir,
     get_directory_articles,
     get_document_payload,
@@ -66,8 +67,27 @@ def _format_app_datetime(value):
 @main_bp.context_processor
 def inject_theme():
     """向所有模板注入当前主题信息"""
+    recent_blog_comments = []
+    blog_sidebar_endpoints = {
+        'main.blog_home',
+        'main.index',
+        'main.posts',
+        'main.tag',
+        'main.tags_page',
+        'main.archive',
+        'main.category',
+        'main.post_detail',
+        'main.search',
+    }
+    if request.endpoint in blog_sidebar_endpoints and _blog_enabled() and comments_enabled():
+        recent_blog_comments = get_recent_comment_entries(
+            limit=5,
+            include_private=bool(getattr(current_user, 'is_authenticated', False)),
+        )
     return {
-        'current_theme': _get_blog_theme()
+        'current_theme': _get_blog_theme(),
+        'format_app_datetime': _format_app_datetime,
+        'recent_blog_comments': recent_blog_comments,
     }
 
 

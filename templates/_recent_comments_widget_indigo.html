@@ -1,0 +1,18 @@
+{% if recent_blog_comments %}
+<div class="sidebar-recent-comments">
+    <div class="sidebar-recent-comments-title">
+        <i data-lucide="message-square-more"></i>
+        <span>最新评论</span>
+    </div>
+    <ul class="sidebar-recent-comments-list">
+        {% for item in recent_blog_comments[:3] %}
+        <li>
+            <a href="{{ item.url }}" class="sidebar-recent-comment-link">
+                <span class="sidebar-recent-comment-author">{{ item.author_name }}</span>
+                <span class="sidebar-recent-comment-excerpt">{{ item.excerpt }}</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}

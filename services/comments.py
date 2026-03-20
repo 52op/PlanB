@@ -242,6 +242,68 @@ def get_comment_stats():
     }
 
 
+def get_recent_comment_entries(limit=5, include_private=False):
+    from .docs import get_posts
+
+    try:
+        max_items = max(int(limit or 0), 0)
+    except (TypeError, ValueError):
+        max_items = 5
+    if max_items <= 0:
+        return []
+
+    post_map = {}
+    for post in get_posts(include_private=include_private):
+        filename = str(post.get('filename') or '').strip()
+        if not filename:
+            continue
+        post_map[filename] = {
+            'title': str(post.get('title') or '未命名文章').strip() or '未命名文章',
+            'url': str(post.get('url') or '').strip(),
+        }
+
+    if not post_map:
+        return []
+
+    sample_size = max(max_items * 6, 24)
+    recent_comments = (
+        Comment.query
+        .filter_by(status='approved')
+        .order_by(Comment.created_at.desc())
+        .limit(sample_size)
+        .all()
+    )
+
+    entries = []
+    for comment in recent_comments:
+        post_info = post_map.get(comment.filename)
+        if not post_info:
+            continue
+        author = getattr(comment, 'user', None)
+        author_name = ''
+        if author:
+            author_name = str(getattr(author, 'nickname', '') or getattr(author, 'username', '') or '').strip()
+        if not author_name:
+            author_name = '匿名'
+        excerpt = re.sub(r'\s+', ' ', str(comment.content or '')).strip()
+        excerpt = re.sub(r'[`#>*_\-\[\]\(\)!]+', '', excerpt).strip()
+        if len(excerpt) > 72:
+            excerpt = f"{excerpt[:69].rstrip()}..."
+        entries.append({
+            'id': comment.id,
+            'author_name': author_name,
+            'excerpt': excerpt or '这条评论还没有可显示的内容。',
+            'created_at': comment.created_at,
+            'url': f"{post_info['url']}#comments" if post_info.get('url') else '',
+            'post_title': post_info.get('title') or '未命名文章',
+            'is_reply': bool(comment.parent_id),
+        })
+        if len(entries) >= max_items:
+            break
+
+    return entries
+
+
 def get_user_stats():
     return {
         'total_users': User.query.count(),

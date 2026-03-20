@@ -1,0 +1,60 @@
+{% if recent_blog_comments %}
+{% if current_theme == 'vercel' %}
+<section class="widget-card recent-comments-widget">
+    <div class="widget-title"><i data-lucide="message-square-more"></i><h3>最新评论</h3></div>
+    <ul class="recent-comments-list">
+        {% for item in recent_blog_comments %}
+        <li class="recent-comment-item">
+            <a href="{{ item.url }}" class="recent-comment-link">
+                <div class="recent-comment-meta">
+                    <span class="recent-comment-author">{{ item.author_name }}</span>
+                    <span class="recent-comment-time">{{ format_app_datetime(item.created_at) }}</span>
+                </div>
+                <p class="recent-comment-excerpt">{{ item.excerpt }}</p>
+                <div class="recent-comment-post">{{ item.post_title }}</div>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% elif current_theme in ['astro', 'hexo'] %}
+<div class="widget recent-comments-widget">
+    <div class="widget-title">
+        <i data-lucide="message-square-more"></i>
+        <span>最新评论</span>
+    </div>
+    <ul class="recent-comments-list">
+        {% for item in recent_blog_comments %}
+        <li class="recent-comment-item">
+            <a href="{{ item.url }}" class="recent-comment-link">
+                <div class="recent-comment-meta">
+                    <span class="recent-comment-author">{{ item.author_name }}</span>
+                    <span class="recent-comment-time">{{ format_app_datetime(item.created_at) }}</span>
+                </div>
+                <p class="recent-comment-excerpt">{{ item.excerpt }}</p>
+                <div class="recent-comment-post">{{ item.post_title }}</div>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+<div class="widget recent-comments-widget">
+    <h3 class="widget-title">最新评论</h3>
+    <ul class="recent-comments-list">
+        {% for item in recent_blog_comments %}
+        <li class="recent-comment-item">
+            <a href="{{ item.url }}" class="recent-comment-link">
+                <div class="recent-comment-meta">
+                    <span class="recent-comment-author">{{ item.author_name }}</span>
+                    <span class="recent-comment-time">{{ format_app_datetime(item.created_at) }}</span>
+                </div>
+                <p class="recent-comment-excerpt">{{ item.excerpt }}</p>
+                <div class="recent-comment-post">{{ item.post_title }}</div>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endif %}

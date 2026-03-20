@@ -539,6 +539,56 @@ img {
     color: var(--primary);
 }
 
+.recent-comments-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.recent-comment-item {
+    padding: 14px;
+    border-radius: var(--radius);
+    background: var(--bg);
+}
+
+.recent-comment-link {
+    display: block;
+}
+
+.recent-comment-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.recent-comment-author {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.recent-comment-time {
+    color: var(--text-muted);
+}
+
+.recent-comment-excerpt {
+    margin: 0;
+    color: var(--text-light);
+    line-height: 1.7;
+    font-size: 13px;
+}
+
+.recent-comment-post {
+    margin-top: 8px;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .category-count,
 .archive-count {
     color: var(--text-muted);
@@ -1312,14 +1362,23 @@ img {
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
-    opacity: 0;
+    opacity: 0.38;
     transition: all 0.3s ease;
     z-index: 10;
     box-shadow: var(--shadow);
 }
 
-.code-block-wrapper:hover .code-copy-btn {
-    opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+    .code-block-wrapper:hover .code-copy-btn,
+    .code-block-wrapper:focus-within .code-copy-btn {
+        opacity: 1;
+    }
+}
+
+@media (hover: none), (pointer: coarse) {
+    .code-copy-btn {
+        opacity: 1;
+    }
 }
 
 .code-copy-btn:hover {

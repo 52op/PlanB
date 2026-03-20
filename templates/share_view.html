@@ -472,8 +472,23 @@
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
+            opacity: 0.38;
             transition: all 0.18s ease;
             backdrop-filter: blur(8px);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .share-markdown pre:hover .share-code-copy-btn,
+            .share-markdown pre:focus-within .share-code-copy-btn {
+                opacity: 1;
+                transform: translateY(-1px);
+            }
+        }
+
+        @media (hover: none), (pointer: coarse) {
+            .share-code-copy-btn {
+                opacity: 1;
+            }
         }
 
         .share-code-copy-btn:hover {

@@ -329,6 +329,56 @@ button { cursor: pointer; }
     justify-content: center;
     font-size: 12px;
 }
+.recent-comments-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.recent-comment-item {
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: var(--bg-subtle);
+}
+
+.recent-comment-link {
+    display: block;
+}
+
+.recent-comment-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.recent-comment-author {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.recent-comment-time {
+    color: var(--text-muted);
+}
+
+.recent-comment-excerpt {
+    margin: 0;
+    color: var(--text-soft);
+    line-height: 1.65;
+    font-size: 13px;
+}
+
+.recent-comment-post {
+    margin-top: 8px;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+}
 .archive-mini-list, .toc-nav ul, .category-card-list, .archive-items { margin: 0; padding: 0; list-style: none; }
 
 .section-header { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin: 0 0 16px; }
@@ -403,7 +453,18 @@ html[data-theme='dark'] .article-body pre { background: #09090b; }
 .code-copy-btn {
     position: absolute; top: 14px; right: 14px; z-index: 2; height: 34px; padding: 0 12px; border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(15, 23, 42, 0.72); color: #e2e8f0;
-    display: inline-flex; align-items: center; gap: 8px;
+    display: inline-flex; align-items: center; gap: 8px; opacity: 0.38;
+    transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+    .code-block-wrapper:hover .code-copy-btn,
+    .code-block-wrapper:focus-within .code-copy-btn {
+        opacity: 1;
+        transform: translateY(-1px);
+    }
+}
+@media (hover: none), (pointer: coarse) {
+    .code-copy-btn { opacity: 1; }
 }
 .code-copy-btn.copied { background: rgba(15, 118, 110, 0.84); }
 .article-nav {

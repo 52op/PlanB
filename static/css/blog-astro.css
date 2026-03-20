@@ -739,6 +739,56 @@ textarea:focus {
     font-size: 12px;
 }
 
+.recent-comments-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.recent-comment-item {
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: var(--surface-soft);
+}
+
+.recent-comment-link {
+    display: block;
+}
+
+.recent-comment-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.recent-comment-author {
+    color: var(--heading-color);
+    font-weight: 700;
+}
+
+.recent-comment-time {
+    color: var(--text-muted);
+}
+
+.recent-comment-excerpt {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    font-size: 13px;
+}
+
+.recent-comment-post {
+    margin-top: 8px;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .tag-cloud,
 .post-tags,
 .tag-cloud-page {
@@ -1494,7 +1544,23 @@ textarea:focus {
     background: rgba(15, 23, 42, 0.9);
     color: #e5ecff;
     cursor: pointer;
+    opacity: 0.38;
+    transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease;
     z-index: 2;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .code-block-wrapper:hover .code-copy-btn,
+    .code-block-wrapper:focus-within .code-copy-btn {
+        opacity: 1;
+        transform: translateY(-1px);
+    }
+}
+
+@media (hover: none), (pointer: coarse) {
+    .code-copy-btn {
+        opacity: 1;
+    }
 }
 
 .code-copy-btn.copied {
