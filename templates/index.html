@@ -2592,6 +2592,7 @@
     <script src="{{ url_for('static', filename='js/modules/context-menu.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/search-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/theme-manager.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/upload-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/front-matter-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/editor-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
@@ -2689,7 +2690,6 @@
             // 右键菜单相关变量
             const treeContextMenu = document.getElementById('treeContextMenu');
             let contextMenuTarget = null;
-            let uploadTargetDir = '';
             
             // 获取CSRF令牌
             const csrfToken = (function() {
@@ -3167,89 +3167,6 @@
                     .catch(() => showAlertDialog('删除目录失败', '网络异常，请稍后再试'));
             }
 
-
-            // ==========================================
-            // ==========================================
-            // 上传相关逻辑
-            // ==========================================
-            const uploadBtn = document.getElementById('uploadBtn');
-            const uploadInput = document.getElementById('uploadInput');
-
-            if (uploadBtn && uploadInput) {
-                uploadBtn.addEventListener('click', function() {
-                    uploadInput.click();
-                });
-
-                uploadInput.addEventListener('change', function(event) {
-                    const file = this.files[0];
-                    
-                    // 如果没有选择文件（用户取消了），清空目标目录并返回
-                    if (!file) {
-                        uploadTargetDir = '';
-                        return;
-                    }
-                    
-                    // 检查文件格式
-                    if (!file.name.endsWith('.md')) {
-                        showAlertDialog('上传失败', '只允许上传 .md 格式文件');
-                        // 不清空 uploadInput.value，避免触发 change 事件
-                        uploadTargetDir = '';
-                        return;
-                    }
-
-                    // 计算目标文件夹 (使用当前文件/当前目录)
-                    let targetDir = uploadTargetDir || "";
-                    if (!targetDir && currentDirPath) {
-                        targetDir = currentDirPath;
-                    } else if (!targetDir && currentFilePath) {
-                        const lastSlashIndex = currentFilePath.lastIndexOf('/');
-                        if (lastSlashIndex !== -1) {
-                            targetDir = currentFilePath.substring(0, lastSlashIndex);
-                        }
-                    }
-
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('target_dir', targetDir);
-
-                    const btnOriginalText = uploadBtn.innerText;
-                    uploadBtn.innerText = "上传中...";
-                    uploadBtn.disabled = true;
-
-                    fetch('/api/upload', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        uploadBtn.innerText = btnOriginalText;
-                        uploadBtn.disabled = false;
-                        
-                        if(data.success) {
-                            // 只在成功时清空，避免重复触发
-                            uploadInput.value = '';
-                            uploadTargetDir = '';
-                            showToast('上传成功', 'success');
-                            // 延迟刷新，确保清空操作完成
-                            setTimeout(() => window.location.reload(), 100);
-                        } else {
-                            // 失败时不清空 uploadInput，只清空目标目录
-                            uploadTargetDir = '';
-                            showAlertDialog('上传失败', data.error || '请稍后再试');
-                        }
-                    })
-                    .catch(err => {
-                        uploadBtn.innerText = btnOriginalText;
-                        uploadBtn.disabled = false;
-                        // 错误时不清空 uploadInput，只清空目标目录
-                        uploadTargetDir = '';
-                        showAlertDialog('上传失败', '网络异常，请稍后再试');
-                    });
-                });
-            }
 
             document.querySelectorAll('.create-doc-in-dir').forEach(function(button) {
                 button.addEventListener('click', function(event) {

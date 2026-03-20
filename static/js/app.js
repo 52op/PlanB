@@ -86,6 +86,7 @@ class PlanningApp {
 
         if (window.uploadManager) {
             window.uploadManager.setCSRFToken(this.csrfToken);
+            window.uploadManager.setCurrentPaths(this.currentFilePath, this.currentDirPath);
         }
 
         // 绑定模块事件

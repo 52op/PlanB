@@ -5,6 +5,8 @@ class UploadManager {
     constructor() {
         this.csrfToken = '';
         this.uploadTargetDir = '';
+        this.currentFilePath = '';
+        this.currentDirPath = '';
         this.initializeElements();
     }
 
@@ -19,6 +21,11 @@ class UploadManager {
 
     setUploadTargetDir(dir) {
         this.uploadTargetDir = dir;
+    }
+
+    setCurrentPaths(filePath, dirPath) {
+        this.currentFilePath = filePath || '';
+        this.currentDirPath = dirPath || '';
     }
 
     async uploadFile(file, targetDir = '') {
@@ -98,8 +105,8 @@ class UploadManager {
             return this.uploadTargetDir;
         }
 
-        const currentDirPath = window.fileOperations?.currentDirPath;
-        const currentFilePath = window.fileOperations?.currentFilePath;
+        const currentDirPath = this.currentDirPath || window.fileOperations?.currentDirPath;
+        const currentFilePath = this.currentFilePath || window.fileOperations?.currentFilePath;
 
         if (currentDirPath) {
             return currentDirPath;
@@ -163,13 +170,18 @@ class UploadManager {
 
             this.uploadInput.addEventListener('change', async () => {
                 const file = this.uploadInput.files[0];
-                if (!file) return;
+                if (!file) {
+                    this.uploadTargetDir = '';
+                    return;
+                }
 
                 const targetDir = this.getTargetDirectory();
                 const success = await this.uploadFile(file, targetDir);
 
                 if (success) {
-                    window.location.reload();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 100);
                 }
 
                 // 清空 file input，以便同名文件可重复上传
@@ -178,8 +190,9 @@ class UploadManager {
             });
         }
 
-        // 设置拖拽上传
-        this.setupDragAndDrop();
+        if (document.body?.dataset.enableDragUpload === 'true') {
+            this.setupDragAndDrop();
+        }
     }
 }
 
