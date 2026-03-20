@@ -1128,20 +1128,24 @@
             background: rgba(15, 23, 42, 0.36);
             backdrop-filter: blur(6px);
             display: none;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             padding: 22px;
+            overflow-y: auto;
         }
         .share-modal-backdrop.show {
             display: flex;
         }
         .share-modal {
             width: min(100%, 940px);
+            max-height: calc(100vh - 44px);
             background: var(--color-surface);
             border: 1px solid var(--color-border);
             border-radius: 28px;
             box-shadow: 0 28px 64px rgba(15, 23, 42, 0.18);
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
         .share-modal-header {
             display: flex;
@@ -1163,6 +1167,44 @@
             font-size: 28px;
             color: var(--color-text);
         }
+        .share-modal-tabs {
+            display: flex;
+            gap: 10px;
+            padding: 18px 26px 0;
+        }
+        .share-modal-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 40px;
+            padding: 0 14px;
+            border-radius: 999px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-background) 88%, white 12%);
+            color: var(--color-text-muted);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .share-modal-tab.active {
+            border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+            background: color-mix(in srgb, var(--color-primary-light) 42%, white 58%);
+            color: var(--color-primary-dark);
+        }
+        .share-tab-count {
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.9);
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            box-sizing: border-box;
+        }
         .share-modal-close {
             width: 40px;
             height: 40px;
@@ -1177,6 +1219,8 @@
         }
         .share-modal-body {
             padding: 22px 26px 26px;
+            overflow-y: auto;
+            min-height: 0;
         }
         .share-modal-panel {
             display: grid;
@@ -1387,6 +1431,267 @@
             background: color-mix(in srgb, var(--color-primary-light) 24%, var(--color-surface));
             border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
         }
+        .share-secondary-btn.danger {
+            color: #b91c1c;
+            border-color: color-mix(in srgb, #ef4444 26%, var(--color-border));
+            background: rgba(254, 242, 242, 0.92);
+        }
+        .share-secondary-btn.danger:hover {
+            background: rgba(254, 226, 226, 0.96);
+            border-color: rgba(239, 68, 68, 0.48);
+        }
+        .share-manage-head,
+        .share-manage-editor-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .share-manage-head-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .share-manage-scope {
+            display: inline-flex;
+            gap: 6px;
+            padding: 4px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--color-background) 88%, white 12%);
+            border: 1px solid var(--color-border);
+        }
+        .share-scope-btn {
+            height: 34px;
+            padding: 0 14px;
+            border-radius: 999px;
+            border: none;
+            background: transparent;
+            color: var(--color-text-muted);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .share-scope-btn.active {
+            background: var(--color-surface);
+            color: var(--color-primary-dark);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+        }
+        .share-manage-title {
+            margin-top: 8px;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--color-text);
+        }
+        .share-manage-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .share-manage-metric {
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-background) 88%, white 12%);
+        }
+        .share-manage-metric strong,
+        .share-manage-metric span {
+            display: block;
+        }
+        .share-manage-metric strong {
+            font-size: 24px;
+            color: var(--color-text);
+        }
+        .share-manage-metric span {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--color-text-muted);
+        }
+        .share-manage-empty {
+            padding: 26px;
+            border-radius: 22px;
+            border: 1px dashed var(--color-border);
+            background: color-mix(in srgb, var(--color-background) 86%, white 14%);
+            color: var(--color-text-muted);
+            text-align: center;
+            line-height: 1.8;
+        }
+        .share-manage-list {
+            display: grid;
+            gap: 14px;
+        }
+        .share-manage-item {
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-surface) 95%, white 5%);
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+        }
+        .share-manage-item-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .share-manage-item-main {
+            min-width: 0;
+        }
+        .share-manage-item-main strong,
+        .share-manage-item-main span {
+            display: block;
+        }
+        .share-manage-item-main strong {
+            font-size: 16px;
+            color: var(--color-text);
+        }
+        .share-manage-item-main span {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--color-text-muted);
+            word-break: break-all;
+            line-height: 1.6;
+        }
+        .share-manage-target {
+            margin-top: 8px;
+            color: var(--color-primary-dark) !important;
+            font-weight: 700;
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.38);
+            padding: 20px;
+        }
+        .modal-content {
+            width: min(100%, 440px);
+            max-width: 440px;
+            max-height: calc(100vh - 40px);
+            padding: 22px;
+            border-radius: 20px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+            box-sizing: border-box;
+            overflow: auto;
+        }
+        .modal-content h3 {
+            margin: 0 0 10px;
+            font-size: 22px;
+            color: var(--color-text);
+        }
+        .modal-content p {
+            margin: 0;
+            color: var(--color-text-muted);
+            line-height: 1.8;
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .modal-content .form-control,
+        .modal-content input[type="text"] {
+            width: 100%;
+            height: 44px;
+            margin-top: 14px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            background: var(--color-background);
+            color: var(--color-text);
+            font: inherit;
+            box-sizing: border-box;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .modal-actions .btn {
+            height: 40px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .modal-actions .btn-primary {
+            background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 72%, #0f766e));
+            color: #fff;
+            border-color: transparent;
+        }
+        .share-manage-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .share-manage-badge {
+            display: inline-flex;
+            align-items: center;
+            height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-background) 88%, white 12%);
+            color: var(--color-text-muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .share-manage-badge.is-active {
+            border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+            color: var(--color-primary-dark);
+            background: color-mix(in srgb, var(--color-primary-light) 34%, white 66%);
+        }
+        .share-manage-badge.is-inactive {
+            border-color: rgba(239, 68, 68, 0.28);
+            color: #b91c1c;
+            background: rgba(254, 242, 242, 0.95);
+        }
+        .share-manage-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-top: 14px;
+            font-size: 12px;
+            color: var(--color-text-muted);
+        }
+        .share-manage-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .share-manage-editor {
+            padding: 18px;
+            border-radius: 24px;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+            background:
+                radial-gradient(circle at top right, color-mix(in srgb, var(--color-primary-light) 36%, transparent), transparent 36%),
+                linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 96%, white 4%), var(--color-surface));
+        }
+        .share-manage-editor-head strong,
+        .share-manage-editor-head span {
+            display: block;
+        }
+        .share-manage-editor-head strong {
+            font-size: 18px;
+            color: var(--color-text);
+        }
+        .share-manage-editor-head span {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--color-text-muted);
+            line-height: 1.7;
+            word-break: break-all;
+        }
         .app-toast {
             position: fixed !important;
             right: 24px !important;
@@ -1440,12 +1745,23 @@
                 grid-template-columns: 1fr;
             }
             .share-form-footer,
-            .share-result-hero {
+            .share-result-hero,
+            .share-manage-head,
+            .share-manage-editor-head {
                 flex-direction: column;
                 align-items: flex-start;
             }
             .share-result-layout {
                 grid-template-columns: 1fr;
+            }
+            .share-manage-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .share-manage-item-head {
+                flex-direction: column;
+            }
+            .share-manage-badges {
+                justify-content: flex-start;
             }
         }
         .app-toast.info {

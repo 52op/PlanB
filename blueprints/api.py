@@ -91,7 +91,9 @@ def _parse_share_expiry(raw_value):
 
 
 def _build_share_response(share_link):
+    is_expired = is_share_expired(share_link)
     return {
+        'id': share_link.id,
         'token': share_link.token,
         'url': url_for('main.share_view', token=share_link.token, _external=True),
         'title': share_link.title,
@@ -100,6 +102,10 @@ def _build_share_response(share_link):
         'allow_edit': bool(share_link.allow_edit),
         'requires_password': bool(share_link.is_password_protected),
         'expires_at': share_link.expires_at.isoformat() if share_link.expires_at else None,
+        'created_at': share_link.created_at.isoformat() if share_link.created_at else None,
+        'updated_at': share_link.updated_at.isoformat() if share_link.updated_at else None,
+        'is_expired': is_expired,
+        'is_active': not is_expired,
     }
 
 
@@ -114,6 +120,33 @@ def _get_share_for_api(token, require_edit=False, require_access=False):
     if require_access and share_link.is_password_protected and not session.get(build_share_session_key(share_link.token)):
         return None, jsonify({'error': '请先输入分享密码'}), 403
     return share_link, None, None
+
+
+def _resolve_share_target_for_owner(target_type, target_path, allow_edit=False):
+    if target_type == 'file':
+        _, normalized_target_path, absolute_target_path = resolve_docs_path(target_path)
+        if not os.path.isfile(absolute_target_path):
+            return None, None, jsonify({'error': '目标文档不存在'}), 404
+        if not check_permission(current_user, normalized_target_path, 'read'):
+            return None, None, jsonify({'error': '没有该文档的分享权限'}), 403
+        if allow_edit and not check_permission(current_user, normalized_target_path, 'edit'):
+            return None, None, jsonify({'error': '没有该文档的编辑权限，无法创建可编辑分享'}), 403
+    else:
+        _, normalized_target_path, absolute_target_path = resolve_docs_path(target_path, allow_directory=True)
+        if not os.path.isdir(absolute_target_path):
+            return None, None, jsonify({'error': '目标目录不存在'}), 404
+        if not check_permission(current_user, normalized_target_path, 'read'):
+            return None, None, jsonify({'error': '没有该目录的分享权限'}), 403
+        if allow_edit and not check_permission(current_user, normalized_target_path, 'edit'):
+            return None, None, jsonify({'error': '没有该目录的编辑权限，无法创建可编辑分享'}), 403
+    return normalized_target_path, absolute_target_path, None, None
+
+
+def _get_owned_share_link(token):
+    share_link = ShareLink.query.filter_by(token=(token or '').strip(), created_by_user_id=current_user.id).first()
+    if not share_link:
+        return None, jsonify({'error': '分享不存在或无权管理'}), 404
+    return share_link, None
 
 
 @api_bp.route('/users/suggest')
@@ -474,6 +507,132 @@ def create_share():
         session[build_share_session_key(share_link.token)] = True
 
     return jsonify({'success': True, 'share': _build_share_response(share_link)})
+
+
+@api_bp.route('/shares', methods=['GET'])
+@login_required
+def list_shares():
+    scope = (request.args.get('scope') or 'current').strip().lower()
+    target_type = (request.args.get('target_type') or '').strip().lower()
+    target_path = request.args.get('target_path', '')
+
+    if scope not in {'current', 'all'}:
+        return jsonify({'error': '分享范围无效'}), 400
+
+    query = ShareLink.query.filter_by(created_by_user_id=current_user.id)
+
+    if scope == 'current' and target_type not in {'file', 'dir'}:
+        return jsonify({'error': '分享目标类型无效'}), 400
+
+    try:
+            normalized_target_path, _, error_response, status_code = _resolve_share_target_for_owner(
+                target_type,
+                target_path,
+                allow_edit=False,
+            )
+            if error_response is not None:
+                return error_response, status_code
+    except InvalidPathError:
+        return jsonify({'error': '目标路径无效'}), 400
+
+    share_links = (
+        ShareLink.query
+        .filter_by(
+            created_by_user_id=current_user.id,
+            target_type=target_type,
+            target_path=normalized_target_path,
+        )
+        .order_by(ShareLink.created_at.desc(), ShareLink.id.desc())
+        .all()
+    )
+    return jsonify({
+        'success': True,
+        'items': [_build_share_response(share_link) for share_link in share_links],
+    })
+
+
+@api_bp.route('/shares/<string:token>', methods=['PATCH'])
+@login_required
+def update_share(token):
+    share_link, error_response = _get_owned_share_link(token)
+    if error_response is not None:
+        return error_response
+
+    data = request.get_json() or {}
+    allow_edit = bool(data.get('allow_edit', share_link.allow_edit))
+
+    try:
+        _, _, target_error, target_status = _resolve_share_target_for_owner(
+            share_link.target_type,
+            share_link.target_path,
+            allow_edit=allow_edit,
+        )
+        if target_error is not None:
+            return target_error, target_status
+    except InvalidPathError:
+        return jsonify({'error': '分享目标路径无效'}), 400
+
+    if 'active' in data:
+        if bool(data.get('active')):
+            share_link.expires_at = None
+        else:
+            share_link.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    elif 'expires_at' in data:
+        try:
+            share_link.expires_at = _parse_share_expiry(data.get('expires_at'))
+        except ValueError as exc:
+            return jsonify({'error': str(exc)}), 400
+
+    share_link.allow_edit = allow_edit
+
+    password_mode = (data.get('password_mode') or 'keep').strip().lower()
+    if password_mode == 'clear':
+        share_link.set_password('')
+    elif password_mode == 'set':
+        password = (data.get('password') or '').strip()
+        if not password:
+            return jsonify({'error': '请先填写新的分享密码'}), 400
+        share_link.set_password(password)
+    elif password_mode != 'keep':
+        return jsonify({'error': '密码操作类型无效'}), 400
+
+    db.session.commit()
+
+    if not share_link.is_password_protected:
+        session[build_share_session_key(share_link.token)] = True
+    else:
+        session.pop(build_share_session_key(share_link.token), None)
+
+    return jsonify({'success': True, 'share': _build_share_response(share_link)})
+
+
+@api_bp.route('/shares/mine', methods=['GET'])
+@login_required
+def list_my_shares():
+    share_links = (
+        ShareLink.query
+        .filter_by(created_by_user_id=current_user.id)
+        .order_by(ShareLink.created_at.desc(), ShareLink.id.desc())
+        .all()
+    )
+    return jsonify({
+        'success': True,
+        'scope': 'all',
+        'items': [_build_share_response(share_link) for share_link in share_links],
+    })
+
+
+@api_bp.route('/shares/<string:token>', methods=['DELETE'])
+@login_required
+def delete_share_link(token):
+    share_link, error_response = _get_owned_share_link(token)
+    if error_response is not None:
+        return error_response
+
+    session.pop(build_share_session_key(share_link.token), None)
+    db.session.delete(share_link)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @api_bp.route('/shares/<string:token>/raw')
