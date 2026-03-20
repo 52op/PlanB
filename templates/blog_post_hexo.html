@@ -2,6 +2,24 @@
 
 {% block og_type %}article{% endblock %}
 
+{% block head_extra %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lightgallery.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.css') }}">
+<style>
+    .article-content .doc-image-link {
+        display: inline-block;
+        max-width: 100%;
+    }
+
+    .article-content .doc-image-link img {
+        cursor: zoom-in;
+    }
+</style>
+{% endblock %}
+
 {% block hero %}
 <div class="hero-banner"{% if page_meta.cover %} style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.9), rgba(118, 75, 162, 0.9)), url('{{ absolute_url(page_meta.cover) }}') center/cover"{% endif %}>
     <div class="hero-content">
@@ -157,7 +175,7 @@
         </div>
     </div>
 
-    <div class="article-content">
+    <div class="article-content" data-image-preview-scope="blog-post-hexo">
         {{ content|safe }}
     </div>
 
@@ -269,4 +287,13 @@ function toggleReplyForm(id) {
     }
 }
 </script>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='vendor/lightgallery/lightgallery.umd.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-zoom.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/modules/image-utils.js') }}" defer></script>
 {% endblock %}
