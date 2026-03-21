@@ -3,7 +3,7 @@ import secrets
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from runtime_paths import get_data_subdir
+from runtime_paths import get_change_password_signal_path, get_data_subdir
 
 db = SQLAlchemy()
 
@@ -186,6 +186,45 @@ def _ensure_column(app, table_name, column_name, column_sql):
     with db.engine.begin() as connection:
         connection.exec_driver_sql(f'ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}')
 
+
+def _generate_admin_password():
+    return os.environ.get('PLANNING_ADMIN_INITIAL_PASSWORD') or secrets.token_urlsafe(12)
+
+
+def _ensure_admin_account():
+    admin = User.query.filter_by(username='admin').first()
+    if admin:
+        return admin, False
+
+    initial_password = _generate_admin_password()
+    admin = User()
+    admin.username = 'admin'
+    admin.role = 'admin'
+    admin.set_password(initial_password)
+    db.session.add(admin)
+    db.session.commit()
+    print(f"[planning] 已初始化 admin 账号，请尽快修改密码。初始密码: {initial_password}")
+    return admin, True
+
+
+def _handle_admin_password_reset_signal():
+    signal_path = get_change_password_signal_path()
+    if not os.path.exists(signal_path):
+        return
+
+    admin, _ = _ensure_admin_account()
+    next_password = _generate_admin_password()
+    admin.role = 'admin'
+    admin.set_password(next_password)
+    db.session.commit()
+    print(f"[planning] 检测到 .changepassword，admin 密码已重置。新密码: {next_password}")
+
+    try:
+        os.remove(signal_path)
+        print("[planning] 已处理并删除 .changepassword 标记文件。")
+    except OSError as exc:
+        print(f"[planning] 警告：无法删除 .changepassword 文件，请手动删除。原因: {exc}")
+
 def init_db(app):
     db.init_app(app)
     with app.app_context():
@@ -303,14 +342,6 @@ def init_db(app):
         if SystemSetting.get('security_rate_limit_record_ttl_seconds') is None:
             SystemSetting.set('security_rate_limit_record_ttl_seconds', '7200')
 
-        # 建立默认管理员
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            initial_password = os.environ.get('PLANNING_ADMIN_INITIAL_PASSWORD') or secrets.token_urlsafe(12)
-            admin = User()
-            admin.username = 'admin'
-            admin.role = 'admin'
-            admin.set_password(initial_password)
-            db.session.add(admin)
-            db.session.commit()
-            print(f"[planning] 已初始化 admin 账号，请尽快修改密码。初始密码: {initial_password}")
+        # 建立默认管理员，并支持通过 .changepassword 文件强制重置密码
+        _ensure_admin_account()
+        _handle_admin_password_reset_signal()

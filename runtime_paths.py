@@ -11,7 +11,8 @@ def ensure_directory(path):
 
 def get_runtime_base_dir():
     if getattr(sys, 'frozen', False):
-        return os.path.dirname(os.path.abspath(sys.executable))
+        launched_path = os.path.abspath(sys.argv[0]) if sys.argv and sys.argv[0] else os.path.abspath(sys.executable)
+        return os.path.dirname(launched_path)
     return os.path.dirname(os.path.abspath(__file__))
 
 
@@ -48,6 +49,10 @@ def get_config_path():
 
 def get_default_database_path():
     return os.path.join(get_data_dir(), 'app.db')
+
+
+def get_change_password_signal_path():
+    return os.path.join(get_runtime_base_dir(), '.changepassword')
 
 
 def build_sqlite_uri(path):

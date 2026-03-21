@@ -1,5 +1,6 @@
 import os
 import secrets
+import sys
 import yaml
 from flask import Flask
 from flask_login import LoginManager
@@ -12,17 +13,41 @@ from runtime_paths import (
     normalize_database_uri,
 )
 
+def _build_default_config():
+    return {
+        'port': 5000,
+        'debug': False if getattr(sys, 'frozen', False) else True,
+        'database_path': '',
+        'secret_key': secrets.token_hex(32),
+        'timezone': 'Asia/Shanghai',
+    }
+
+
+def _save_config(config_path, config):
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    with open(config_path, 'w', encoding='utf-8') as f:
+        yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
+
+
 def load_config():
     config_path = get_config_path()
+    default_config = _build_default_config()
     if os.path.exists(config_path):
         with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
+            loaded = yaml.safe_load(f) or {}
+        config = dict(default_config)
+        config.update(loaded)
+        should_persist = False
+        if 'secret_key' not in loaded or not str(loaded.get('secret_key') or '').strip():
+            config['secret_key'] = secrets.token_hex(32)
+            should_persist = True
+        if 'debug' not in loaded:
+            should_persist = True
+        if should_persist:
+            _save_config(config_path, config)
     else:
-        config = {
-            'port': 5000,
-            'debug': True,
-            'database_path': '',
-        }
+        config = dict(default_config)
+        _save_config(config_path, config)
     return config
 
 def create_app():

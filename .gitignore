@@ -11,3 +11,5 @@ agents.md
 covers/
 data/
 media/
+build/
+dist/
