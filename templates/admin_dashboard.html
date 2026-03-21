@@ -1,15 +1,190 @@
 {% extends "admin.html" %}
 
+{% block head %}
+<style>
+    .dashboard-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+        gap: 18px;
+        margin-bottom: 24px;
+    }
+    .dashboard-summary,
+    .dashboard-note {
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+    }
+    .dashboard-summary {
+        padding: 24px 24px 22px;
+        background: linear-gradient(135deg, #0f172a, #1d4ed8);
+        color: #e2e8f0;
+    }
+    .dashboard-summary h2 {
+        margin: 0 0 10px;
+        font-size: 28px;
+        color: #fff;
+    }
+    .dashboard-summary p {
+        margin: 0;
+        line-height: 1.75;
+        color: rgba(226, 232, 240, 0.88);
+    }
+    .dashboard-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+    }
+    .dashboard-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .dashboard-note {
+        padding: 20px 22px;
+        display: grid;
+        gap: 14px;
+    }
+    .dashboard-note h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #0f172a;
+    }
+    .dashboard-note-list {
+        display: grid;
+        gap: 12px;
+    }
+    .dashboard-note-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: #f8fafc;
+        color: #334155;
+    }
+    .dashboard-note-item strong {
+        color: #0f172a;
+    }
+    .stats-grid.dashboard-stats .stat-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 18px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+    .stats-grid.dashboard-stats .stat-card::after {
+        content: "";
+        position: absolute;
+        inset: auto -36px -36px auto;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: rgba(37, 99, 235, 0.08);
+    }
+    .stats-grid.dashboard-stats .stat-card:nth-child(2)::after {
+        background: rgba(14, 165, 233, 0.12);
+    }
+    .stats-grid.dashboard-stats .stat-card:nth-child(3)::after {
+        background: rgba(16, 185, 129, 0.12);
+    }
+    .stats-grid.dashboard-stats .stat-card:nth-child(4)::after {
+        background: rgba(245, 158, 11, 0.14);
+    }
+    .stats-grid.dashboard-stats .stat-card > div:first-child {
+        font-size: 14px;
+        color: #64748b;
+    }
+    .chart-card.dashboard-chart {
+        border-radius: 18px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+    .chart-card.dashboard-chart .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+    .chart-meta {
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    @media (max-width: 900px) {
+        .dashboard-hero {
+            grid-template-columns: 1fr;
+        }
+    }
+    @media (max-width: 768px) {
+        .dashboard-summary,
+        .dashboard-note,
+        .stats-grid.dashboard-stats .stat-card,
+        .chart-card.dashboard-chart {
+            border-radius: 16px;
+        }
+        .dashboard-summary {
+            padding: 20px 18px;
+        }
+        .dashboard-summary h2 {
+            font-size: 22px;
+        }
+        .dashboard-note {
+            padding: 16px;
+        }
+        .chart-card.dashboard-chart .card-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="stats-grid">
+<section class="dashboard-hero">
+    <div class="dashboard-summary">
+        <h2>后台总览</h2>
+        <p>这里保留为纯数据看板，帮助你快速掌握站点内容、阅读、用户与评论审核状态。基础配置和运维类设置已经独立拆到“基础设置”和“安全设置”。</p>
+        <div class="dashboard-pill-row">
+            <span class="dashboard-pill">公开文章 {{ site_stats.public_posts }}</span>
+            <span class="dashboard-pill">总用户 {{ user_stats.total_users }}</span>
+            <span class="dashboard-pill">待审评论 {{ comment_stats.pending_comments }}</span>
+        </div>
+    </div>
+    <aside class="dashboard-note">
+        <h3>当前重点</h3>
+        <div class="dashboard-note-list">
+            <div class="dashboard-note-item">
+                <span>内容可见规模</span>
+                <strong>{{ site_stats.public_posts }} 篇</strong>
+            </div>
+            <div class="dashboard-note-item">
+                <span>累计阅读量</span>
+                <strong>{{ site_stats.total_views }}</strong>
+            </div>
+            <div class="dashboard-note-item">
+                <span>评论待处理</span>
+                <strong>{{ comment_stats.pending_comments }}</strong>
+            </div>
+        </div>
+    </aside>
+</section>
+
+<div class="stats-grid dashboard-stats">
     <div class="stat-card"><div>公开文章</div><strong>{{ site_stats.public_posts }}</strong></div>
     <div class="stat-card"><div>总阅读量</div><strong>{{ site_stats.total_views }}</strong></div>
     <div class="stat-card"><div>总用户数</div><strong>{{ user_stats.total_users }}</strong></div>
     <div class="stat-card"><div>待审评论</div><strong>{{ comment_stats.pending_comments }}</strong></div>
 </div>
 
-<div class="card chart-card">
-    <div class="card-header">近 14 天趋势</div>
+<div class="card chart-card dashboard-chart">
+    <div class="card-header">
+        <span>近 14 天趋势</span>
+        <span class="chart-meta">评论量与通知量变化</span>
+    </div>
     <div class="card-body">
         <canvas id="trendChart"></canvas>
     </div>

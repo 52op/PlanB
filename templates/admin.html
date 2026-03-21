@@ -11,21 +11,33 @@
             margin: 0;
             padding: 0;
             color: #333;
+            overflow-x: hidden;
         }
         .header {
             background-color: #2c3e50; /* A more modern, darker blue */
             color: #fff;
-            padding: 0 30px;
+            padding: 14px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 64px;
+            gap: 16px;
+            min-height: 64px;
             border-bottom: 3px solid #3498db;
         }
         .header-left, .header-right, .main-nav {
             display: flex;
             align-items: center;
             gap: 15px;
+        }
+        .header-left {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
         }
         .header h1 {
             margin: 0;
@@ -64,6 +76,21 @@
         .header-right a:hover {
             color: #fff;
             text-decoration: underline;
+        }
+        .nav-toggle {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            min-width: 42px;
+            height: 42px;
+            padding: 0 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
         }
         .container {
             max-width: 1000px;
@@ -392,11 +419,106 @@
         }
         .stat-card strong { display:block; font-size:28px; margin-top:8px; color:#2c3e50; }
         .chart-card canvas { width:100%; max-height:280px; }
-        @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+        .logo-setting-actions .btn {
+            flex: 1 1 140px;
+        }
+        @media (max-width: 900px) {
+            .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+            .header {
+                align-items: stretch;
+                flex-direction: column;
+                padding: 12px 16px 14px;
+            }
+            .header-left {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .header-brand {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .header h1 {
+                font-size: 1.35em;
+            }
+            .nav-toggle {
+                display: inline-flex;
+            }
+            .main-nav {
+                display: none;
+                margin-left: 0;
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                padding-top: 4px;
+            }
+            .main-nav.show {
+                display: flex;
+            }
+            .main-nav a {
+                padding: 10px 12px;
+                border-radius: 10px;
+            }
+            .header-right {
+                width: 100%;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 10px 14px;
+                padding-top: 10px;
+                border-top: 1px solid rgba(255, 255, 255, 0.12);
+            }
+            .header-right span {
+                width: 100%;
+                font-size: 0.85em;
+            }
+            .logo-setting-actions {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
         @media (max-width: 768px) {
+            .container {
+                margin: 18px auto;
+                padding: 0 12px;
+            }
+            .card {
+                border-radius: 14px;
+                margin-bottom: 18px;
+            }
+            .card-header {
+                padding: 14px 16px;
+                font-size: 1.05em;
+            }
+            .card-body {
+                padding: 16px;
+            }
+            .form-group input[type="text"],
+            .form-group input[type="email"],
+            .form-group input[type="password"],
+            .form-group select,
+            .form-group input[type="number"],
+            .form-group textarea,
+            .btn {
+                font-size: 16px;
+            }
+            .btn {
+                min-height: 42px;
+            }
+            .filter-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-form input[type="text"] {
+                min-width: 0;
+            }
             .logo-preview-card {
                 align-items: flex-start;
                 flex-direction: column;
+            }
+            .logo-setting-actions {
+                grid-template-columns: 1fr;
             }
             .logo-media-modal {
                 padding: 12px;
@@ -410,6 +532,34 @@
                 padding: 16px;
                 grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             }
+            table {
+                min-width: 720px;
+            }
+            .card-body {
+                overflow-x: auto;
+            }
+            .stats-grid {
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+            .stat-card {
+                border-radius: 16px;
+                padding: 16px;
+            }
+            .stat-card strong {
+                font-size: 32px;
+            }
+            .chart-card canvas {
+                min-height: 260px;
+            }
+        }
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .header-right {
+                justify-content: flex-start;
+            }
         }
     </style>
     <script src="{{ url_for('static', filename='vendor/chartjs/chart.min.js') }}" defer></script>
@@ -418,8 +568,11 @@
 <body>
     <div class="header">
         <div class="header-left">
-            <h1>管理后台</h1>
-            <nav class="main-nav">
+            <div class="header-brand">
+                <h1>管理后台</h1>
+                <button type="button" class="nav-toggle" id="adminNavToggle" aria-expanded="false" aria-controls="adminMainNav">菜单</button>
+            </div>
+            <nav class="main-nav" id="adminMainNav">
                 <a href="{{ url_for('admin.admin_dashboard') }}" class="{% if request.endpoint == 'admin.admin_dashboard' %}active{% endif %}">数据看板</a>
                 <a href="{{ url_for('admin.admin_base') }}" class="{% if request.endpoint == 'admin.admin_base' %}active{% endif %}">基础设置</a>
                 <a href="{{ url_for('admin.admin_security') }}" class="{% if request.endpoint == 'admin.admin_security' %}active{% endif %}">安全设置</a>
@@ -468,6 +621,28 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const navToggle = document.getElementById('adminNavToggle');
+        const mainNav = document.getElementById('adminMainNav');
+
+        if (navToggle && mainNav) {
+            const syncNavState = function (expanded) {
+                mainNav.classList.toggle('show', expanded);
+                navToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            };
+
+            navToggle.addEventListener('click', function () {
+                syncNavState(!mainNav.classList.contains('show'));
+            });
+
+            mainNav.querySelectorAll('a').forEach(function (link) {
+                link.addEventListener('click', function () {
+                    if (window.innerWidth <= 900) {
+                        syncNavState(false);
+                    }
+                });
+            });
+        }
+
         // Highlight active menu item
         try {
             const navLinks = document.querySelectorAll('.main-nav a');

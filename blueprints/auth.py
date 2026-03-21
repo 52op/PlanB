@@ -72,6 +72,7 @@ def login():
     
     # 用于保留表单数据
     form_data = {}
+    login_mode = 'password'
     
     if request.method == 'POST':
         action_type = request.form.get('action_type')
@@ -124,6 +125,7 @@ def login():
         
         # 处理邮箱验证码登录
         elif action_type == 'email_login':
+            login_mode = 'code'
             email = (request.form.get('email') or '').strip().lower()
             code = (request.form.get('verification_code') or '').strip()
             if not email or not code:
@@ -152,6 +154,7 @@ def login():
         
         # 处理发送登录验证码
         elif action_type == 'send_login_code':
+            login_mode = 'code'
             email = (request.form.get('email') or '').strip().lower()
             if not email:
                 flash('请输入邮箱地址')
@@ -274,6 +277,10 @@ def login():
             default_tab = 'login'
         elif action == 'global_password':
             default_tab = 'visitor'
+        if action in {'send_login_code', 'email_login'}:
+            login_mode = 'code'
+        elif action == 'user_login':
+            login_mode = 'password'
 
     # 返回链接：优先使用 next 参数，其次 referrer（排除登录页自身），兜底首页
     referrer = request.referrer or ''
@@ -291,7 +298,8 @@ def login():
                            back_url=back_url,
                            mailer_ready=mailer_is_configured(),
                            site_settings=site_settings,
-                           form_data=form_data)
+                           form_data=form_data,
+                           login_mode=login_mode)
 
 @auth_bp.route('/logout')
 def logout():

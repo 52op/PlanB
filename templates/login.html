@@ -291,13 +291,13 @@
                 <!-- 登录方式切换 -->
                 <div style="margin-bottom: 16px;">
                     <div style="display: flex; gap: 8px; background: #f8f9fa; padding: 4px; border-radius: 8px;">
-                        <button type="button" class="login-mode-btn active" data-mode="password" style="flex: 1; padding: 8px; border: none; background: #0056b3; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">密码登录</button>
-                        <button type="button" class="login-mode-btn" data-mode="code" style="flex: 1; padding: 8px; border: none; background: transparent; color: #495057; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">验证码登录</button>
+                        <button type="button" class="login-mode-btn {% if login_mode != 'code' %}active{% endif %}" data-mode="password" style="flex: 1; padding: 8px; border: none; background: {% if login_mode != 'code' %}#0056b3{% else %}transparent{% endif %}; color: {% if login_mode != 'code' %}white{% else %}#495057{% endif %}; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">密码登录</button>
+                        <button type="button" class="login-mode-btn {% if login_mode == 'code' %}active{% endif %}" data-mode="code" style="flex: 1; padding: 8px; border: none; background: {% if login_mode == 'code' %}#0056b3{% else %}transparent{% endif %}; color: {% if login_mode == 'code' %}white{% else %}#495057{% endif %}; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">验证码登录</button>
                     </div>
                 </div>
 
                 <!-- 密码登录表单 -->
-                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="passwordLoginForm" onsubmit="return validateForm(this)">
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="passwordLoginForm" onsubmit="return validateForm(this)" style="display: {% if login_mode == 'code' %}none{% else %}block{% endif %};">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action_type" value="user_login">
                     <div class="form-group">
@@ -315,7 +315,7 @@
                 </form>
 
                 <!-- 验证码登录表单 -->
-                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="codeLoginForm" style="display: none;">
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="codeLoginForm" style="display: {% if login_mode == 'code' %}block{% else %}none{% endif %};">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action_type" value="email_login">
                     <div class="form-group">
@@ -391,13 +391,13 @@
                 <!-- 登录方式切换 -->
                 <div style="margin-bottom: 16px;">
                     <div style="display: flex; gap: 8px; background: #f8f9fa; padding: 4px; border-radius: 8px;">
-                        <button type="button" class="login-mode-btn-plain active" data-mode="password" style="flex: 1; padding: 8px; border: none; background: #0056b3; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">密码登录</button>
-                        <button type="button" class="login-mode-btn-plain" data-mode="code" style="flex: 1; padding: 8px; border: none; background: transparent; color: #495057; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">验证码登录</button>
+                        <button type="button" class="login-mode-btn-plain {% if login_mode != 'code' %}active{% endif %}" data-mode="password" style="flex: 1; padding: 8px; border: none; background: {% if login_mode != 'code' %}#0056b3{% else %}transparent{% endif %}; color: {% if login_mode != 'code' %}white{% else %}#495057{% endif %}; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">密码登录</button>
+                        <button type="button" class="login-mode-btn-plain {% if login_mode == 'code' %}active{% endif %}" data-mode="code" style="flex: 1; padding: 8px; border: none; background: {% if login_mode == 'code' %}#0056b3{% else %}transparent{% endif %}; color: {% if login_mode == 'code' %}white{% else %}#495057{% endif %}; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">验证码登录</button>
                     </div>
                 </div>
 
                 <!-- 密码登录表单 -->
-                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="passwordLoginFormPlain" onsubmit="return validateForm(this)">
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="passwordLoginFormPlain" onsubmit="return validateForm(this)" style="display: {% if login_mode == 'code' %}none{% else %}block{% endif %};">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action_type" value="user_login">
                     <div class="form-group">
@@ -415,7 +415,7 @@
                 </form>
 
                 <!-- 验证码登录表单 -->
-                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="codeLoginFormPlain" style="display: none;">
+                <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="codeLoginFormPlain" style="display: {% if login_mode == 'code' %}block{% else %}none{% endif %};">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action_type" value="email_login">
                     <div class="form-group">
