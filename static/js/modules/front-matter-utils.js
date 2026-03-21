@@ -31,14 +31,50 @@ class FrontMatterUtils {
         const fmText = text.slice(4, endIndex);
         const body = text.slice(endIndex + 5);
         const metadata = {};
+        const lines = fmText.split('\n');
+        let currentListKey = '';
+        let currentListValues = [];
 
-        fmText.split('\n').forEach((line) => {
+        const flushListValue = () => {
+            if (!currentListKey) return;
+            metadata[currentListKey] = `[${currentListValues.join(', ')}]`;
+            currentListKey = '';
+            currentListValues = [];
+        };
+
+        lines.forEach((line) => {
+            const trimmedLine = line.trim();
+
+            if (currentListKey) {
+                if (trimmedLine.startsWith('- ')) {
+                    currentListValues.push(trimmedLine.slice(2).trim());
+                    return;
+                }
+
+                if (!trimmedLine) {
+                    return;
+                }
+
+                flushListValue();
+            }
+
             const separator = line.indexOf(':');
             if (separator === -1) return;
+
             const key = line.slice(0, separator).trim();
             const value = line.slice(separator + 1).trim();
+
+            if (!value) {
+                currentListKey = key;
+                currentListValues = [];
+                metadata[key] = '';
+                return;
+            }
+
             metadata[key] = value;
         });
+
+        flushListValue();
 
         return {
             metadata,
