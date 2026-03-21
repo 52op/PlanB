@@ -1521,7 +1521,7 @@ def docs_search():
     results = []
     if query:
         # 搜索所有markdown文件
-        from services.docs import _iter_markdown_filenames, _parse_markdown_file
+        from services.docs import _can_access_document_metadata, _iter_markdown_filenames, _parse_markdown_file
         
         query_lower = query.lower()
         for filename in _iter_markdown_filenames():
@@ -1535,6 +1535,8 @@ def docs_search():
                 continue
             
             metadata = payload.get('metadata', {})
+            if not _can_access_document_metadata(filename, metadata):
+                continue
             raw_content = payload.get('raw_content', '')
             
             # 搜索标题、内容

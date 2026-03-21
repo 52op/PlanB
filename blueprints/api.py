@@ -26,7 +26,7 @@ from services import (
     update_all_image_references,
     upload_media_file,
 )
-from services.docs import _build_front_matter, _split_front_matter
+from services.docs import _build_front_matter, _can_access_document_metadata, _parse_markdown_file, _split_front_matter
 from werkzeug.utils import secure_filename
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -200,6 +200,10 @@ def get_raw_markdown():
     
     if not os.path.exists(filepath):
         return jsonify({'error': 'File not found'}), 404
+
+    payload = _parse_markdown_file(filename)
+    if not payload or not _can_access_document_metadata(filename, payload.get('metadata') or {}):
+        return jsonify({'error': 'Permission denied'}), 403
         
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
@@ -256,10 +260,13 @@ def list_public_posts():
                 'timeline_date': item.get('timeline_date') or '',
                 'timeline_display': item.get('timeline_display') or '',
                 'doc_url': item.get('doc_url') or '',
-                'post_url': item.get('url') or '',
+                'post_url': (url_for('main.post_detail', slug=item.get('slug')) if item.get('template') == 'post' and item.get('slug') else ''),
+                'slug': item.get('slug') or '',
                 'view_count': int(item.get('view_count') or 0),
                 'can_edit': bool(item.get('can_edit')),
-                'public': True,
+                'public': bool(item.get('public')),
+                'template': item.get('template') or 'doc',
+                'is_blog_visible': bool(item.get('is_blog_visible')),
             }
             for item in items
         ],
@@ -271,7 +278,8 @@ def list_public_posts():
 def toggle_public_post():
     data = request.get_json() or {}
     filename = data.get('filename', '')
-    is_public = bool(data.get('public'))
+    is_public = data.get('public')
+    show_in_blog = data.get('show_in_blog')
 
     try:
         _, filename, filepath = resolve_docs_path(filename)
@@ -290,8 +298,15 @@ def toggle_public_post():
 
         raw_metadata, body_content = _split_front_matter(content)
         raw_metadata = dict(raw_metadata or {})
-        raw_metadata['template'] = raw_metadata.get('template') or 'post'
-        raw_metadata['public'] = is_public
+        if is_public is not None:
+            raw_metadata['public'] = bool(is_public)
+        elif 'public' not in raw_metadata:
+            raw_metadata['public'] = False
+
+        if show_in_blog is not None:
+            raw_metadata['template'] = 'post' if bool(show_in_blog) else 'doc'
+        elif not raw_metadata.get('template'):
+            raw_metadata['template'] = 'post'
 
         final_content = _build_front_matter(raw_metadata, body_content, filename)
         with open(filepath, 'w', encoding='utf-8') as file_obj:
@@ -302,7 +317,14 @@ def toggle_public_post():
         return jsonify({
             'success': True,
             'filename': filename,
-            'public': is_public,
+            'public': bool(raw_metadata.get('public')),
+            'template': raw_metadata.get('template') or 'doc',
+            'is_blog_visible': (raw_metadata.get('template') or 'doc') == 'post',
+            'post_url': (
+                url_for('main.post_detail', slug=raw_metadata.get('slug'))
+                if (raw_metadata.get('template') or 'doc') == 'post' and raw_metadata.get('slug')
+                else ''
+            ),
         })
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
@@ -892,6 +914,8 @@ def search_docs():
                 continue
             
             metadata = payload.get('metadata', {})
+            if not _can_access_document_metadata(filename, metadata):
+                continue
             raw_content = payload.get('raw_content', '')
             
             # 搜索标题、内容

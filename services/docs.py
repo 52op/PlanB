@@ -17,7 +17,7 @@ from flask_login import current_user
 
 from models import DirectoryConfig, DocumentViewStat
 from .paths import InvalidPathError, get_docs_root, normalize_relative_path, resolve_docs_path
-from .permissions import check_permission
+from .permissions import check_permission, has_explicit_permission
 
 
 # 文件缓存：缓存文件的修改时间和解析结果
@@ -63,6 +63,25 @@ def _is_admin_user(user):
 
 def _has_read_permission(path_value):
     return check_permission(current_user, path_value, 'read')
+
+
+def _can_access_document_metadata(filename, metadata, user=None):
+    active_user = user or current_user
+    if _is_admin_user(active_user):
+        return True
+
+    if not check_permission(active_user, filename, 'read'):
+        return False
+
+    normalized_template = _normalize_template(metadata.get('template'))
+    is_public = _normalize_bool(metadata.get('public'), default=False)
+    if is_public:
+        return True
+
+    if normalized_template == 'post':
+        return bool(getattr(active_user, 'is_authenticated', False))
+
+    return has_explicit_permission(active_user, filename, 'read')
 
 
 def _normalize_bool(value, default=False):
@@ -445,6 +464,8 @@ def get_markdown_files():
                 if not _has_read_permission(item_rel_path):
                     continue
                 children = build_tree(item_rel_path)
+                if not children and not check_permission(current_user, item_rel_path, 'upload'):
+                    continue
                 tree.append({
                     'type': 'dir',
                     'name': item,
@@ -453,6 +474,11 @@ def get_markdown_files():
                 })
             elif os.path.isfile(item_path) and item.lower().endswith('.md'):
                 if not _has_read_permission(item_rel_path):
+                    continue
+                payload = _parse_markdown_file(item_rel_path)
+                if not payload:
+                    continue
+                if not _can_access_document_metadata(item_rel_path, payload.get('metadata') or {}):
                     continue
                 tree.append({
                     'type': 'file',
@@ -493,6 +519,16 @@ def get_default_file_for_dir(docs_root, relative_dir_path=''):
         filename for filename in md_files
         if _has_read_permission(os.path.join(relative_dir_path, filename).replace('\\', '/').lstrip('/'))
     ]
+    visible_md_files = []
+    for filename in md_files:
+        relative_filename = os.path.join(relative_dir_path, filename).replace('\\', '/').lstrip('/')
+        payload = _parse_markdown_file(relative_filename)
+        if not payload:
+            continue
+        if not _can_access_document_metadata(relative_filename, payload.get('metadata') or {}):
+            continue
+        visible_md_files.append(filename)
+    md_files = visible_md_files
     if not md_files:
         return None
 
@@ -535,6 +571,8 @@ def get_document_payload(filename):
     payload = _parse_markdown_file(normalized_filename)
     if payload is None:
         return None
+    if not _can_access_document_metadata(normalized_filename, payload.get('metadata') or {}):
+        abort(403)
     return payload
 
 
@@ -584,14 +622,13 @@ def get_public_post_documents():
             continue
 
         metadata = payload.get('metadata') or {}
-        if metadata.get('template') != 'post':
-            continue
         if not metadata.get('public') or metadata.get('draft'):
             continue
 
         item = dict(metadata)
         item['path'] = filename
         item['doc_url'] = _build_markdown_url(filename)
+        item['is_blog_visible'] = item.get('template') == 'post'
         item['can_edit'] = bool(check_permission(current_user, filename, 'edit'))
         item['timeline_date'] = item.get('updated') or item.get('date') or ''
         item['timeline_display'] = item.get('updated_display') or item.get('date_display') or '未设置日期'

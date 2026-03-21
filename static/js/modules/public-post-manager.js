@@ -46,9 +46,9 @@ class PublicPostManager {
             <div class="public-posts-dialog" role="dialog" aria-modal="true" aria-labelledby="publicPostsTitle">
                 <div class="public-posts-header">
                     <div>
-                        <div class="public-posts-kicker">公开文档管理</div>
+                        <div class="public-posts-kicker">公开内容管理</div>
                         <h3 id="publicPostsTitle">已公开文档</h3>
-                        <p>按时间轴查看当前已公开到博客的文档。</p>
+                        <p>按时间轴查看公开内容，并分别控制公开状态和博客展示状态。</p>
                     </div>
                     <div class="public-posts-header-actions">
                         <button type="button" class="btn btn-secondary" id="refreshPublicPostsBtn">刷新</button>
@@ -126,6 +126,12 @@ class PublicPostManager {
             const actionButton = event.target.closest('[data-public-toggle]');
             if (actionButton instanceof HTMLElement) {
                 this.togglePublicState(actionButton.dataset.filename || '', actionButton.dataset.public === 'true');
+                return;
+            }
+
+            const blogButton = event.target.closest('[data-blog-toggle]');
+            if (blogButton instanceof HTMLElement) {
+                this.toggleBlogVisibility(blogButton.dataset.filename || '', blogButton.dataset.blogVisible === 'true');
             }
         });
 
@@ -232,6 +238,7 @@ class PublicPostManager {
         if (!this.summaryNode) return;
 
         const editableCount = items.filter((item) => item.can_edit).length;
+        const blogVisibleCount = items.filter((item) => item.is_blog_visible).length;
         const currentItem = items.find((item) => item.path === this.currentFilePath);
         this.summaryNode.innerHTML = `
             <div class="public-posts-stat">
@@ -239,12 +246,16 @@ class PublicPostManager {
                 <span>公开中</span>
             </div>
             <div class="public-posts-stat">
+                <strong>${blogVisibleCount}</strong>
+                <span>显示在博客</span>
+            </div>
+            <div class="public-posts-stat">
                 <strong>${editableCount}</strong>
                 <span>可管理</span>
             </div>
             <div class="public-posts-stat">
                 <strong>${currentItem ? '当前文档已公开' : '当前未命中'}</strong>
-                <span>${currentItem ? currentItem.title : '可用搜索快速定位'}</span>
+                <span>${currentItem ? `${currentItem.title} · ${currentItem.is_blog_visible ? '博客可见' : '仅文档可见'}` : '可用搜索快速定位'}</span>
             </div>
         `;
     }
@@ -287,12 +298,24 @@ class PublicPostManager {
         const primaryDate = this.sortMode === 'date_desc'
             ? (item.date_display || item.timeline_display || '未设置日期')
             : (item.updated_display || item.date_display || item.timeline_display || '未设置日期');
-        const toggleButton = item.can_edit
+        const publicToggleButton = item.can_edit
             ? `<button type="button" class="btn btn-secondary public-posts-toggle-btn" data-public-toggle="1" data-filename="${this.escapeHtml(item.path)}" data-public="false">
                     <i data-lucide="eye-off"></i>
                     取消公开
                </button>`
             : `<span class="public-posts-readonly-badge">只读</span>`;
+        const blogToggleButton = item.can_edit
+            ? `<button type="button" class="btn btn-secondary public-posts-toggle-btn" data-blog-toggle="1" data-filename="${this.escapeHtml(item.path)}" data-blog-visible="${item.is_blog_visible ? 'false' : 'true'}">
+                    <i data-lucide="${item.is_blog_visible ? 'newspaper' : 'file-text'}"></i>
+                    ${item.is_blog_visible ? '取消博客显示' : '显示到博客'}
+               </button>`
+            : '';
+        const statusBadges = [
+            '<span class="public-posts-visibility-badge is-public"><i data-lucide="shield-check"></i>公开</span>',
+            item.is_blog_visible
+                ? '<span class="public-posts-visibility-badge is-blog"><i data-lucide="newspaper"></i>博客可见</span>'
+                : '<span class="public-posts-visibility-badge is-doc"><i data-lucide="file-text"></i>仅文档可见</span>',
+        ].join('');
 
         return `
             <article class="public-posts-item${isCurrent ? ' is-current' : ''}">
@@ -302,13 +325,15 @@ class PublicPostManager {
                         <div class="public-posts-item-date">${primaryDate}</div>
                         <div class="public-posts-item-actions">
                             <a href="${this.escapeHtml(item.doc_url || '#')}" class="btn btn-secondary">打开文档</a>
-                            ${item.post_url ? `<a href="${this.escapeHtml(item.post_url)}" class="btn btn-secondary" target="_blank" rel="noopener">博客预览</a>` : ''}
-                            ${toggleButton}
+                            ${item.is_blog_visible && item.post_url ? `<a href="${this.escapeHtml(item.post_url)}" class="btn btn-secondary" target="_blank" rel="noopener">博客预览</a>` : ''}
+                            ${blogToggleButton}
+                            ${publicToggleButton}
                         </div>
                     </div>
                     <h5 class="public-posts-item-title">
                         <a href="${this.escapeHtml(item.doc_url || '#')}">${this.escapeHtml(item.title || '未命名文档')}</a>
                     </h5>
+                    <div class="public-posts-item-status">${statusBadges}</div>
                     <div class="public-posts-item-meta">
                         <span><i data-lucide="folder-tree"></i>${this.escapeHtml(item.category_name || '未分类')}</span>
                         <span><i data-lucide="file-text"></i>${this.escapeHtml(item.path || '')}</span>
@@ -342,24 +367,79 @@ class PublicPostManager {
 
             this.items = this.items.filter((item) => item.path !== filename);
             this.render();
-            this.syncCurrentPageState(filename, nextPublicState);
+            this.syncCurrentPageState(filename, {
+                public: !!data.public,
+                template: data.template || 'doc',
+                is_blog_visible: !!data.is_blog_visible,
+            });
             window.uiUtils?.showToast?.(nextPublicState ? '文档已设为公开' : '文档已取消公开', 'success');
         } catch (error) {
             window.uiUtils?.showAlertDialog('更新失败', error.message || '请稍后重试');
         }
     }
 
-    syncCurrentPageState(filename, isPublic) {
+    async toggleBlogVisibility(filename, nextBlogVisibleState) {
+        if (!filename) return;
+
+        try {
+            const response = await fetch('/api/public-posts/toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken,
+                },
+                body: JSON.stringify({
+                    filename,
+                    show_in_blog: nextBlogVisibleState,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || '博客显示状态更新失败');
+            }
+
+            this.items = this.items.map((item) => (
+                item.path === filename
+                    ? {
+                        ...item,
+                        template: data.template || (nextBlogVisibleState ? 'post' : 'doc'),
+                        is_blog_visible: !!data.is_blog_visible,
+                        post_url: data.is_blog_visible ? (data.post_url || item.post_url || '') : '',
+                    }
+                    : item
+            ));
+            this.render();
+            this.syncCurrentPageState(filename, {
+                public: !!data.public,
+                template: data.template || 'doc',
+                is_blog_visible: !!data.is_blog_visible,
+            });
+            window.uiUtils?.showToast?.(nextBlogVisibleState ? '文档已显示到博客' : '文档已从博客隐藏', 'success');
+        } catch (error) {
+            window.uiUtils?.showAlertDialog('更新失败', error.message || '请稍后重试');
+        }
+    }
+
+    syncCurrentPageState(filename, state) {
         if (filename !== this.currentFilePath) return;
+
+        const isPublic = !!state?.public;
+        const template = state?.template || 'doc';
+        const isBlogVisible = !!state?.is_blog_visible;
 
         const publicBadge = document.getElementById('postPublicBadge');
         if (publicBadge) {
-            publicBadge.style.display = isPublic ? 'inline-flex' : 'none';
+            publicBadge.style.display = isPublic && isBlogVisible ? 'inline-flex' : 'none';
         }
 
         const metaPublicCheckbox = document.getElementById('metaPublic');
         if (metaPublicCheckbox) {
             metaPublicCheckbox.checked = !!isPublic;
+        }
+
+        const metaTemplateSelect = document.getElementById('metaTemplate');
+        if (metaTemplateSelect) {
+            metaTemplateSelect.value = template;
         }
     }
 

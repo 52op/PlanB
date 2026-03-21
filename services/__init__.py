@@ -38,7 +38,7 @@ from .docs import (
 from .media import delete_media_file, get_all_images_with_status, get_local_images, update_all_image_references, upload_media_file
 from .mailer import mailer_is_configured, notification_allowed, record_notification, render_mail_layout, send_logged_mail, send_mail
 from .paths import InvalidPathError, get_docs_root, normalize_relative_path, resolve_docs_path
-from .permissions import check_permission
+from .permissions import check_permission, get_matched_permission_rule, has_explicit_permission
 from .rate_limit import check_rate_limit, format_wait_time, get_client_ip, record_login_failure, record_login_success
 from .share_links import build_share_session_key, build_share_title, generate_share_token, get_share_link_by_token, is_share_expired, resolve_shared_path
 from .urls import force_https_url, get_safe_redirect_target
@@ -47,6 +47,7 @@ __all__ = [
     'InvalidPathError',
     'check_global_access',
     'check_permission',
+    'get_matched_permission_rule',
     'check_rate_limit',
     'can_delete_comment',
     'can_edit_comment',
@@ -84,6 +85,7 @@ __all__ = [
     'get_user_stats',
     'get_safe_redirect_target',
     'has_valid_global_access_cookie',
+    'has_explicit_permission',
     'issue_global_access_cookie',
     'mailer_is_configured',
     'notification_allowed',
