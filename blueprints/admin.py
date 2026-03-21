@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
-from models import Comment, DocumentViewStat, NotificationLog, db, SystemSetting, User, DirectoryConfig, PermissionRule
+from models import Comment, DocumentViewStat, NotificationLog, db, SystemSetting, User, PermissionRule
 from services import get_comment_stats, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, send_logged_mail
 from sqlalchemy import func
 
@@ -40,6 +40,61 @@ def _get_security_settings():
         settings.setdefault(key, default_value)
     return settings
 
+
+def _get_admin_stats_context():
+    comment_stats = get_comment_stats()
+    user_stats = get_user_stats()
+    site_stats = {
+        'public_posts': len(get_posts(include_private=False)),
+        'total_views': sum(stat.view_count for stat in DocumentViewStat.query.all()),
+    }
+    comment_trend = db.session.query(func.date(Comment.created_at), func.count(Comment.id)).group_by(func.date(Comment.created_at)).order_by(func.date(Comment.created_at)).limit(14).all()
+    notification_trend = db.session.query(func.date(NotificationLog.created_at), func.count(NotificationLog.id)).group_by(func.date(NotificationLog.created_at)).order_by(func.date(NotificationLog.created_at)).limit(14).all()
+    return {
+        'site_stats': site_stats,
+        'comment_stats': comment_stats,
+        'user_stats': user_stats,
+        'comment_trend': comment_trend,
+        'notification_trend': notification_trend,
+    }
+
+
+def _get_admin_base_context():
+    settings = _get_settings_map()
+    users = User.query.all()
+    permissions = PermissionRule.query.all()
+
+    comment_filter = (request.args.get('comment_status') or 'all').strip()
+    comment_keyword = (request.args.get('comment_q') or '').strip()
+    comment_query = Comment.query.order_by(Comment.created_at.desc())
+    if comment_filter != 'all':
+        comment_query = comment_query.filter_by(status=comment_filter)
+    if comment_keyword:
+        like_value = f'%{comment_keyword}%'
+        comment_query = comment_query.filter(Comment.content.like(like_value))
+    comment_page = request.args.get('comment_page', 1, type=int)
+    comment_pagination = comment_query.paginate(page=comment_page, per_page=20, error_out=False)
+
+    docs_dir = os.path.join(os.path.dirname(__file__), '..', SystemSetting.get('docs_dir', 'jobs') or 'jobs')
+    all_dirs = []
+    if os.path.exists(docs_dir):
+        for root, dirs, files in os.walk(docs_dir):
+            rel_path = os.path.relpath(root, docs_dir).replace('\\', '/')
+            if rel_path != '.':
+                all_dirs.append(rel_path + '/')
+    all_dirs.sort()
+
+    return {
+        'settings': settings,
+        'users': users,
+        'permissions': permissions,
+        'all_dirs': all_dirs,
+        'recent_comments': comment_pagination.items,
+        'comment_pagination': comment_pagination,
+        'comment_filter': comment_filter,
+        'comment_keyword': comment_keyword,
+    }
+
 @admin_bp.route('/images')
 @login_required
 def image_management():
@@ -52,74 +107,15 @@ def image_management():
 def admin_dashboard():
     if current_user.role != 'admin':
         abort(403)
-        
-    settings = _get_settings_map()
-    user_query = User.query
-    user_keyword = (request.args.get('user_q') or '').strip()
-    user_role = (request.args.get('user_role') or 'all').strip()
-    user_verified = (request.args.get('user_verified') or 'all').strip()
-    if user_keyword:
-        like_value = f'%{user_keyword}%'
-        user_query = user_query.filter((User.username.like(like_value)) | (User.email.like(like_value)))
-    if user_role != 'all':
-        user_query = user_query.filter_by(role=user_role)
-    if user_verified == 'yes':
-        user_query = user_query.filter_by(email_verified=True)
-    elif user_verified == 'no':
-        user_query = user_query.filter_by(email_verified=False)
-    users = user_query.all()
-    dir_configs = DirectoryConfig.query.all()
-    permissions = PermissionRule.query.all()
-    comment_stats = get_comment_stats()
-    user_stats = get_user_stats()
-    site_stats = {
-        'public_posts': len(get_posts(include_private=False)),
-        'total_views': sum(stat.view_count for stat in DocumentViewStat.query.all()),
-    }
-    comment_trend = db.session.query(func.date(Comment.created_at), func.count(Comment.id)).group_by(func.date(Comment.created_at)).order_by(func.date(Comment.created_at)).limit(14).all()
-    notification_trend = db.session.query(func.date(NotificationLog.created_at), func.count(NotificationLog.id)).group_by(func.date(NotificationLog.created_at)).order_by(func.date(NotificationLog.created_at)).limit(14).all()
-    comment_filter = (request.args.get('comment_status') or 'all').strip()
-    comment_keyword = (request.args.get('comment_q') or '').strip()
-    comment_query = Comment.query.order_by(Comment.created_at.desc())
-    if comment_filter != 'all':
-        comment_query = comment_query.filter_by(status=comment_filter)
-    if comment_keyword:
-        like_value = f'%{comment_keyword}%'
-        comment_query = comment_query.filter(Comment.content.like(like_value))
-    comment_page = request.args.get('comment_page', 1, type=int)
-    comment_pagination = comment_query.paginate(page=comment_page, per_page=20, error_out=False)
-    recent_comments = comment_pagination.items
-    
-    # 提取所有可用的目录列表供权限规则选择
-    docs_dir = os.path.join(os.path.dirname(__file__), '..', SystemSetting.get('docs_dir', 'jobs') or 'jobs')
-    all_dirs = []
-    if os.path.exists(docs_dir):
-        for root, dirs, files in os.walk(docs_dir):
-            rel_path = os.path.relpath(root, docs_dir).replace('\\', '/')
-            if rel_path != '.':
-                all_dirs.append(rel_path + '/')
-    all_dirs.sort()
-    
-    return render_template(
-        'admin.html',
-        settings=settings,
-        users=users,
-        dir_configs=dir_configs,
-        permissions=permissions,
-        all_dirs=all_dirs,
-        site_stats=site_stats,
-        comment_trend=comment_trend,
-        notification_trend=notification_trend,
-        comment_stats=comment_stats,
-        user_stats=user_stats,
-        recent_comments=recent_comments,
-        comment_pagination=comment_pagination,
-        comment_filter=comment_filter,
-        comment_keyword=comment_keyword,
-        user_keyword=user_keyword,
-        user_role=user_role,
-        user_verified=user_verified,
-    )
+    return render_template('admin_dashboard.html', **_get_admin_stats_context())
+
+
+@admin_bp.route('/base')
+@login_required
+def admin_base():
+    if current_user.role != 'admin':
+        abort(403)
+    return render_template('admin_base.html', **_get_admin_base_context())
 
 
 @admin_bp.route('/security')
@@ -209,7 +205,7 @@ def update_settings():
                 SystemSetting.set(key, value)
 
     flash('系统设置已更新')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_base'))
 
 @admin_bp.route('/user/add', methods=['POST'])
 @login_required
@@ -221,7 +217,7 @@ def admin_add_user():
     
     if User.query.filter_by(username=username).first():
         flash("用户名已存在")
-        return redirect(url_for('admin.admin_dashboard'))
+        return redirect(url_for('admin.admin_users'))
         
     u = User()
     u.username = username
@@ -230,7 +226,7 @@ def admin_add_user():
     db.session.add(u)
     db.session.commit()
     flash("添加用户成功")
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_base'))
 
 @admin_bp.route('/user/delete/<int:user_id>', methods=['POST'])
 @login_required
@@ -241,7 +237,7 @@ def admin_delete_user(user_id):
         db.session.delete(u)
         db.session.commit()
         flash("删除用户成功")
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_users'))
 
 @admin_bp.route('/user/update/<int:user_id>', methods=['POST'])
 @login_required
@@ -261,7 +257,7 @@ def admin_update_user(user_id):
                 
         db.session.commit()
         flash("用户资料已更新")
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_users'))
 
 @admin_bp.route('/permission/add', methods=['POST'])
 @login_required
@@ -272,7 +268,7 @@ def admin_add_permission():
     
     if not user_id or not dir_path:
         flash("规则参数不全")
-        return redirect(url_for('admin.admin_dashboard'))
+        return redirect(url_for('admin.admin_base'))
     
     # 查找是否已有同用户和同路径的规则则覆盖
     p = PermissionRule.query.filter_by(user_id=user_id, dir_path=dir_path).first()
@@ -288,7 +284,7 @@ def admin_add_permission():
     p.can_delete = 'can_delete' in request.form
     db.session.commit()
     flash("权限规则已更新")
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_base'))
 
 @admin_bp.route('/permission/delete/<int:rule_id>', methods=['POST'])
 @login_required
@@ -299,7 +295,7 @@ def admin_delete_permission(rule_id):
         db.session.delete(p)
         db.session.commit()
         flash("权限规则已删除")
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_base'))
 
 
 @admin_bp.route('/comment/approve/<int:comment_id>', methods=['POST'])
@@ -328,7 +324,7 @@ def admin_approve_comment(comment_id):
             except Exception:
                 pass
         flash('评论已通过审核')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_base'))
 
 
 @admin_bp.route('/comment/delete/<int:comment_id>', methods=['POST'])
@@ -357,7 +353,7 @@ def admin_delete_comment(comment_id):
         comment.status = 'deleted'
         db.session.commit()
         flash('评论已删除')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_base'))
 
 
 @admin_bp.route('/user/verify/<int:user_id>', methods=['POST'])
@@ -370,7 +366,7 @@ def admin_verify_user_email(user_id):
         user.email_verified = True
         db.session.commit()
         flash('用户邮箱已标记为已验证')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_users'))
 
 
 @admin_bp.route('/user/<int:user_id>')
@@ -676,7 +672,7 @@ def admin_approve_comment_page(comment_id):
     user_id = request.form.get('user_id')
     if user_id:
         return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_base'))
 
 
 @admin_bp.route('/comments/<int:comment_id>/delete', methods=['POST'])
@@ -712,4 +708,4 @@ def admin_delete_comment_page(comment_id):
     user_id = request.form.get('user_id')
     if user_id:
         return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.admin_base'))

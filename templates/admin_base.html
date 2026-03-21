@@ -1,0 +1,369 @@
+{% extends "admin.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">全局系统设置</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.update_settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label>文档根目录名称 (docs_dir)</label>
+                <input type="text" name="docs_dir" value="{{ settings.docs_dir }}" required placeholder="例如: jobs 或 docs">
+            </div>
+            <div class="form-group">
+                <label>系统访问控制模式 (access_mode)</label>
+                <select name="access_mode">
+                    <option value="open" {% if settings.access_mode == 'open' %}selected{% endif %}>完全开放模式 (任何人可阅)</option>
+                    <option value="group_only" {% if settings.access_mode == 'group_only' %}selected{% endif %}>需登录访问模式 (仅注册用户)</option>
+                    <option value="password_only" {% if settings.access_mode == 'password_only' %}selected{% endif %}>固定密码访问 (访客输入密码)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>固定访客密码 (global_password)</label>
+                <input type="password" name="global_password" value="" placeholder="密码模式下留空表示不修改">
+            </div>
+            <div class="form-group">
+                <label>站点名称</label>
+                <input type="text" name="site_name" value="{{ settings.site_name or 'Planning' }}" placeholder="例如：宏旭知识库">
+            </div>
+            <div class="form-group">
+                <label>站点 Logo 地址</label>
+                <div class="logo-setting-panel">
+                    <input type="text" id="siteLogoInput" name="site_logo" value="{{ settings.site_logo or '' }}" placeholder="例如：/static/uploads/site-logo.png、static/uploads/logo.png 或 https://example.com/logo.png">
+                    <div class="logo-setting-actions">
+                        <button type="button" class="btn" id="uploadSiteLogoBtn">上传 Logo</button>
+                        <button type="button" class="btn" id="pickSiteLogoBtn">从媒体库选择</button>
+                        <button type="button" class="btn btn-danger" id="clearSiteLogoBtn">清空 Logo</button>
+                    </div>
+                    <input type="file" id="siteLogoFileInput" accept="image/*" style="display:none;">
+                    <div class="logo-preview-card">
+                        <img id="siteLogoPreview" class="logo-preview-thumb" alt="站点 Logo 预览">
+                        <div id="siteLogoFallback" class="logo-preview-fallback">{{ (settings.site_name or 'P')[:1]|upper }}</div>
+                        <div class="logo-preview-meta">
+                            <div class="logo-preview-title">当前 Logo 预览</div>
+                            <div class="logo-preview-path" id="siteLogoPathText">未设置</div>
+                            <div class="logo-preview-tip">上传或从媒体库选择后，记得点击下方“保存设置”。</div>
+                        </div>
+                    </div>
+                </div>
+                <small style="color:#6c757d;">留空则继续使用当前文字/首字母占位样式。上传或从媒体库选择后会自动回填到这个地址字段。</small>
+            </div>
+            <div class="form-group">
+                <label>站点副标题</label>
+                <input type="text" name="site_tagline" value="{{ settings.site_tagline or '轻量 Markdown 内容站' }}" placeholder="一句简短介绍">
+            </div>
+            <div class="form-group">
+                <label>首页主标题</label>
+                <input type="text" name="home_title" value="{{ settings.home_title or '' }}" placeholder="留空则使用站点名称">
+            </div>
+            <div class="form-group">
+                <label>首页描述文案</label>
+                <textarea name="home_description" rows="3" placeholder="首页顶部的介绍文案">{{ settings.home_description or '' }}</textarea>
+            </div>
+            <div class="form-group">
+                <label>页脚内容</label>
+                <textarea name="footer_html" rows="4" placeholder="支持简短 HTML，例如版权、备案号、外链">{{ settings.footer_html or '' }}</textarea>
+            </div>
+            <div class="form-group">
+                <label>站点默认模式</label>
+                <select name="site_mode">
+                    <option value="blog" {% if (settings.site_mode or 'blog') == 'blog' %}selected{% endif %}>博客模式</option>
+                    <option value="docs" {% if settings.site_mode == 'docs' %}selected{% endif %}>文档模式</option>
+                </select>
+                <small style="color:#6c757d;">博客模式下首页显示博客；文档模式下首页直接进入文档系统。</small>
+            </div>
+            <div class="form-group">
+                <label>博客主题风格</label>
+                <select name="blog_theme">
+                    <option value="default" {% if (settings.blog_theme or 'default') == 'default' %}selected{% endif %}>默认风格</option>
+                    <option value="indigo" {% if settings.blog_theme == 'indigo' %}selected{% endif %}>Indigo 风格（推荐）</option>
+                    <option value="hexo" {% if settings.blog_theme == 'hexo' %}selected{% endif %}>Hexo 风格</option>
+                    <option value="astro" {% if settings.blog_theme == 'astro' %}selected{% endif %}>Astro 风格</option>
+                    <option value="vercel" {% if settings.blog_theme == 'vercel' %}selected{% endif %}>Vercel 风格</option>
+                </select>
+                <small style="color:#6c757d;">选择博客页面的显示风格，修改后立即生效无需重启。</small>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="blog_enabled" {% if settings.blog_enabled != 'false' %}checked{% endif %}> 启用博客系统</label>
+                <small style="color:#6c757d; display:block; margin-top:4px;">关闭后文章流、标签、归档、搜索等博客入口将不可用。</small>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="show_docs_entry_in_blog" {% if settings.show_docs_entry_in_blog != 'false' %}checked{% endif %}> 在博客模式下显示文档入口</label>
+            </div>
+            <div class="form-group">
+                <label>首页文章数量</label>
+                <input type="number" name="blog_home_count" min="1" max="50" value="{{ settings.blog_home_count or 12 }}">
+            </div>
+            <div class="form-group">
+                <label>随机封面图 API</label>
+                <input type="text" name="random_cover_api" value="{{ settings.random_cover_api or '' }}" placeholder="例如：https://picsum.photos/1200/630 或你的随机图接口">
+                <small style="color:#6c757d;">当博客文章没有封面图时，Hexo / Astro / Vercel 等主题可自动使用这个地址作为兜底封面。留空则不启用。</small>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="comments_enabled" {% if settings.comments_enabled != 'false' %}checked{% endif %}> 启用评论模块</label>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="comments_require_approval" {% if settings.comments_require_approval != 'false' %}checked{% endif %}> 访客/普通用户评论需审核</label>
+            </div>
+            <div class="form-group">
+                <label>首页默认展示</label>
+                <div style="margin-bottom: 8px; font-size: 14px;">
+                    <label style="margin-right: 12px;">
+                        <input type="radio" name="home_default_type" value="" {% if not settings.home_default_type %}checked{% endif %}>
+                        不指定（使用系统默认）
+                    </label>
+                    <label style="margin-right: 12px;">
+                        <input type="radio" name="home_default_type" value="dir" {% if settings.home_default_type == 'dir' %}checked{% endif %}>
+                        指定目录
+                    </label>
+                    <label style="margin-right: 12px;">
+                        <input type="radio" name="home_default_type" value="file" {% if settings.home_default_type == 'file' %}checked{% endif %}>
+                        指定文档
+                    </label>
+                    <label>
+                        <input type="radio" name="home_default_type" value="posts" {% if settings.home_default_type == 'posts' %}checked{% endif %}>
+                        最新文章流
+                    </label>
+                </div>
+                <div id="home_default_dir_wrap" style="margin-bottom: 8px;">
+                    <select name="home_default_dir" class="form-control">
+                        <option value="" {% if settings.home_default_type == 'dir' and (not settings.home_default_target or settings.home_default_target == '/') %}selected{% endif %}>文档根目录</option>
+                        {% for d in all_dirs %}
+                        <option value="{{ d }}" {% if settings.home_default_type == 'dir' and settings.home_default_target == d %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                    <small style="color:#6c757d;">目录既可以作为文档入口，也可以自然作为文章分类。</small>
+                </div>
+                <div id="home_default_file_wrap">
+                    <input type="text" name="home_default_file" class="form-control" placeholder="例如: intro.md 或 project/README.md" value="{% if settings.home_default_type == 'file' %}{{ settings.home_default_target }}{% endif %}">
+                    <small style="color:#6c757d;">填写相对于文档根目录的路径，例如：intro.md 或 folder/intro.md。</small>
+                </div>
+            </div>
+            <hr style="margin-top: 24px; margin-bottom: 24px; border-color: #eee;">
+
+            <div class="card-header" style="padding-left: 0; padding-right: 0;">主题外观配置</div>
+            <div class="form-group">
+                <label>默认颜色主题</label>
+                <select name="default_theme_color" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="blue" {% if settings.default_theme_color == 'blue' %}selected{% endif %}>蓝色 (专业)</option>
+                    <option value="green" {% if settings.default_theme_color == 'green' %}selected{% endif %}>绿色 (自然)</option>
+                    <option value="purple" {% if settings.default_theme_color == 'purple' %}selected{% endif %}>紫色 (创意)</option>
+                    <option value="orange" {% if settings.default_theme_color == 'orange' %}selected{% endif %}>橙色 (活力)</option>
+                    <option value="rose" {% if settings.default_theme_color == 'rose' %}selected{% endif %}>玫瑰 (优雅)</option>
+                </select>
+                <small style="color: #666;">新用户访问时的默认颜色主题</small>
+            </div>
+
+            <div class="form-group">
+                <label>默认显示模式</label>
+                <select name="default_theme_mode" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="light" {% if settings.default_theme_mode == 'light' %}selected{% endif %}>浅色模式</option>
+                    <option value="dark" {% if settings.default_theme_mode == 'dark' %}selected{% endif %}>深色模式</option>
+                    <option value="auto" {% if settings.default_theme_mode == 'auto' %}selected{% endif %}>跟随系统</option>
+                </select>
+                <small style="color: #666;">新用户访问时的默认显示模式</small>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="allow_user_theme_override" {% if settings.allow_user_theme_override != 'false' %}checked{% endif %}>
+                    允许用户自定义主题
+                </label>
+                <small style="color: #666; display: block; margin-top: 4px;">关闭后用户将无法更改主题设置</small>
+            </div>
+            <hr style="margin-top: 24px; margin-bottom: 24px; border-color: #eee;">
+
+            <div class="card-header" style="padding-left: 0; padding-right: 0;">媒体存储配置</div>
+            <div class="form-group">
+                <label>媒体存储方式</label>
+                <select name="media_storage_type" id="media_storage_type">
+                    <option value="local" {% if settings.media_storage_type == 'local' %}selected{% endif %}>本地存储</option>
+                    <option value="s3" {% if settings.media_storage_type == 's3' %}selected{% endif %}>S3 兼容对象存储</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>单文件大小限制 (MB)</label>
+                <input type="number" name="media_max_size_mb" value="{{ settings.media_max_size_mb or 50 }}" class="form-control">
+            </div>
+
+            <div id="s3_config_wrap" style="display: {% if settings.media_storage_type == 's3' %}block{% else %}none{% endif %};">
+                <div class="form-group">
+                    <label>Endpoint</label>
+                    <input type="text" name="s3_endpoint" value="{{ settings.s3_endpoint }}" class="form-control" placeholder="例如: https://s3.example.com">
+                </div>
+                <div class="form-group">
+                    <label>Bucket</label>
+                    <input type="text" name="s3_bucket" value="{{ settings.s3_bucket }}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Access Key ID</label>
+                    <input type="text" name="s3_access_key" value="{{ settings.s3_access_key }}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Secret Access Key</label>
+                    <input type="password" name="s3_secret_key" value="" class="form-control" placeholder="留空表示不修改">
+                </div>
+                <div class="form-group">
+                    <label>自定义访问域名 (CDN)</label>
+                    <input type="text" name="s3_cdn_domain" value="{{ settings.s3_cdn_domain }}" class="form-control" placeholder="例如: cdn.example.com (可选)">
+                </div>
+                <div class="form-group">
+                    <label>路径前缀</label>
+                    <input type="text" name="s3_path_prefix" value="{{ settings.s3_path_prefix or 'media' }}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" name="s3_path_style" {% if settings.s3_path_style == 'true' %}checked{% endif %}> 强制使用 path-style 寻址</label>
+                </div>
+            </div>
+
+            <hr style="margin-top: 24px; margin-bottom: 24px; border-color: #eee;">
+            <div class="card-header" style="padding-left: 0; padding-right: 0;">邮件服务器配置</div>
+            <div class="form-group">
+                <label>SMTP Host</label>
+                <input type="text" name="smtp_host" value="{{ settings.smtp_host or '' }}" placeholder="例如: smtp.qq.com">
+            </div>
+            <div class="form-group">
+                <label>SMTP Port</label>
+                <input type="number" name="smtp_port" value="{{ settings.smtp_port or 465 }}">
+            </div>
+            <div class="form-group">
+                <label>SMTP 用户名</label>
+                <input type="text" name="smtp_username" value="{{ settings.smtp_username or '' }}" placeholder="可选，若与发件人一致可重复填写">
+            </div>
+            <div class="form-group">
+                <label>SMTP 密码 / 授权码</label>
+                <input type="password" name="smtp_password" value="" placeholder="留空表示不修改">
+            </div>
+            <div class="form-group">
+                <label>发件人邮箱</label>
+                <input type="text" name="smtp_sender" value="{{ settings.smtp_sender or '' }}" placeholder="例如: noreply@example.com">
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="smtp_use_ssl" {% if settings.smtp_use_ssl != 'false' %}checked{% endif %}> 使用 SSL</label>
+            </div>
+
+            <button type="submit" class="btn">保存设置</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">目录权限规则 (基于指定用户)</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.admin_add_permission') }}" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="user_id" class="form-control" style="width: 150px;">
+                {% for usr in users %}
+                    {% if usr.role == 'regular' %}
+                    <option value="{{ usr.id }}">{{ usr.username }} ({{ usr.role }})</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            <select name="dir_path" required class="form-control" style="flex:1;">
+                <option value="*">所有目录 (*)</option>
+                {% for d in all_dirs %}
+                <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+            </select>
+            <label style="display:inline-flex; align-items:center;"><input type="checkbox" name="can_read" checked> 允许读取</label>
+            <label style="display:inline-flex; align-items:center;"><input type="checkbox" name="can_edit"> 允许编辑</label>
+            <label style="display:inline-flex; align-items:center;"><input type="checkbox" name="can_upload"> 允许上传</label>
+            <label style="display:inline-flex; align-items:center;"><input type="checkbox" name="can_delete"> 允许删除</label>
+            <button type="submit" class="btn">新增/覆盖规则</button>
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>分配给 (用户)</th>
+                    <th>目录路径</th>
+                    <th>读</th>
+                    <th>写(编辑)</th>
+                    <th>传(上传)</th>
+                    <th>删</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in permissions %}
+                <tr>
+                    <td>{{ p.user.username if p.user else '已删除的用户' }}</td>
+                    <td>{{ p.dir_path }}</td>
+                    <td>{{ '✅' if p.can_read else '❌' }}</td>
+                    <td>{{ '✅' if p.can_edit else '❌' }}</td>
+                    <td>{{ '✅' if p.can_upload else '❌' }}</td>
+                    <td>{{ '✅' if p.can_delete else '❌' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.admin_delete_permission', rule_id=p.id) }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-danger" type="submit">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">评论审核</div>
+    <div class="card-body">
+        <div style="margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap;">
+            <a class="btn btn-sm" href="{{ url_for('admin.admin_base', comment_status='all') }}" style="text-decoration:none; {% if comment_filter == 'all' %}background:#004494;{% endif %}">全部</a>
+            <a class="btn btn-sm" href="{{ url_for('admin.admin_base', comment_status='pending') }}" style="text-decoration:none; {% if comment_filter == 'pending' %}background:#004494;{% endif %}">待审</a>
+            <a class="btn btn-sm" href="{{ url_for('admin.admin_base', comment_status='approved') }}" style="text-decoration:none; {% if comment_filter == 'approved' %}background:#004494;{% endif %}">已通过</a>
+            <a class="btn btn-sm" href="{{ url_for('admin.admin_base', comment_status='deleted') }}" style="text-decoration:none; {% if comment_filter == 'deleted' %}background:#004494;{% endif %}">已删除</a>
+        </div>
+        <form method="GET" action="{{ url_for('admin.admin_base') }}" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+            <input type="hidden" name="comment_status" value="{{ comment_filter or 'all' }}">
+            <input type="text" name="comment_q" value="{{ comment_keyword or '' }}" placeholder="搜索评论内容" class="form-control" style="flex:1; min-width:220px;">
+            <button type="submit" class="btn btn-sm">搜索评论</button>
+        </form>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>文章</th>
+                    <th>用户</th>
+                    <th>内容</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in recent_comments %}
+                <tr>
+                    <td>{{ c.id }}</td>
+                    <td>{{ c.filename }}</td>
+                    <td>{{ c.user.username if c.user else '未知用户' }}</td>
+                    <td style="max-width:260px; white-space:normal;">{{ c.content }}</td>
+                    <td>{{ c.status }}</td>
+                    <td>
+                        {% if c.status != 'approved' %}
+                        <form method="POST" action="{{ url_for('admin.admin_approve_comment', comment_id=c.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm" type="submit">通过</button>
+                        </form>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('admin.admin_delete_comment', comment_id=c.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-danger" type="submit">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align:center; color:#6c757d;">暂无评论记录</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if comment_pagination and comment_pagination.pages > 1 %}
+        <div style="margin-top:16px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+            {% if comment_pagination.has_prev %}<a class="btn btn-sm" href="{{ url_for('admin.admin_base', comment_status=comment_filter, comment_q=comment_keyword, comment_page=comment_pagination.prev_num) }}">上一页</a>{% endif %}
+            <span style="padding:8px 12px; border-radius:8px; background:#f8f9fa;">评论 {{ comment_pagination.page }} / {{ comment_pagination.pages }}</span>
+            {% if comment_pagination.has_next %}<a class="btn btn-sm" href="{{ url_for('admin.admin_base', comment_status=comment_filter, comment_q=comment_keyword, comment_page=comment_pagination.next_num) }}">下一页</a>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

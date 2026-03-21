@@ -251,18 +251,6 @@
 
 {% block content %}
 <div class="security-layout">
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <div class="security-flash">
-            <div class="flash-messages">
-                {% for message in messages %}
-                    {{ message }}
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-    {% endwith %}
-
     <section class="security-hero">
         <div>
             <h2>安全设置</h2>

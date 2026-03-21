@@ -1,0 +1,17 @@
+{% extends "admin.html" %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card"><div>公开文章</div><strong>{{ site_stats.public_posts }}</strong></div>
+    <div class="stat-card"><div>总阅读量</div><strong>{{ site_stats.total_views }}</strong></div>
+    <div class="stat-card"><div>总用户数</div><strong>{{ user_stats.total_users }}</strong></div>
+    <div class="stat-card"><div>待审评论</div><strong>{{ comment_stats.pending_comments }}</strong></div>
+</div>
+
+<div class="card chart-card">
+    <div class="card-header">近 14 天趋势</div>
+    <div class="card-body">
+        <canvas id="trendChart"></canvas>
+    </div>
+</div>
+{% endblock %}
