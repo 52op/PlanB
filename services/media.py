@@ -196,6 +196,30 @@ def _normalize_reference_value(value):
     return raw_value
 
 
+def _image_reference_candidates(image_or_data):
+    if not image_or_data:
+        return []
+    url_value = str(getattr(image_or_data, 'url', None) or (image_or_data.get('url') if isinstance(image_or_data, dict) else '') or '').strip()
+    path_value = str(getattr(image_or_data, 'path', None) or (image_or_data.get('path') if isinstance(image_or_data, dict) else '') or '').strip()
+    candidates = []
+    normalized_url = _normalize_reference_value(url_value)
+    if normalized_url:
+        candidates.append(normalized_url)
+    if path_value:
+        normalized_media_path = _normalize_reference_value(f"/media/{path_value.lstrip('/')}")
+        if normalized_media_path and normalized_media_path not in candidates:
+            candidates.append(normalized_media_path)
+    return candidates
+
+
+def _build_image_usage_labels(image_or_data, site_logo):
+    usage_labels = []
+    normalized_site_logo = _normalize_reference_value(site_logo)
+    if normalized_site_logo and normalized_site_logo in _image_reference_candidates(image_or_data):
+        usage_labels.append('Logo')
+    return usage_labels
+
+
 def update_all_image_references():
     docs_root = get_docs_root()
     all_md_files = []
@@ -243,32 +267,39 @@ def get_all_images_with_status():
     db_images = {img.unique_filename: img for img in Image.query.all()}
     storage_images = _get_all_storage_images()
     combined_images = []
+    site_logo = str(SystemSetting.get('site_logo', '') or '').strip()
 
     for unique_filename, data in storage_images.items():
         if unique_filename in db_images:
             image = db_images.pop(unique_filename)
+            usage_labels = _build_image_usage_labels(image, site_logo)
             combined_images.append({
                 'filename': image.filename,
                 'unique_filename': image.unique_filename,
                 'url': image.url,
                 'is_referenced': image.is_referenced,
+                'usage_labels': usage_labels,
                 'status': 'synced',
             })
         else:
+            usage_labels = _build_image_usage_labels(data, site_logo)
             combined_images.append({
                 'filename': data['filename'],
                 'unique_filename': unique_filename,
                 'url': data['url'],
-                'is_referenced': False,
+                'is_referenced': bool(usage_labels),
+                'usage_labels': usage_labels,
                 'status': 'orphan',
             })
 
     for unique_filename, image in db_images.items():
+        usage_labels = _build_image_usage_labels(image, site_logo)
         combined_images.append({
             'filename': image.filename,
             'unique_filename': unique_filename,
             'url': '#',
             'is_referenced': image.is_referenced,
+            'usage_labels': usage_labels,
             'status': 'db_only',
         })
 

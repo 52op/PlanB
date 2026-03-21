@@ -462,6 +462,22 @@ def media_upload():
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route('/settings/site-logo', methods=['POST'])
+@login_required
+def update_site_logo_setting():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Permission denied'}), 403
+
+    site_logo = (request.form.get('site_logo') or '').strip()
+    SystemSetting.set('site_logo', site_logo)
+    update_all_image_references()
+    return jsonify({
+        'success': True,
+        'site_logo': site_logo,
+        'site_logo_url': force_https_url(site_logo) if site_logo else '',
+    })
+
+
 @api_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_markdown():

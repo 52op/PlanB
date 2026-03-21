@@ -69,6 +69,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
 }
 .status-text {
     font-size: 12px;
@@ -80,6 +81,22 @@
 .status-in-use { background-color: #2ecc71; } /* Green */
 .status-not-in-use { background-color: #e74c3c; } /* Red */
 .status-orphan { background-color: #3498db; } /* Blue */
+.usage-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.usage-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 11px;
+    font-weight: 700;
+}
 
 /* LightGallery Customizations */
 .lg-counter {
@@ -298,6 +315,16 @@ document.addEventListener('DOMContentLoaded', function() {
         filename.title = image.filename;
         filename.textContent = image.filename;
 
+        const usageTags = document.createElement('div');
+        usageTags.className = 'usage-tags';
+        const labels = Array.isArray(image.usage_labels) ? image.usage_labels : [];
+        labels.forEach((label) => {
+            const tag = document.createElement('span');
+            tag.className = 'usage-tag';
+            tag.textContent = label;
+            usageTags.appendChild(tag);
+        });
+
         const statusBar = document.createElement('div');
         statusBar.className = 'status-bar';
 
@@ -316,6 +343,9 @@ document.addEventListener('DOMContentLoaded', function() {
         statusBar.appendChild(status);
         statusBar.appendChild(button);
         info.appendChild(filename);
+        if (labels.length) {
+            info.appendChild(usageTags);
+        }
         info.appendChild(statusBar);
         card.appendChild(link);
         card.appendChild(info);

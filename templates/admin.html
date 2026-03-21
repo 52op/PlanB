@@ -799,6 +799,27 @@
             updateSiteLogoPreview();
         }
 
+        async function persistSiteLogo(nextValue) {
+            const normalizedValue = normalizeLogoValue(nextValue);
+            const formData = new FormData();
+            formData.append('site_logo', normalizedValue);
+
+            const response = await fetch('/api/settings/site-logo', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                },
+                body: formData,
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Logo 保存失败');
+            }
+            setSiteLogoValue(result.site_logo || normalizedValue);
+            siteLogoMediaLoaded = false;
+            return result;
+        }
+
         async function uploadSiteLogo(file) {
             if (!file) return;
 
@@ -823,9 +844,7 @@
                 if (!response.ok || !result.success || !result.url) {
                     throw new Error(result.error || 'Logo 上传失败');
                 }
-                setSiteLogoValue(result.url);
-                siteLogoMediaLoaded = false;
-                alert('Logo 已上传并回填，记得点击“保存设置”。');
+                await persistSiteLogo(result.url);
             } catch (error) {
                 alert(error.message || 'Logo 上传失败');
             } finally {
@@ -900,14 +919,18 @@
                             <div class="logo-media-name" title="${image.filename}">${image.filename}</div>
                             <div class="logo-media-badges">
                                 <span class="logo-media-badge ${badgeClass}">${badgeText}</span>
+                                ${(Array.isArray(image.usage_labels) ? image.usage_labels : []).map((label) => `<span class="logo-media-badge synced">${label}</span>`).join('')}
                             </div>
                         </div>
                     `;
 
-                    button.addEventListener('click', function () {
-                        setSiteLogoValue(image.url);
-                        closeMediaModal();
-                        alert('已从媒体库选择 Logo，记得点击“保存设置”。');
+                    button.addEventListener('click', async function () {
+                        try {
+                            await persistSiteLogo(image.url);
+                            closeMediaModal();
+                        } catch (error) {
+                            alert(error.message || 'Logo 保存失败');
+                        }
                     });
 
                     siteLogoMediaGrid.appendChild(button);
@@ -943,8 +966,12 @@
         }
 
         if (clearSiteLogoBtn) {
-            clearSiteLogoBtn.addEventListener('click', function () {
-                setSiteLogoValue('');
+            clearSiteLogoBtn.addEventListener('click', async function () {
+                try {
+                    await persistSiteLogo('');
+                } catch (error) {
+                    alert(error.message || 'Logo 清空失败');
+                }
             });
         }
 
