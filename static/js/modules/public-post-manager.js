@@ -46,9 +46,9 @@ class PublicPostManager {
             <div class="public-posts-dialog" role="dialog" aria-modal="true" aria-labelledby="publicPostsTitle">
                 <div class="public-posts-header">
                     <div>
-                        <div class="public-posts-kicker">公开内容管理</div>
-                        <h3 id="publicPostsTitle">已公开文档</h3>
-                        <p>按时间轴查看公开内容，并分别控制公开状态和博客展示状态。</p>
+                        <div class="public-posts-kicker">博客文章管理</div>
+                        <h3 id="publicPostsTitle">博客文章管理</h3>
+                        <p>按时间轴查看全部带头部信息的文档，并分别控制公开状态和博客展示状态。</p>
                     </div>
                     <div class="public-posts-header-actions">
                         <button type="button" class="btn btn-secondary" id="refreshPublicPostsBtn">刷新</button>
@@ -73,7 +73,7 @@ class PublicPostManager {
                     </label>
                 </div>
                 <div class="public-posts-summary" id="publicPostsSummary"></div>
-                <div class="public-posts-status" id="publicPostsStatus">正在读取已公开文档...</div>
+                <div class="public-posts-status" id="publicPostsStatus">正在读取博客文章管理列表...</div>
                 <div class="public-posts-timeline" id="publicPostsTimeline"></div>
             </div>
         `;
@@ -161,7 +161,7 @@ class PublicPostManager {
             return;
         }
 
-        this.statusNode.textContent = '正在读取已公开文档...';
+        this.statusNode.textContent = '正在读取博客文章管理列表...';
         this.timelineNode.innerHTML = '';
 
         try {
@@ -239,11 +239,16 @@ class PublicPostManager {
 
         const editableCount = items.filter((item) => item.can_edit).length;
         const blogVisibleCount = items.filter((item) => item.is_blog_visible).length;
+        const publicCount = items.filter((item) => item.public).length;
         const currentItem = items.find((item) => item.path === this.currentFilePath);
         this.summaryNode.innerHTML = `
             <div class="public-posts-stat">
                 <strong>${items.length}</strong>
-                <span>公开中</span>
+                <span>带头部文档</span>
+            </div>
+            <div class="public-posts-stat">
+                <strong>${publicCount}</strong>
+                <span>公开内容</span>
             </div>
             <div class="public-posts-stat">
                 <strong>${blogVisibleCount}</strong>
@@ -254,8 +259,8 @@ class PublicPostManager {
                 <span>可管理</span>
             </div>
             <div class="public-posts-stat">
-                <strong>${currentItem ? '当前文档已公开' : '当前未命中'}</strong>
-                <span>${currentItem ? `${currentItem.title} · ${currentItem.is_blog_visible ? '博客可见' : '仅文档可见'}` : '可用搜索快速定位'}</span>
+                <strong>${currentItem ? '当前文档已收录' : '当前未命中'}</strong>
+                <span>${currentItem ? `${currentItem.title} · ${currentItem.public ? '公开内容' : '未公开'} · ${currentItem.is_blog_visible ? '博客可见' : '仅文档可见'}` : '可用搜索快速定位'}</span>
             </div>
         `;
     }
@@ -267,12 +272,12 @@ class PublicPostManager {
         this.renderSummary(items);
 
         if (!items.length) {
-            this.statusNode.textContent = '没有符合条件的已公开文档。';
+            this.statusNode.textContent = '没有符合条件的带头部文档。';
             this.timelineNode.innerHTML = '';
             return;
         }
 
-        this.statusNode.textContent = `共找到 ${items.length} 篇已公开文档。`;
+        this.statusNode.textContent = `共找到 ${items.length} 篇带头部信息的文档。`;
         const groups = this.getTimelineGroups(items);
 
         this.timelineNode.innerHTML = groups.map((group) => `
@@ -298,10 +303,12 @@ class PublicPostManager {
         const primaryDate = this.sortMode === 'date_desc'
             ? (item.date_display || item.timeline_display || '未设置日期')
             : (item.updated_display || item.date_display || item.timeline_display || '未设置日期');
+        const publicToggleLabel = item.public ? '取消公开' : '设为公开';
+        const publicToggleValue = item.public ? 'false' : 'true';
         const publicToggleButton = item.can_edit
-            ? `<button type="button" class="btn btn-secondary public-posts-toggle-btn" data-public-toggle="1" data-filename="${this.escapeHtml(item.path)}" data-public="false">
-                    <i data-lucide="eye-off"></i>
-                    取消公开
+            ? `<button type="button" class="btn btn-secondary public-posts-toggle-btn" data-public-toggle="1" data-filename="${this.escapeHtml(item.path)}" data-public="${publicToggleValue}">
+                    <i data-lucide="${item.public ? 'eye-off' : 'eye'}"></i>
+                    ${publicToggleLabel}
                </button>`
             : `<span class="public-posts-readonly-badge">只读</span>`;
         const blogToggleButton = item.can_edit
@@ -311,7 +318,9 @@ class PublicPostManager {
                </button>`
             : '';
         const statusBadges = [
-            '<span class="public-posts-visibility-badge is-public"><i data-lucide="shield-check"></i>公开</span>',
+            item.public
+                ? '<span class="public-posts-visibility-badge is-public"><i data-lucide="shield-check"></i>公开内容</span>'
+                : '<span class="public-posts-visibility-badge is-private"><i data-lucide="shield-off"></i>未公开</span>',
             item.is_blog_visible
                 ? '<span class="public-posts-visibility-badge is-blog"><i data-lucide="newspaper"></i>博客可见</span>'
                 : '<span class="public-posts-visibility-badge is-doc"><i data-lucide="file-text"></i>仅文档可见</span>',
@@ -365,7 +374,17 @@ class PublicPostManager {
                 throw new Error(data.error || '状态更新失败');
             }
 
-            this.items = this.items.filter((item) => item.path !== filename);
+            this.items = this.items.map((item) => (
+                item.path === filename
+                    ? {
+                        ...item,
+                        public: !!data.public,
+                        template: data.template || item.template || 'doc',
+                        is_blog_visible: !!data.is_blog_visible,
+                        post_url: data.is_blog_visible ? (data.post_url || item.post_url || '') : '',
+                    }
+                    : item
+            ));
             this.render();
             this.syncCurrentPageState(filename, {
                 public: !!data.public,

@@ -88,7 +88,7 @@
             <div class="site-header-right">
                 <button class="header-action-btn" id="openSearchBtnDesktop" type="button" title="搜索 (Ctrl+K)"><i data-lucide="search" class="icon-inline"></i></button>
                 {% if current_user.is_authenticated %}
-                <button class="header-action-btn" id="publicPostsBtnDesktop" type="button" title="管理已公开内容"><i data-lucide="list" class="icon-inline"></i></button>
+                <button class="header-action-btn" id="publicPostsBtnDesktop" type="button" title="博客文章管理"><i data-lucide="list" class="icon-inline"></i></button>
                 {% endif %}
                 <button class="header-action-btn" id="themeToggleBtnDesktop" type="button"><i data-lucide="palette" class="icon-inline"></i> 主题</button>
                 <a class="header-action-link" href="{{ url_for('main.posts') }}"><i data-lucide="newspaper" class="icon-inline"></i> 博客页面</a>
@@ -134,7 +134,7 @@
             <div style="display:flex; align-items:center; gap:8px;">
                 <button class="menu-btn menu-btn-icon" id="openSearchBtnMobile" title="搜索"><i data-lucide="search"></i></button>
                 {% if current_user.is_authenticated %}
-                <button class="menu-btn menu-btn-icon" id="publicPostsBtnMobile" title="已公开内容"><i data-lucide="list"></i></button>
+                <button class="menu-btn menu-btn-icon" id="publicPostsBtnMobile" title="博客文章管理"><i data-lucide="list"></i></button>
                 {% endif %}
                 <button class="menu-btn menu-btn-icon" id="themeToggleBtnMobile" title="主题"><i data-lucide="palette"></i></button>
                 {% if current_user.is_authenticated %}

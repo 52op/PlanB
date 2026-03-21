@@ -3250,6 +3250,12 @@
             border-color: rgba(34, 197, 94, 0.22);
         }
 
+        .public-posts-visibility-badge.is-private {
+            color: #9a3412;
+            background: rgba(249, 115, 22, 0.12);
+            border-color: rgba(249, 115, 22, 0.22);
+        }
+
         .public-posts-visibility-badge.is-blog {
             color: #0f766e;
             background: rgba(20, 184, 166, 0.12);

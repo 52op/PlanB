@@ -183,6 +183,21 @@ def _split_front_matter(content):
     return parsed, body
 
 
+def _has_front_matter_block(content):
+    text = str(content or '')
+    if not text.startswith(FRONT_MATTER_BOUNDARY):
+        return False
+
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != FRONT_MATTER_BOUNDARY:
+        return False
+
+    for index in range(1, len(lines)):
+        if lines[index].strip() == FRONT_MATTER_BOUNDARY:
+            return True
+    return False
+
+
 def _estimate_reading_minutes(content):
     word_count = len(WORD_RE.findall(content or ''))
     if word_count <= 0:
@@ -330,6 +345,7 @@ def _parse_markdown_file(filename):
         'metadata': metadata,
         'raw_content': raw_content,
         'filename': normalized_filename,
+        'has_front_matter': _has_front_matter_block(full_content),
     }
 
     # 存入缓存
@@ -627,14 +643,17 @@ def get_public_post_documents():
         payload = _parse_markdown_file(filename)
         if not payload:
             continue
+        if not payload.get('has_front_matter'):
+            continue
 
         metadata = payload.get('metadata') or {}
-        if not metadata.get('public') or metadata.get('draft'):
+        if metadata.get('draft'):
             continue
 
         item = dict(metadata)
         item['path'] = filename
         item['doc_url'] = _build_markdown_url(filename)
+        item['has_front_matter'] = True
         item['is_blog_visible'] = item.get('template') == 'post'
         item['can_edit'] = bool(check_permission(current_user, filename, 'edit'))
         item['timeline_date'] = item.get('updated') or item.get('date') or ''

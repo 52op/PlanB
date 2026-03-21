@@ -267,6 +267,7 @@ def list_public_posts():
                 'public': bool(item.get('public')),
                 'template': item.get('template') or 'doc',
                 'is_blog_visible': bool(item.get('is_blog_visible')),
+                'has_front_matter': bool(item.get('has_front_matter')),
             }
             for item in items
         ],
