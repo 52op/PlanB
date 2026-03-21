@@ -1,8 +1,8 @@
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
 from models import Comment, DocumentViewStat, NotificationLog, db, SystemSetting, User, PermissionRule
-from services import get_comment_stats, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, send_logged_mail
+from services import get_comment_stats, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, preview_cover_source, send_logged_mail
 from sqlalchemy import func
 
 admin_bp = Blueprint('admin', __name__, template_folder='templates', url_prefix='/admin')
@@ -129,6 +129,30 @@ def admin_base():
     if current_user.role != 'admin':
         abort(403)
     return render_template('admin_base.html', **_get_admin_base_context())
+
+
+@admin_bp.route('/cover-preview', methods=['POST'])
+@login_required
+def admin_cover_preview():
+    if current_user.role != 'admin':
+        abort(403)
+
+    settings = {
+        'random_cover_source_type': (request.form.get('random_cover_source_type') or '').strip(),
+        'random_cover_api': (request.form.get('random_cover_api') or '').strip(),
+        'random_cover_local_dir': (request.form.get('random_cover_local_dir') or '').strip(),
+        'random_cover_pexels_api_key': (request.form.get('random_cover_pexels_api_key') or '').strip(),
+        'random_cover_pexels_default_query': (request.form.get('random_cover_pexels_default_query') or '').strip(),
+        'random_cover_pexels_orientation': (request.form.get('random_cover_pexels_orientation') or '').strip(),
+        'random_cover_pexels_per_page': (request.form.get('random_cover_pexels_per_page') or '').strip(),
+        'random_cover_pexels_cache_hours': (request.form.get('random_cover_pexels_cache_hours') or '').strip(),
+    }
+    sample_query = (request.form.get('sample_query') or '').strip()
+    result = preview_cover_source(settings, sample_query=sample_query)
+    return jsonify({
+        'success': True,
+        'preview': result,
+    })
 
 
 @admin_bp.route('/security')

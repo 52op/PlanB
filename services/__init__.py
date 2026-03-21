@@ -15,7 +15,7 @@ from .comments import (
     validate_registration_input,
     verify_email_code,
 )
-from .covers import get_cover_fallback_settings, get_local_cover_base_dir, resolve_fallback_cover
+from .covers import get_cover_fallback_settings, get_local_cover_base_dir, preview_cover_source, resolve_fallback_cover, resolve_pexels_query
 from .docs import (
     clear_file_cache,
     get_adjacent_posts,
@@ -118,7 +118,9 @@ __all__ = [
     'record_verification_send_attempt',
     'record_verification_failure',
     'record_verification_success',
+    'preview_cover_source',
     'resolve_fallback_cover',
+    'resolve_pexels_query',
     'resolve_docs_path',
     'record_notification',
     'render_mail_layout',

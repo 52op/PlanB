@@ -16,6 +16,20 @@ DEFAULT_PEXELS_PER_PAGE = 6
 DEFAULT_PEXELS_CACHE_HOURS = 24
 
 
+def _parse_pexels_default_queries(value):
+    raw_value = str(value or '').strip()
+    if not raw_value:
+        return [DEFAULT_PEXELS_QUERY]
+
+    normalized = raw_value.replace('，', ',').replace(';', ',').replace('；', ',').replace('\n', ',')
+    items = []
+    for item in normalized.split(','):
+        query = str(item or '').strip()
+        if query and query not in items:
+            items.append(query)
+    return items or [DEFAULT_PEXELS_QUERY]
+
+
 def _normalize_source_type(value):
     raw_value = str(value or '').strip().lower()
     return raw_value if raw_value in {'url', 'local_dir', 'pexels'} else 'url'
@@ -97,6 +111,7 @@ def get_cover_fallback_settings(site_settings=None):
         'random_cover_local_dir': random_cover_local_dir,
         'random_cover_pexels_api_key': random_cover_pexels_api_key,
         'random_cover_pexels_default_query': random_cover_pexels_default_query,
+        'random_cover_pexels_default_queries': _parse_pexels_default_queries(random_cover_pexels_default_query),
         'random_cover_pexels_orientation': _normalize_orientation(
             settings.get('random_cover_pexels_orientation')
             if 'random_cover_pexels_orientation' in settings
@@ -272,11 +287,85 @@ def _resolve_local_dir_cover(item, settings):
 
 
 def _resolve_pexels_cover(item, settings):
-    query_value = _coerce_tag_query((item or {}).get('tags'))
-    if not query_value:
-        query_value = str(settings.get('random_cover_pexels_default_query') or DEFAULT_PEXELS_QUERY).strip()
+    query_value, _ = resolve_pexels_query(item, settings)
     candidates = _fetch_pexels_cover_candidates(query_value, settings)
     return _select_stable_candidate(candidates, f"{_build_stable_seed(item)}|{query_value}")
+
+
+def resolve_pexels_query(item_metadata, settings=None):
+    item = dict(item_metadata or {})
+    resolved_settings = get_cover_fallback_settings(settings)
+    tag_query = _coerce_tag_query(item.get('tags'))
+    if tag_query:
+        return tag_query, 'tag'
+
+    default_queries = resolved_settings.get('random_cover_pexels_default_queries') or [DEFAULT_PEXELS_QUERY]
+    seed = _build_stable_seed(item)
+    selected_query = _select_stable_candidate(default_queries, f'{seed}|default-pexels-query')
+    return selected_query or DEFAULT_PEXELS_QUERY, 'default'
+
+
+def preview_cover_source(settings=None, sample_query=''):
+    resolved_settings = get_cover_fallback_settings(settings)
+    sample_query = str(sample_query or '').strip()
+    sample_item = {
+        'slug': 'admin-cover-preview',
+        'filename': 'admin-cover-preview.md',
+        'title': 'Admin Cover Preview',
+        'tags': [sample_query] if sample_query else [],
+        'cover': '',
+    }
+    source_type = resolved_settings.get('random_cover_source_type') or 'url'
+
+    if source_type == 'url':
+        selected_url = str(resolved_settings.get('random_cover_api') or '').strip()
+        return {
+            'source_type': 'url',
+            'selected_url': selected_url,
+            'candidates': [selected_url] if selected_url else [],
+            'count': 1 if selected_url else 0,
+            'message': '当前将直接使用远程封面地址作为兜底图。' if selected_url else '当前还没有填写可用的远程封面地址。',
+        }
+
+    if source_type == 'local_dir':
+        base_dir = get_local_cover_base_dir(resolved_settings)
+        local_files = list_local_cover_files(resolved_settings.get('random_cover_local_dir'))
+        preview_files = local_files[:4]
+        return {
+            'source_type': 'local_dir',
+            'selected_url': resolve_fallback_cover(sample_item, resolved_settings),
+            'candidates': [_build_local_cover_url(path) for path in preview_files],
+            'count': len(local_files),
+            'directory': base_dir,
+            'message': (
+                '当前本地目录不存在或不可访问，请检查路径是否填写正确。'
+                if not base_dir else
+                f'检测到 {len(local_files)} 张可用图片，当前预览按稳定规则选中其中一张。'
+                if local_files else
+                '当前目录下没有找到可用图片，支持 jpg / jpeg / png / webp / gif / avif。'
+            ),
+        }
+
+    query_value, query_source = resolve_pexels_query(sample_item, resolved_settings)
+    candidates = _fetch_pexels_cover_candidates(query_value, resolved_settings)
+    preview_candidates = candidates[:4]
+    selected_url = _select_stable_candidate(candidates, f"{_build_stable_seed(sample_item)}|{query_value}") if candidates else ''
+    query_label = '测试关键词' if sample_query else ('默认关键词池' if query_source == 'default' else '文章标签')
+    return {
+        'source_type': 'pexels',
+        'selected_url': selected_url,
+        'candidates': preview_candidates,
+        'count': len(candidates),
+        'query': query_value,
+        'query_source': query_source,
+        'message': (
+            '当前还没有填写 Pexels API Key，无法拉取候选封面图。'
+            if not str(resolved_settings.get('random_cover_pexels_api_key') or '').strip() else
+            f'当前使用 {query_label} “{query_value}” 获取封面候选图。'
+            if query_value else
+            '当前没有可用的查询关键词。'
+        ),
+    }
 
 
 def resolve_fallback_cover(item_metadata, site_settings=None):

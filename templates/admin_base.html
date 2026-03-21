@@ -4,7 +4,7 @@
 <div class="card">
     <div class="card-header">全局系统设置</div>
     <div class="card-body">
-        <form method="POST" action="{{ url_for('admin.update_settings') }}">
+        <form method="POST" action="{{ url_for('admin.update_settings') }}" id="adminBaseSettingsForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label>文档根目录名称 (docs_dir)</label>
@@ -122,7 +122,7 @@
                 <div class="form-group">
                     <label>Pexels 默认查询词</label>
                     <input type="text" name="random_cover_pexels_default_query" value="{{ settings.random_cover_pexels_default_query or 'nature' }}" placeholder="文章没有标签时，默认使用的关键词">
-                    <small style="color:#6c757d;">优先取文章第一个标签作为 `query`，没有标签时才使用这里的默认词。</small>
+                    <small style="color:#6c757d;">优先取文章第一个标签作为 `query`。如果没有标签，这里支持填写一个或多个默认关键词，多个请用英文逗号 `,` 分隔，系统会按文章稳定地选中其中一个。</small>
                 </div>
                 <div class="form-group">
                     <label>Pexels 图片方向</label>
@@ -142,6 +142,21 @@
                     <input type="number" name="random_cover_pexels_cache_hours" min="1" max="168" value="{{ settings.random_cover_pexels_cache_hours or 24 }}">
                     <small style="color:#6c757d;">为了避免频繁请求 Pexels，搜索结果会缓存到数据库。</small>
                 </div>
+            </div>
+            <div class="form-group" style="padding:14px 16px; border:1px solid #e5e7eb; border-radius:10px; background:#f8fafc;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+                    <div>
+                        <label style="margin-bottom:4px;">封面来源测试</label>
+                        <div style="font-size:13px; color:#64748b;">可直接用当前表单里的未保存配置做一次预览，快速确认来源、目录或 Pexels 关键词是否生效。</div>
+                    </div>
+                    <button type="button" class="btn btn-sm" id="coverPreviewBtn">测试当前设置</button>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+                    <input type="text" id="coverPreviewQueryInput" class="form-control" placeholder="可选：输入一个测试标签/关键词，例如 code、travel" style="flex:1; min-width:240px;">
+                </div>
+                <div id="coverPreviewStatus" style="font-size:13px; color:#64748b;">点击“测试当前设置”后，会在这里显示当前兜底封面的解析结果。</div>
+                <div id="coverPreviewMeta" style="display:none; margin-top:10px; font-size:13px; color:#475569;"></div>
+                <div id="coverPreviewGrid" style="display:none; margin-top:14px; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px;"></div>
             </div>
             <div class="form-group">
                 <label><input type="checkbox" name="comments_enabled" {% if settings.comments_enabled != 'false' %}checked{% endif %}> 启用评论模块</label>
@@ -415,10 +430,16 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const settingsForm = document.getElementById('adminBaseSettingsForm');
     const sourceTypeSelect = document.getElementById('random_cover_source_type');
     const urlWrap = document.getElementById('random_cover_url_wrap');
     const localDirWrap = document.getElementById('random_cover_local_dir_wrap');
     const pexelsWrap = document.getElementById('random_cover_pexels_wrap');
+    const coverPreviewBtn = document.getElementById('coverPreviewBtn');
+    const coverPreviewQueryInput = document.getElementById('coverPreviewQueryInput');
+    const coverPreviewStatus = document.getElementById('coverPreviewStatus');
+    const coverPreviewMeta = document.getElementById('coverPreviewMeta');
+    const coverPreviewGrid = document.getElementById('coverPreviewGrid');
 
     function refreshCoverSourceVisibility() {
         if (!sourceTypeSelect) return;
@@ -437,6 +458,130 @@ document.addEventListener('DOMContentLoaded', function () {
     if (sourceTypeSelect) {
         sourceTypeSelect.addEventListener('change', refreshCoverSourceVisibility);
         refreshCoverSourceVisibility();
+    }
+
+    function renderCoverPreview(result) {
+        if (!coverPreviewStatus || !coverPreviewMeta || !coverPreviewGrid) return;
+
+        const preview = result && result.preview ? result.preview : null;
+        if (!preview) {
+            coverPreviewStatus.textContent = '当前没有可显示的预览结果。';
+            coverPreviewMeta.style.display = 'none';
+            coverPreviewGrid.style.display = 'none';
+            coverPreviewGrid.innerHTML = '';
+            return;
+        }
+
+        coverPreviewStatus.textContent = preview.message || '测试完成。';
+
+        const metaLines = [];
+        if (preview.source_type === 'local_dir' && preview.directory) {
+            metaLines.push(`目录：${preview.directory}`);
+        }
+        if (preview.source_type === 'pexels' && preview.query) {
+            metaLines.push(`查询关键词：${preview.query}`);
+        }
+        if (typeof preview.count === 'number') {
+            metaLines.push(`候选数量：${preview.count}`);
+        }
+        if (preview.selected_url) {
+            metaLines.push(`当前选中：${preview.selected_url}`);
+        }
+
+        if (metaLines.length) {
+            coverPreviewMeta.innerHTML = metaLines.map(function (line) {
+                return `<div style="margin-bottom:4px;">${line}</div>`;
+            }).join('');
+            coverPreviewMeta.style.display = 'block';
+        } else {
+            coverPreviewMeta.style.display = 'none';
+            coverPreviewMeta.innerHTML = '';
+        }
+
+        const candidates = Array.isArray(preview.candidates) ? preview.candidates.filter(Boolean) : [];
+        if (!candidates.length) {
+            coverPreviewGrid.style.display = 'none';
+            coverPreviewGrid.innerHTML = '';
+            return;
+        }
+
+        const selectedUrl = String(preview.selected_url || '').trim();
+        coverPreviewGrid.innerHTML = candidates.map(function (url) {
+            const selectedStyle = url === selectedUrl
+                ? 'border:2px solid #2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.12);'
+                : 'border:1px solid #dbe2ea;';
+            const badge = url === selectedUrl
+                ? '<span style="position:absolute; top:10px; right:10px; padding:4px 8px; border-radius:999px; background:#2563eb; color:#fff; font-size:11px;">当前命中</span>'
+                : '';
+            return `
+                <div style="position:relative; ${selectedStyle} border-radius:12px; overflow:hidden; background:#fff;">
+                    ${badge}
+                    <div style="aspect-ratio:16/10; background:#e2e8f0;">
+                        <img src="${url}" alt="cover preview" style="width:100%; height:100%; object-fit:cover; display:block;">
+                    </div>
+                    <div style="padding:10px 12px; font-size:12px; color:#64748b; word-break:break-all;">${url}</div>
+                </div>
+            `;
+        }).join('');
+        coverPreviewGrid.style.display = 'grid';
+    }
+
+    async function runCoverPreview() {
+        if (!settingsForm || !coverPreviewBtn || !coverPreviewStatus) return;
+
+        const formData = new FormData();
+        [
+            'random_cover_source_type',
+            'random_cover_api',
+            'random_cover_local_dir',
+            'random_cover_pexels_api_key',
+            'random_cover_pexels_default_query',
+            'random_cover_pexels_orientation',
+            'random_cover_pexels_per_page',
+            'random_cover_pexels_cache_hours'
+        ].forEach(function (name) {
+            const field = settingsForm.querySelector(`[name="${name}"]`);
+            if (field) {
+                formData.append(name, field.value || '');
+            }
+        });
+
+        const csrfField = settingsForm.querySelector('input[name="csrf_token"]');
+        if (csrfField) {
+            formData.append('csrf_token', csrfField.value || '');
+        }
+        formData.append('sample_query', coverPreviewQueryInput ? (coverPreviewQueryInput.value || '') : '');
+
+        coverPreviewBtn.disabled = true;
+        coverPreviewStatus.textContent = '正在测试当前封面配置...';
+        if (coverPreviewMeta) {
+            coverPreviewMeta.style.display = 'none';
+            coverPreviewMeta.innerHTML = '';
+        }
+        if (coverPreviewGrid) {
+            coverPreviewGrid.style.display = 'none';
+            coverPreviewGrid.innerHTML = '';
+        }
+
+        try {
+            const response = await fetch('{{ url_for("admin.admin_cover_preview") }}', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || '封面测试失败');
+            }
+            renderCoverPreview(result);
+        } catch (error) {
+            coverPreviewStatus.textContent = error.message || '封面测试失败';
+        } finally {
+            coverPreviewBtn.disabled = false;
+        }
+    }
+
+    if (coverPreviewBtn) {
+        coverPreviewBtn.addEventListener('click', runCoverPreview);
     }
 });
 </script>
