@@ -179,10 +179,40 @@ def _build_collection_schema(title, canonical_url, description, items, page_type
     return schema
 
 
+def _build_website_schema(site_settings):
+    settings = site_settings or {}
+    site_name = str(settings.get('site_name') or 'Planning').strip() or 'Planning'
+    site_tagline = str(settings.get('site_tagline') or '').strip()
+    home_url = _absolute_url(url_for('main.blog_home'))
+    search_url = _absolute_url(url_for('main.search'))
+    schema = {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        'name': site_name,
+        'url': home_url,
+        'inLanguage': 'zh-CN',
+        'potentialAction': {
+            '@type': 'SearchAction',
+            'target': {
+                '@type': 'EntryPoint',
+                'urlTemplate': f'{search_url}?q={{search_term_string}}',
+            },
+            'query-input': 'required name=search_term_string',
+        },
+    }
+    if site_tagline:
+        schema['description'] = site_tagline
+    logo_url = str(settings.get('site_logo_url') or '').strip()
+    if logo_url:
+        schema['image'] = _absolute_url(logo_url)
+    return schema
+
+
 @main_bp.context_processor
 def inject_theme():
     """向所有模板注入当前主题信息"""
     recent_blog_comments = []
+    blog_site_structured_data = []
     blog_sidebar_endpoints = {
         'main.blog_home',
         'main.index',
@@ -199,10 +229,15 @@ def inject_theme():
             limit=5,
             include_private=bool(getattr(current_user, 'is_authenticated', False)),
         )
+    if request.endpoint in blog_sidebar_endpoints and _blog_enabled():
+        website_schema = _build_website_schema(_get_site_settings())
+        if website_schema:
+            blog_site_structured_data = [website_schema]
     return {
         'current_theme': _get_blog_theme(),
         'format_app_datetime': _format_app_datetime,
         'recent_blog_comments': recent_blog_comments,
+        'blog_site_structured_data': blog_site_structured_data,
     }
 
 
