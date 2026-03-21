@@ -1,5 +1,7 @@
 import os
 from datetime import timezone, timedelta
+from datetime import datetime
+from email.utils import format_datetime
 from xml.sax.saxutils import escape
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -66,6 +68,115 @@ def _format_app_datetime(value):
     tz = _get_app_timezone()
     localized = value.replace(tzinfo=timezone.utc).astimezone(tz)
     return localized.strftime('%Y-%m-%d %H:%M')
+
+
+def _coerce_metadata_datetime(value):
+    raw_value = str(value or '').strip()
+    if not raw_value:
+        return None
+    tz = _get_app_timezone()
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+        try:
+            parsed = datetime.strptime(raw_value, fmt)
+            return parsed.replace(tzinfo=tz)
+        except ValueError:
+            continue
+    return None
+
+
+def _format_rfc2822_datetime(value):
+    parsed = _coerce_metadata_datetime(value)
+    if not parsed:
+        return ''
+    return format_datetime(parsed)
+
+
+def _build_breadcrumb_schema(items):
+    valid_items = []
+    for item in items or []:
+        name = str((item or {}).get('name') or '').strip()
+        url = str((item or {}).get('url') or '').strip()
+        if name and url:
+            valid_items.append({'name': name, 'url': url})
+    if not valid_items:
+        return None
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        'itemListElement': [
+            {
+                '@type': 'ListItem',
+                'position': index,
+                'name': item['name'],
+                'item': item['url'],
+            }
+            for index, item in enumerate(valid_items, start=1)
+        ],
+    }
+
+
+def _build_article_schema(page_meta, canonical_url):
+    if not page_meta:
+        return None
+    article_schema = {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        'headline': str(page_meta.get('title') or ''),
+        'description': str(page_meta.get('summary') or ''),
+        'mainEntityOfPage': canonical_url,
+        'author': {
+            '@type': 'Organization',
+            'name': str(page_meta.get('site_name') or ''),
+        },
+        'publisher': {
+            '@type': 'Organization',
+            'name': str(page_meta.get('site_name') or ''),
+        },
+    }
+    published_at = page_meta.get('date') or ''
+    modified_at = page_meta.get('updated') or published_at
+    if published_at:
+        article_schema['datePublished'] = published_at
+    if modified_at:
+        article_schema['dateModified'] = modified_at
+    if page_meta.get('cover'):
+        article_schema['image'] = [page_meta['cover']]
+    if page_meta.get('category_name'):
+        article_schema['articleSection'] = page_meta['category_name']
+    if page_meta.get('tags'):
+        article_schema['keywords'] = ', '.join([str(tag).strip() for tag in page_meta.get('tags') or [] if str(tag).strip()])
+    return article_schema
+
+
+def _build_collection_schema(title, canonical_url, description, items, page_type='CollectionPage'):
+    visible_items = []
+    for item in items or []:
+        item_title = str((item or {}).get('title') or '').strip()
+        item_url = str((item or {}).get('url') or '').strip()
+        if item_title and item_url:
+            visible_items.append({'title': item_title, 'url': _absolute_url(item_url)})
+
+    schema = {
+        '@context': 'https://schema.org',
+        '@type': page_type,
+        'name': str(title or ''),
+        'description': str(description or ''),
+        'url': canonical_url,
+    }
+    if visible_items:
+        schema['mainEntity'] = {
+            '@type': 'ItemList',
+            'itemListElement': [
+                {
+                    '@type': 'ListItem',
+                    'position': index,
+                    'url': item['url'],
+                    'name': item['title'],
+                }
+                for index, item in enumerate(visible_items, start=1)
+            ],
+        }
+    return schema
 
 
 @main_bp.context_processor
@@ -543,6 +654,16 @@ def _render_archive_listing(file_tree, include_private=False):
     archive_years = sorted(archive_year_map.values(), key=lambda item: item.get('year') or '', reverse=True)
     archive_total_posts = sum(int(group.get('count') or 0) for group in archive_groups)
     featured_archive_post = archive_groups[0].get('latest_post') if archive_groups else None
+    canonical_url = _absolute_url(url_for('main.archive'))
+    page_structured_data = [
+        _build_collection_schema(
+            '文章归档',
+            canonical_url,
+            '按时间线回看所有文章。',
+            [group.get('latest_post') for group in archive_groups if group.get('latest_post')],
+            page_type='CollectionPage',
+        )
+    ]
     return render_template(
         _get_template_name('archive'),
         file_tree=file_tree,
@@ -563,9 +684,10 @@ def _render_archive_listing(file_tree, include_private=False):
         page_title='文章归档',
         page_description='按时间线回看所有文章。',
         page_mode='archive',
-        canonical_url=_absolute_url(url_for('main.archive')),
+        canonical_url=canonical_url,
         page_robots='index,follow',
         absolute_url=_absolute_url,
+        page_structured_data=[item for item in page_structured_data if item],
     )
 
 
@@ -604,6 +726,26 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
         host = request.host
         content_html = content_html.replace(f'http://{host}', f'https://{host}')
 
+    canonical_url = _absolute_url(page_meta.get('url') or url_for('main.post_detail', slug=page_meta.get('slug')))
+    schema_meta = dict(page_meta)
+    schema_meta['site_name'] = site_settings.get('site_name') or 'Planning'
+    if schema_meta.get('cover'):
+        schema_meta['cover'] = _absolute_url(schema_meta.get('cover'))
+    breadcrumbs = [
+        {'name': site_settings.get('site_name') or '首页', 'url': _absolute_url(url_for('main.blog_home'))},
+        {'name': '文章', 'url': _absolute_url(url_for('main.posts'))},
+    ]
+    if page_meta.get('category_name') and page_meta.get('category_path'):
+        breadcrumbs.append({
+            'name': page_meta.get('category_name'),
+            'url': _absolute_url(url_for('main.category', dirname=page_meta.get('category_path'))),
+        })
+    breadcrumbs.append({'name': page_meta.get('title') or '文章详情', 'url': canonical_url})
+    page_structured_data = [
+        _build_article_schema(schema_meta, canonical_url),
+        _build_breadcrumb_schema(breadcrumbs),
+    ]
+
     return render_template(
         _get_template_name('blog_post'),
         file_tree=file_tree,
@@ -623,9 +765,10 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
         page_title=page_meta.get('title') or '文章详情',
         page_description=page_meta.get('summary') or page_meta.get('category_name') or '',
         page_mode='post',
-        canonical_url=_absolute_url(page_meta.get('url') or url_for('main.post_detail', slug=page_meta.get('slug'))),
+        canonical_url=canonical_url,
         page_robots='index,follow',
         absolute_url=_absolute_url,
+        page_structured_data=[item for item in page_structured_data if item],
     )
 
 
@@ -635,6 +778,16 @@ def _render_homepage(file_tree, posts, include_private=False):
     featured = posts_with_cover[0] if posts_with_cover else None
     recent_posts = posts_with_cover[1:] if len(posts_with_cover) > 1 else []
     category_groups = _build_category_overview(posts_with_cover)[:6]
+    canonical_url = _absolute_url(url_for('main.blog_home'))
+    page_structured_data = [
+        _build_collection_schema(
+            site_settings['home_title'] or site_settings['site_name'],
+            canonical_url,
+            site_settings['home_description'] or site_settings['site_tagline'],
+            posts_with_cover,
+            page_type='Blog',
+        )
+    ]
     return render_template(
         _get_template_name('home'),
         file_tree=file_tree,
@@ -651,9 +804,10 @@ def _render_homepage(file_tree, posts, include_private=False):
         },
         page_title=site_settings['home_title'] or site_settings['site_name'],
         page_description=site_settings['home_description'] or site_settings['site_tagline'],
-        canonical_url=_absolute_url(url_for('main.blog_home')),
+        canonical_url=canonical_url,
         page_robots='index,follow',
         absolute_url=_absolute_url,
+        page_structured_data=[item for item in page_structured_data if item],
     )
 
 
@@ -781,6 +935,18 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
         else:
             derived_page_description = empty_message if not posts else '文章列表。'
 
+    page_structured_data = []
+    if page_mode != 'search':
+        page_structured_data.append(
+            _build_collection_schema(
+                title,
+                canonical_url,
+                derived_page_description,
+                pagination['items'],
+                page_type='CollectionPage',
+            )
+        )
+
     return render_template(
         _get_template_name('blog_list'),
         file_tree=file_tree,
@@ -809,6 +975,7 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
         absolute_url=_absolute_url,
         pagination=pagination,
         post_url_map=post_url_map,
+        page_structured_data=[item for item in page_structured_data if item],
     )
 
 
@@ -864,6 +1031,8 @@ def _render_category_overview(file_tree, include_private=False):
     site_settings = _get_site_settings()
     posts = get_posts(include_private=include_private)
     categories = _build_category_overview(posts)
+    canonical_url = _absolute_url(url_for('main.category', dirname=''))
+    collection_items = [category.get('latest_post') for category in categories if category.get('latest_post')]
     return render_template(
         _get_template_name('category_overview'),
         file_tree=file_tree,
@@ -882,9 +1051,12 @@ def _render_category_overview(file_tree, include_private=False):
         page_description='按主题浏览所有文章分类。',
         page_meta={'title': '分类'},
         page_mode='category',
-        canonical_url=_absolute_url(url_for('main.category', dirname='')),
+        canonical_url=canonical_url,
         page_robots='index,follow',
         absolute_url=_absolute_url,
+        page_structured_data=[
+            _build_collection_schema('分类', canonical_url, '按主题浏览所有文章分类。', collection_items, page_type='CollectionPage')
+        ],
     )
 
 
@@ -1059,6 +1231,8 @@ def tags_page():
     featured_tags = all_tags[:6]
     tag_total_posts = sum(int(tag.get('count') or 0) for tag in all_tags)
     hottest_tag = featured_tags[0] if featured_tags else None
+    canonical_url = _absolute_url(url_for('main.tags_page'))
+    tag_items = [tag.get('latest_post') for tag in all_tags if tag.get('latest_post')]
     
     return render_template(
         _get_template_name('tags'),
@@ -1072,9 +1246,12 @@ def tags_page():
         page_description='浏览所有标签',
         page_meta={'title': '标签'},
         archive_groups=get_archive_groups(include_private=include_private)[:8],
-        canonical_url=_absolute_url(url_for('main.tags_page')),
+        canonical_url=canonical_url,
         page_robots='index,follow',
         absolute_url=_absolute_url,
+        page_structured_data=[
+            _build_collection_schema('标签', canonical_url, '浏览所有标签。', tag_items, page_type='CollectionPage')
+        ],
     )
 
 
@@ -1190,6 +1367,7 @@ def manage_posts():
         site_settings=site_settings,
         page_title='博客文章管理',
         page_meta={'title': '博客文章管理'},
+        page_robots='noindex,nofollow',
     )
 
 
@@ -1209,7 +1387,7 @@ def rss_feed():
             f"<guid>{escape(item_link)}</guid>"
             f"<description>{escape(post.get('summary', ''))}</description>"
             f"<category>{escape(post.get('category_name', ''))}</category>"
-            f"<pubDate>{escape(post.get('updated') or post.get('date') or '')}</pubDate></item>"
+            f"<pubDate>{escape(_format_rfc2822_datetime(post.get('updated') or post.get('date') or ''))}</pubDate></item>"
         )
 
     xml = (
@@ -1222,6 +1400,21 @@ def rss_feed():
         '</channel></rss>'
     )
     return Response(xml, mimetype='application/rss+xml')
+
+
+@main_bp.route('/robots.txt')
+def robots_txt():
+    lines = [
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /admin/',
+        'Disallow: /api/',
+        'Disallow: /account',
+        'Disallow: /manage-posts',
+        'Disallow: /search',
+        f'Sitemap: {_absolute_url(url_for("main.sitemap"))}',
+    ]
+    return Response('\n'.join(lines), mimetype='text/plain')
 
 
 @main_bp.route('/sitemap.xml')
