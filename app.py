@@ -115,6 +115,7 @@ if __name__ == '__main__':
     port = config.get('port', 5000)
     debug_enabled = config.get('debug', True)
 
+    print(f"准备启动planning文档&博客系统")
     if debug_enabled:
         # 开发模式：使用 Flask 自带服务器
         print(f"[开发模式] 启动 Flask 开发服务器: http://0.0.0.0:{port}")
