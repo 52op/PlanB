@@ -447,8 +447,15 @@ def media_upload():
         return jsonify({'error': f'File exceeds the maximum size of {max_size_mb}MB'}), 413
     file.seek(0) # 重置文件指针
 
+    upload_purpose = (request.form.get('upload_purpose') or '').strip().lower()
+    target_subdir = ''
+    if upload_purpose == 'site_logo':
+        if current_user.role != 'admin':
+            return jsonify({'error': 'Permission denied: admin only.'}), 403
+        target_subdir = 'logo'
+
     try:
-        file_url = upload_media_file(file)
+        file_url = upload_media_file(file, target_subdir=target_subdir)
         corrected_url = force_https_url(file_url)
         return jsonify({'success': True, 'url': corrected_url})
     except Exception as e:

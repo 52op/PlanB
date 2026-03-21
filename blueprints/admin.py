@@ -2,7 +2,7 @@ import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
 from models import Comment, DocumentViewStat, NotificationLog, db, SystemSetting, User, PermissionRule
-from services import get_comment_stats, get_docs_root, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, preview_cover_source, send_logged_mail
+from services import get_comment_stats, get_docs_root, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, preview_cover_source, send_logged_mail, update_all_image_references
 from sqlalchemy import func
 
 admin_bp = Blueprint('admin', __name__, template_folder='templates', url_prefix='/admin')
@@ -245,6 +245,7 @@ def update_settings():
             elif key not in ['home_default_target']:
                 SystemSetting.set(key, value)
 
+    update_all_image_references()
     flash('系统设置已更新')
     return redirect(url_for('admin.admin_base'))
 

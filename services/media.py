@@ -14,7 +14,15 @@ from runtime_paths import get_data_subdir
 from .paths import get_docs_root
 
 
-def _upload_to_local(file_storage):
+def _normalize_upload_subdir(value):
+    raw_value = str(value or '').replace('\\', '/').strip().strip('/')
+    if not raw_value:
+        return ''
+    return '/'.join([segment for segment in raw_value.split('/') if segment not in {'', '.', '..'}])
+
+
+def _upload_to_local(file_storage, target_subdir=''):
+    normalized_subdir = _normalize_upload_subdir(target_subdir)
     date_folder = datetime.now().strftime('%Y/%m')
     filename = secure_filename(file_storage.filename)
     ext = os.path.splitext(filename)[1]
@@ -25,24 +33,26 @@ def _upload_to_local(file_storage):
     file_storage.seek(0)
 
     base_upload_dir = current_app.config.get('UPLOADS_DIR') or get_data_subdir('uploads')
-    upload_folder = os.path.join(base_upload_dir, date_folder)
+    relative_dir = normalized_subdir or date_folder
+    upload_folder = os.path.join(base_upload_dir, relative_dir.replace('/', os.sep))
     os.makedirs(upload_folder, exist_ok=True)
 
     save_path = os.path.join(upload_folder, unique_filename)
     file_storage.save(save_path)
 
-    url = url_for('main.media_file', filename=f'{date_folder}/{unique_filename}', _external=True)
+    relative_path = f'{relative_dir}/{unique_filename}'.replace('\\', '/')
+    url = url_for('main.media_file', filename=relative_path, _external=True)
     return {
         'filename': filename,
         'unique_filename': unique_filename,
         'storage_type': 'local',
-        'path': os.path.join(date_folder, unique_filename).replace('\\', '/'),
+        'path': relative_path,
         'url': url,
         'size': size,
     }
 
 
-def _upload_to_s3(file_storage):
+def _upload_to_s3(file_storage, target_subdir=''):
     try:
         from botocore.client import Config
     except ImportError as exc:
@@ -67,11 +77,13 @@ def _upload_to_s3(file_storage):
         config=Config(signature_version='s3v4', s3={'addressing_style': 'path' if use_path_style else 'virtual'}),
     )
 
+    normalized_subdir = _normalize_upload_subdir(target_subdir)
     date_folder = datetime.now().strftime('%Y/%m')
     filename = secure_filename(file_storage.filename)
     ext = os.path.splitext(filename)[1]
     unique_filename = f'{uuid.uuid4()}{ext}'
-    s3_path = f'{path_prefix}/{date_folder}/{unique_filename}'
+    relative_dir = normalized_subdir or date_folder
+    s3_path = f'{path_prefix}/{relative_dir}/{unique_filename}'
 
     file_storage.seek(0, os.SEEK_END)
     size = file_storage.tell()
@@ -102,9 +114,13 @@ def _upload_to_s3(file_storage):
     }
 
 
-def upload_media_file(file_storage):
+def upload_media_file(file_storage, target_subdir=''):
     storage_type = SystemSetting.get('media_storage_type', 'local')
-    upload_result = _upload_to_s3(file_storage) if storage_type == 's3' else _upload_to_local(file_storage)
+    upload_result = (
+        _upload_to_s3(file_storage, target_subdir=target_subdir)
+        if storage_type == 's3'
+        else _upload_to_local(file_storage, target_subdir=target_subdir)
+    )
 
     new_image = Image()
     new_image.filename = upload_result['filename']
@@ -160,6 +176,26 @@ def delete_media_file(image):
     return _delete_from_s3(image) if image.storage_type == 's3' else _delete_from_local(image)
 
 
+def _normalize_reference_value(value):
+    raw_value = str(value or '').strip()
+    if not raw_value:
+        return ''
+
+    parsed = urlparse(raw_value)
+    if parsed.scheme and parsed.netloc:
+        path_with_query = parsed.path or ''
+        if parsed.query:
+            path_with_query += f'?{parsed.query}'
+        if path_with_query.startswith('/media/'):
+            return path_with_query
+        normalized_absolute = urlunparse((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path, '', parsed.query, ''))
+        return normalized_absolute.replace('https://', 'http://')
+
+    if raw_value.startswith('media/'):
+        raw_value = f'/{raw_value}'
+    return raw_value
+
+
 def update_all_image_references():
     docs_root = get_docs_root()
     all_md_files = []
@@ -184,15 +220,21 @@ def update_all_image_references():
         html_urls = re.findall(r'<img[^>]+src=[\"\']([^\"\']+)[\"\'][^>]*>', content)
         all_referenced_urls.update(html_urls)
 
-    # 标准化URL以忽略协议差异（http vs https）
-    def normalize_url(url):
-        return url.replace('https://', 'http://')
-    
-    normalized_refs = {normalize_url(url) for url in all_referenced_urls}
+    site_logo = str(SystemSetting.get('site_logo', '') or '').strip()
+    if site_logo:
+        all_referenced_urls.add(site_logo)
+
+    normalized_refs = {_normalize_reference_value(url) for url in all_referenced_urls if str(url or '').strip()}
     
     for image in Image.query.all():
-        normalized_image_url = normalize_url(image.url)
-        image.is_referenced = normalized_image_url in normalized_refs
+        local_media_path = f"/media/{str(image.path or '').lstrip('/')}" if image.path else ''
+        image.is_referenced = any(
+            candidate and candidate in normalized_refs
+            for candidate in (
+                _normalize_reference_value(image.url),
+                _normalize_reference_value(local_media_path),
+            )
+        )
 
     db.session.commit()
 

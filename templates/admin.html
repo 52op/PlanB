@@ -804,6 +804,7 @@
 
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('upload_purpose', 'site_logo');
 
             if (uploadSiteLogoBtn) {
                 uploadSiteLogoBtn.disabled = true;
