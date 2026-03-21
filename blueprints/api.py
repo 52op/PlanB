@@ -26,7 +26,16 @@ from services import (
     update_all_image_references,
     upload_media_file,
 )
-from services.docs import _build_front_matter, _can_access_document_metadata, _has_front_matter_block, _parse_markdown_file, _split_front_matter
+from services.docs import (
+    _build_front_matter,
+    _can_access_document_metadata,
+    _find_post_slug_conflicts,
+    _has_front_matter_block,
+    _parse_markdown_file,
+    _slugify,
+    _split_front_matter,
+    _suggest_unique_post_slug,
+)
 from werkzeug.utils import secure_filename
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -235,8 +244,50 @@ def save_markdown():
             f.write(content)
         update_all_image_references()
         return jsonify({'success': True, 'content': content})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/front-matter/slug-check', methods=['GET'])
+@login_required
+def check_front_matter_slug():
+    raw_slug = request.args.get('slug', '')
+    filename = request.args.get('filename', '')
+    template = (request.args.get('template', 'post') or 'post').strip().lower()
+
+    normalized_filename = ''
+    if filename:
+        try:
+            _, normalized_filename, _ = resolve_docs_path(filename)
+        except InvalidPathError:
+            return jsonify({'error': '目标文档路径无效'}), 400
+
+        if not check_permission(current_user, normalized_filename, 'edit'):
+            return jsonify({'error': '没有该文档的编辑权限'}), 403
+
+    normalized_slug = _slugify(raw_slug)
+    if template != 'post':
+        return jsonify({
+            'success': True,
+            'slug': normalized_slug,
+            'available': True,
+            'conflicts': [],
+            'suggested_slug': normalized_slug,
+            'message': '当前模板不是文章，slug 暂不参与博客路由唯一性校验',
+        })
+
+    conflicts = _find_post_slug_conflicts(normalized_slug, exclude_filename=normalized_filename)
+    suggested_slug = _suggest_unique_post_slug(normalized_slug or 'post', exclude_filename=normalized_filename)
+    return jsonify({
+        'success': True,
+        'slug': normalized_slug,
+        'available': len(conflicts) == 0,
+        'conflicts': conflicts,
+        'suggested_slug': suggested_slug,
+        'message': '' if not conflicts else '当前 slug 已被其他博客文章占用',
+    })
 
 
 @api_bp.route('/public-posts', methods=['GET'])
@@ -327,6 +378,8 @@ def toggle_public_post():
                 else ''
             ),
         })
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
 
@@ -368,6 +421,8 @@ def remove_public_post_front_matter():
             'success': True,
             'filename': filename,
         })
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
 
@@ -845,6 +900,8 @@ def save_shared_document(token):
         with open(absolute_target_path, 'w', encoding='utf-8') as file_obj:
             file_obj.write(final_content)
         update_all_image_references()
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
 

@@ -69,6 +69,21 @@ class FrontMatterUtils {
         return ['__NONE__', '__none__'].includes(text) ? 'none' : text;
     }
 
+    slugifyValue(value) {
+        const text = String(value || '').trim().toLowerCase();
+        if (!text) return 'post';
+
+        const normalized = text.normalize('NFKD');
+        const asciiText = normalized.replace(/[\u0300-\u036f]/g, '').replace(/[^\x00-\x7F]/g, '');
+        const slugSource = asciiText || text;
+        const slug = slugSource
+            .replace(/[^\w\u4e00-\u9fff-]+/gu, '-')
+            .replace(/-{2,}/g, '-')
+            .replace(/^[-_]+|[-_]+$/g, '');
+
+        return slug || 'post';
+    }
+
     escapeYamlValue(value) {
         if (!value) return value;
         const text = String(value);
@@ -111,13 +126,15 @@ class FrontMatterUtils {
         if (!this.metaPanel) return;
 
         const hints = this.extractFrontMatterHints(bodyContent);
-        const slugFallback = (String(currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
+        const fileBaseName = (String(currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
+        const existingSlug = this.unwrapFrontMatterValue(metadata.slug);
+        const slugFallback = this.slugifyValue(existingSlug || hints.title || fileBaseName);
 
         if (this.metaTitleInput) {
             this.metaTitleInput.value = this.unwrapFrontMatterValue(metadata.title) || hints.title || '';
         }
         if (this.metaSlugInput) {
-            this.metaSlugInput.value = this.unwrapFrontMatterValue(metadata.slug) || slugFallback;
+            this.metaSlugInput.value = existingSlug ? this.slugifyValue(existingSlug) : slugFallback;
         }
         if (this.metaDateInput) {
             this.metaDateInput.value = this.unwrapFrontMatterValue(metadata.date) || '';
@@ -151,7 +168,8 @@ class FrontMatterUtils {
 
     buildFrontMatterFromPanel(bodyContent) {
         const title = this.metaTitleInput?.value.trim() || '';
-        const slug = this.metaSlugInput?.value.trim() || '';
+        const rawSlug = this.metaSlugInput?.value.trim() || '';
+        const slug = rawSlug ? this.slugifyValue(rawSlug) : '';
         const date = this.metaDateInput?.value.trim() || '';
         const updated = this.metaUpdatedInput?.value.trim() || new Date().toISOString().slice(0, 10);
         const template = this.metaTemplateSelect?.value || 'post';
@@ -189,6 +207,21 @@ class FrontMatterUtils {
         lines.push('---', '', String(bodyContent || '').replace(/^\n+/, ''));
 
         return lines.join('\n');
+    }
+
+    getPanelState() {
+        return {
+            title: this.metaTitleInput?.value.trim() || '',
+            slug: this.metaSlugInput?.value.trim() || '',
+            date: this.metaDateInput?.value.trim() || '',
+            updated: this.metaUpdatedInput?.value.trim() || '',
+            template: this.metaTemplateSelect?.value || 'post',
+            tags: this.metaTagsInput?.value.trim() || '',
+            summary: this.metaSummaryInput?.value.trim() || '',
+            cover: this.metaCoverInput?.value.trim() || '',
+            public: !!this.metaPublicCheck?.checked,
+            draft: !!this.metaDraftCheck?.checked,
+        };
     }
 
 }

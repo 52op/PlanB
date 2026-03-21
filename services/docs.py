@@ -226,6 +226,73 @@ def _build_markdown_url(filename):
     return '/docs/doc/{0}'.format(quote(filename.replace('\\', '/')))
 
 
+def _find_post_slug_conflicts(slug, exclude_filename=''):
+    normalized_slug = _slugify(slug)
+    if not normalized_slug:
+        return []
+
+    normalized_exclude = ''
+    if exclude_filename:
+        try:
+            normalized_exclude = normalize_relative_path(exclude_filename)
+        except InvalidPathError:
+            normalized_exclude = str(exclude_filename).replace('\\', '/').strip('/')
+
+    conflicts = []
+    for filename in _iter_markdown_filenames():
+        try:
+            normalized_filename = normalize_relative_path(filename)
+        except InvalidPathError:
+            normalized_filename = str(filename).replace('\\', '/').strip('/')
+
+        if normalized_exclude and normalized_filename == normalized_exclude:
+            continue
+
+        payload = _parse_markdown_file(normalized_filename)
+        if not payload:
+            continue
+
+        metadata = payload.get('metadata') or {}
+        if _normalize_template(metadata.get('template')) != 'post':
+            continue
+
+        target_slug = str(metadata.get('slug') or '').strip().lower()
+        if target_slug != normalized_slug:
+            continue
+
+        is_visible = _can_access_document_metadata(normalized_filename, metadata)
+        conflicts.append({
+            'filename': normalized_filename,
+            'title': metadata.get('title') if is_visible else '其他文章',
+            'public': bool(metadata.get('public')),
+            'visible': bool(is_visible),
+        })
+
+    conflicts.sort(key=lambda item: item.get('filename') or '')
+    return conflicts
+
+
+def _suggest_unique_post_slug(slug, exclude_filename=''):
+    base_slug = _slugify(slug) or 'post'
+    if not _find_post_slug_conflicts(base_slug, exclude_filename=exclude_filename):
+        return base_slug
+
+    suffix = 2
+    while True:
+        candidate = f'{base_slug}-{suffix}'
+        if not _find_post_slug_conflicts(candidate, exclude_filename=exclude_filename):
+            return candidate
+        suffix += 1
+
+
+def _ensure_unique_post_slug(slug, filename):
+    normalized_slug = _slugify(slug) or 'post'
+    conflicts = _find_post_slug_conflicts(normalized_slug, exclude_filename=filename)
+    if conflicts:
+        raise ValueError(f'Slug "{normalized_slug}" 已被其他文章使用，请修改后重试')
+    return normalized_slug
+
+
 def _normalize_metadata(filename, raw_metadata, raw_content):
     filename = normalize_relative_path(filename)
     directory = os.path.dirname(filename).replace('\\', '/')
@@ -434,6 +501,9 @@ def _build_front_matter(raw_metadata, body_content, filename):
         metadata['date'] = raw_metadata['date']
     elif raw_metadata.get('date') in (None, '') and metadata.get('template') == 'post':
         metadata['date'] = datetime.now().strftime('%Y-%m-%d')
+
+    if metadata.get('template') == 'post':
+        metadata['slug'] = _ensure_unique_post_slug(metadata.get('slug') or file_slug, filename)
 
     ordered = [
         ('title', metadata.get('title')),
@@ -837,6 +907,7 @@ def get_post_by_slug(slug, include_private=False):
     if not target_slug:
         return None
 
+    hidden_match = None
     for filename in _iter_markdown_filenames():
         payload = _parse_markdown_file(filename)
         if not payload:
@@ -844,9 +915,12 @@ def get_post_by_slug(slug, include_private=False):
         metadata = payload['metadata']
         if str(metadata.get('slug') or '').strip().lower() != target_slug:
             continue
-        if not _is_visible_post(metadata, include_private=include_private):
-            return None
-        return payload
+        if _is_visible_post(metadata, include_private=include_private):
+            return payload
+        if hidden_match is None:
+            hidden_match = payload
+    if include_private:
+        return hidden_match
     return None
 
 

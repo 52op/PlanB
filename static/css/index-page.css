@@ -2106,9 +2106,32 @@
             box-sizing: border-box;
             background: var(--color-surface);
         }
+        .meta-grid input.is-valid {
+            border-color: rgba(15, 118, 110, 0.45);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.08);
+        }
+        .meta-grid input.is-invalid {
+            border-color: rgba(190, 24, 93, 0.45);
+            box-shadow: 0 0 0 3px rgba(190, 24, 93, 0.08);
+        }
         .meta-grid textarea {
             resize: vertical;
             min-height: 92px;
+        }
+        .meta-field-hint {
+            margin-top: 6px;
+            color: var(--color-text-muted);
+            font-size: 12px;
+            line-height: 1.55;
+        }
+        .meta-field-hint.is-success {
+            color: #0f766e;
+        }
+        .meta-field-hint.is-error {
+            color: #be123c;
+        }
+        .meta-field-hint.is-warning {
+            color: #b45309;
         }
         .meta-grid .full {
             grid-column: 1 / -1;

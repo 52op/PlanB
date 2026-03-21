@@ -6,9 +6,15 @@ class EditorManager {
         this.loadedFrontMatterText = '';
         this.loadedFrontMatterMetadata = {};
         this.frontMatterDirty = false;
+        this.metaPanelDirty = false;
+        this.metaPanelSnapshot = '';
         this.canResumeHiddenSession = false;
         this.editModeState = { sidebarHidden: false, tocHidden: false };
+        this.slugValidationTimer = null;
+        this.slugValidationRequestId = 0;
         this.handleEditorKeydown = this.handleEditorKeydown.bind(this);
+        this.handleMetaPanelFieldChange = this.handleMetaPanelFieldChange.bind(this);
+        this.handleSlugFieldBlur = this.handleSlugFieldBlur.bind(this);
         this.initializeElements();
     }
 
@@ -20,6 +26,10 @@ class EditorManager {
         this.editorView = document.getElementById('editorView');
         this.renderView = document.getElementById('renderView');
         this.metaPanel = document.getElementById('metaPanel');
+        this.metaTitleInput = document.getElementById('metaTitle');
+        this.metaSlugInput = document.getElementById('metaSlug');
+        this.metaSlugHint = document.getElementById('metaSlugHint');
+        this.metaTemplateSelect = document.getElementById('metaTemplate');
         this.closeMetaBtn = document.getElementById('closeMetaBtn');
         this.applyMetaBtn = document.getElementById('applyMetaBtn');
         this.clearCoverBtn = document.getElementById('clearCoverBtn');
@@ -49,6 +59,7 @@ class EditorManager {
         this.loadedFrontMatterText = parsed.frontMatterText || '';
         this.loadedFrontMatterMetadata = parsed.metadata || {};
         this.frontMatterDirty = false;
+        this.metaPanelDirty = false;
         return parsed;
     }
 
@@ -73,6 +84,168 @@ class EditorManager {
             metadata: this.loadedFrontMatterMetadata || {},
             currentFilePath: this.currentFilePath,
         });
+        this.prepareMetaPanelState().catch(() => {});
+    }
+
+    async prepareMetaPanelState() {
+        this.captureMetaPanelSnapshot();
+        const hasExplicitSlug = !!String(this.loadedFrontMatterMetadata?.slug || '').trim();
+        await this.validateSlugAvailability({
+            silent: true,
+            autoSuggest: !hasExplicitSlug,
+        });
+        this.captureMetaPanelSnapshot();
+    }
+
+    serializeMetaPanelState() {
+        const panelState = window.frontMatterUtils?.getPanelState?.() || {};
+        return JSON.stringify(panelState);
+    }
+
+    captureMetaPanelSnapshot() {
+        this.metaPanelSnapshot = this.serializeMetaPanelState();
+        this.metaPanelDirty = false;
+    }
+
+    updateMetaPanelDirtyState() {
+        this.metaPanelDirty = this.serializeMetaPanelState() !== this.metaPanelSnapshot;
+    }
+
+    setSlugHint(message, tone = '') {
+        if (!this.metaSlugHint) return;
+
+        this.metaSlugHint.textContent = message || '用于博客文章链接，保存前会自动检查唯一性。';
+        this.metaSlugHint.classList.remove('is-success', 'is-error', 'is-warning');
+        if (tone) {
+            this.metaSlugHint.classList.add(tone);
+        }
+
+        if (this.metaSlugInput) {
+            this.metaSlugInput.classList.remove('is-valid', 'is-invalid');
+            if (tone === 'is-success') {
+                this.metaSlugInput.classList.add('is-valid');
+            } else if (tone === 'is-error') {
+                this.metaSlugInput.classList.add('is-invalid');
+            }
+        }
+    }
+
+    getSlugValidationSource() {
+        const fileBaseName = (String(this.currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
+        return this.metaSlugInput?.value.trim()
+            || this.metaTitleInput?.value.trim()
+            || fileBaseName;
+    }
+
+    async requestSlugCheck(rawSlug) {
+        const params = new URLSearchParams({
+            slug: rawSlug || '',
+            filename: this.currentFilePath || '',
+            template: this.metaTemplateSelect?.value || 'post',
+        });
+
+        const response = await fetch(`/api/front-matter/slug-check?${params.toString()}`, {
+            headers: {
+                'X-CSRFToken': this.csrfToken,
+            },
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Slug 校验失败');
+        }
+        return data;
+    }
+
+    scheduleSlugValidation(options = {}) {
+        window.clearTimeout(this.slugValidationTimer);
+        this.slugValidationTimer = window.setTimeout(() => {
+            this.validateSlugAvailability(options).catch(() => {});
+        }, options.immediate ? 0 : 260);
+    }
+
+    async validateSlugAvailability(options = {}) {
+        const {
+            silent = false,
+            autoSuggest = false,
+            focusOnError = false,
+        } = options;
+
+        if (!this.metaSlugInput || !window.frontMatterUtils) return true;
+
+        const template = this.metaTemplateSelect?.value || 'post';
+        const normalizedSlug = window.frontMatterUtils.slugifyValue(this.getSlugValidationSource());
+        this.metaSlugInput.value = normalizedSlug;
+
+        if (template !== 'post') {
+            this.setSlugHint('当前模板是文档，slug 暂不参与博客路由唯一性校验。切换为文章时会再次检查。', 'is-warning');
+            return true;
+        }
+
+        const requestId = ++this.slugValidationRequestId;
+
+        try {
+            const result = await this.requestSlugCheck(normalizedSlug);
+            if (requestId !== this.slugValidationRequestId) {
+                return false;
+            }
+
+            if (result.available) {
+                this.metaSlugInput.value = result.slug || normalizedSlug;
+                this.setSlugHint('当前 slug 可用。', 'is-success');
+                return true;
+            }
+
+            if (autoSuggest && result.suggested_slug && result.suggested_slug !== (result.slug || normalizedSlug)) {
+                this.metaSlugInput.value = result.suggested_slug;
+                this.setSlugHint(`已自动调整为可用 slug：${result.suggested_slug}`, 'is-warning');
+                return true;
+            }
+
+            const suggestedText = result.suggested_slug ? `，建议改为 ${result.suggested_slug}` : '';
+            const message = `当前 slug 已被其他文章占用${suggestedText}`;
+            this.setSlugHint(message, 'is-error');
+            if (!silent) {
+                await window.uiUtils?.showAlertDialog?.('Slug 冲突', `${message}。`);
+            }
+            if (focusOnError) {
+                this.metaSlugInput.focus();
+                this.metaSlugInput.select();
+            }
+            return false;
+        } catch (error) {
+            this.setSlugHint(error.message || 'Slug 校验失败，请稍后重试。', 'is-error');
+            if (!silent) {
+                await window.uiUtils?.showAlertDialog?.('Slug 校验失败', error.message || '请稍后重试');
+            }
+            return false;
+        }
+    }
+
+    bindMetaPanelStateTracking() {
+        if (!this.metaPanel || this.metaPanel.dataset.stateBound === 'true') return;
+
+        this.metaPanel.querySelectorAll('input, textarea, select').forEach((field) => {
+            field.addEventListener('input', this.handleMetaPanelFieldChange);
+            field.addEventListener('change', this.handleMetaPanelFieldChange);
+        });
+
+        this.metaSlugInput?.addEventListener('blur', this.handleSlugFieldBlur);
+        this.metaPanel.dataset.stateBound = 'true';
+    }
+
+    handleMetaPanelFieldChange(event) {
+        this.updateMetaPanelDirtyState();
+
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+
+        if (target === this.metaSlugInput || target === this.metaTemplateSelect || target === this.metaTitleInput) {
+            this.scheduleSlugValidation({ silent: true });
+        }
+    }
+
+    handleSlugFieldBlur() {
+        this.scheduleSlugValidation({ silent: true, immediate: true });
     }
 
     normalizeImageSize(value) {
@@ -294,6 +467,7 @@ class EditorManager {
         }
 
         this.bindEditorShortcuts();
+        this.bindMetaPanelStateTracking();
         this.fillMetaPanel();
     }
 
@@ -442,8 +616,11 @@ class EditorManager {
     cancelEditing() {
         this.canResumeHiddenSession = false;
         this.frontMatterDirty = false;
+        this.metaPanelDirty = false;
+        this.metaPanelSnapshot = '';
         this.loadedFrontMatterText = '';
         this.loadedFrontMatterMetadata = {};
+        this.setSlugHint('');
         this.hideEditor();
     }
 
@@ -456,7 +633,27 @@ class EditorManager {
             return false;
         }
 
-        const newContent = this.composeDocumentContent(bodyContent);
+        let newContent = this.composeDocumentContent(bodyContent);
+        if (this.metaPanelDirty) {
+            const shouldSaveMeta = await window.uiUtils?.showConfirmDialog?.(
+                '检测到头部未应用',
+                '头部信息已经修改，但还没有点击“应用头部”。是否连同这些头部更改一起保存？选择“取消”则只保存正文和已应用的头部。',
+                '同时保存头部'
+            );
+
+            if (shouldSaveMeta) {
+                const slugReady = await this.validateSlugAvailability({
+                    silent: false,
+                    autoSuggest: false,
+                    focusOnError: true,
+                });
+                if (!slugReady) {
+                    return false;
+                }
+                newContent = window.frontMatterUtils?.buildFrontMatterFromPanel(bodyContent) || bodyContent;
+            }
+        }
+
         const btnOriginalText = this.saveEditBtn?.innerText || '';
 
         if (this.saveEditBtn) {
@@ -510,8 +707,15 @@ class EditorManager {
         return true;
     }
 
-    applyFrontMatter() {
+    async applyFrontMatter() {
         if (!this.editorInstance) return;
+
+        const slugReady = await this.validateSlugAvailability({
+            silent: false,
+            autoSuggest: false,
+            focusOnError: true,
+        });
+        if (!slugReady) return;
 
         const bodyContent = this.editorInstance.getMarkdown();
         const contentWithMeta = window.frontMatterUtils?.buildFrontMatterFromPanel(bodyContent);
@@ -523,6 +727,7 @@ class EditorManager {
         this.loadedFrontMatterMetadata = parsed.metadata || {};
         this.frontMatterDirty = true;
         this.fillMetaPanel();
+        this.captureMetaPanelSnapshot();
 
         if (this.metaPanel) this.metaPanel.classList.remove('show');
         window.uiUtils?.showToast?.('头部已应用，请点击“保存编辑”提交更改', 'info');
@@ -591,8 +796,8 @@ class EditorManager {
         }
 
         if (this.applyMetaBtn) {
-            this.applyMetaBtn.addEventListener('click', () => {
-                this.applyFrontMatter();
+            this.applyMetaBtn.addEventListener('click', async () => {
+                await this.applyFrontMatter();
             });
         }
     }
