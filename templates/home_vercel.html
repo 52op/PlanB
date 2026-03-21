@@ -63,7 +63,7 @@
                 <a href="{{ featured_post.url }}" class="btn">阅读全文</a>
             </div>
         </div>
-        <div class="story-card-image">
+        <a class="story-card-image story-card-image-link" href="{{ featured_post.url }}" aria-label="打开 {{ featured_post.title }}">
             {% if featured_cover %}
             <img src="{{ absolute_url(featured_cover) }}" alt="{{ featured_post.title }}">
             {% else %}
@@ -73,7 +73,7 @@
                 <p>没有封面也没关系，这种大面积留白反而更贴近 Vercel 风格的克制表达。</p>
             </div>
             {% endif %}
-        </div>
+        </a>
     </article>
     {% endif %}
 
@@ -92,9 +92,9 @@
             {% set post_cover = post.cover if post.cover and post.cover not in ['NONE', '__NONE__', 'false', 'False'] else '' %}
             <article class="story-card compact">
                 {% if post_cover %}
-                <div class="story-card-image">
+                <a class="story-card-image story-card-image-link" href="{{ post.url }}" aria-label="打开 {{ post.title }}">
                     <img src="{{ absolute_url(post_cover) }}" alt="{{ post.title }}">
-                </div>
+                </a>
                 {% endif %}
                 <div class="story-card-body">
                     <div class="story-meta">
