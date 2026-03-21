@@ -6,7 +6,7 @@
         <div>
             <span class="hero-eyebrow">归档</span>
             <h1 class="hero-title">{{ page_title or '文章归档' }}</h1>
-            <p class="hero-subtitle">{{ page_description or '按时间顺序回看所有公开发布的内容。' }}</p>
+            <p class="hero-subtitle">{{ page_description or '按时间顺序回看所有文章内容。' }}</p>
             <div class="hero-meta-row">
                 <span class="hero-meta-pill"><i data-lucide="file-text"></i>{{ archive_groups|sum(attribute='count') if archive_groups else 0 }} 篇文章</span>
                 <span class="hero-meta-pill"><i data-lucide="archive"></i>{{ archive_groups|length if archive_groups else 0 }} 个归档</span>
@@ -72,7 +72,7 @@
 <div class="empty-state">
     <div class="empty-state-icon">📚</div>
     <h3>还没有归档内容</h3>
-    <p>等第一批公开文章发布后，这里会自动按时间建立归档索引。</p>
+    <p>等第一批文章整理完成后，这里会自动按时间建立归档索引。</p>
 </div>
 {% endif %}
 {% endblock %}

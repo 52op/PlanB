@@ -151,7 +151,7 @@ def _match_tag_details(tag_name, all_tags):
         'heat_label': '暂未归档',
         'font_scale': 1,
         'latest_post': None,
-        'description': '当前标签下还没有公开文章。',
+        'description': '当前标签下还没有文章。',
     }
 
 
@@ -228,6 +228,14 @@ def _get_docs_endpoint(filename=None, dirname=None):
 def _blog_enabled(site_settings=None):
     settings = site_settings or _get_site_settings()
     return bool(settings.get('blog_enabled'))
+
+
+def _blog_listing_include_private():
+    return True
+
+
+def _blog_detail_include_private():
+    return bool(getattr(current_user, 'is_authenticated', False))
 
 
 def _abort_if_blog_disabled(site_settings=None):
@@ -553,7 +561,7 @@ def _render_archive_listing(file_tree, include_private=False):
         site_settings=site_settings,
         page_meta={'title': '文章归档'},
         page_title='文章归档',
-        page_description='按时间线回看所有公开发布的文章。',
+        page_description='按时间线回看所有文章。',
         page_mode='archive',
         canonical_url=_absolute_url(url_for('main.archive')),
         page_robots='index,follow',
@@ -621,7 +629,7 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
     )
 
 
-def _render_homepage(file_tree, posts):
+def _render_homepage(file_tree, posts, include_private=False):
     site_settings = _get_site_settings()
     posts_with_cover = _with_blog_covers(posts, site_settings)
     featured = posts_with_cover[0] if posts_with_cover else None
@@ -633,8 +641,8 @@ def _render_homepage(file_tree, posts):
         featured_post=featured,
         posts=recent_posts,
         category_groups=category_groups,
-        tags=get_all_tags()[:18],
-        archive_groups=get_archive_groups()[:6],
+        tags=get_all_tags(include_private=include_private)[:18],
+        archive_groups=get_archive_groups(include_private=include_private)[:6],
         site_settings=site_settings,
         page_meta={
             'title': site_settings['home_title'] or site_settings['site_name'],
@@ -650,9 +658,14 @@ def _render_homepage(file_tree, posts):
 
 
 def _render_blog_home():
-    posts = get_posts()
+    include_private = _blog_listing_include_private()
+    posts = get_posts(include_private=include_private)
     if posts:
-        return _render_homepage(get_public_post_tree(), posts)
+        return _render_homepage(
+            get_public_post_tree(include_private=include_private),
+            posts,
+            include_private=include_private,
+        )
     return redirect(url_for('main.docs_home'))
 
 
@@ -760,13 +773,13 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
     derived_page_description = page_description
     if not derived_page_description:
         if page_mode == 'tag' and tag_details:
-            derived_page_description = f'围绕标签“{tag_details["name"]}”浏览全部公开文章，并查看该主题的最新更新。'
+            derived_page_description = f'围绕标签“{tag_details["name"]}”浏览全部文章，并查看该主题的最新更新。'
         elif page_mode == 'category' and category_name:
-            derived_page_description = f'分类“{category_name}”下的公开文章列表。'
+            derived_page_description = f'分类“{category_name}”下的文章列表。'
         elif page_mode == 'search':
-            derived_page_description = '搜索公开发布的文章内容。'
+            derived_page_description = '搜索文章内容。'
         else:
-            derived_page_description = empty_message if not posts else '公开发布的文章列表。'
+            derived_page_description = empty_message if not posts else '文章列表。'
 
     return render_template(
         _get_template_name('blog_list'),
@@ -866,7 +879,7 @@ def _render_category_overview(file_tree, include_private=False):
         archive_groups=get_archive_groups(include_private=include_private)[:8],
         site_settings=site_settings,
         page_title='分类',
-        page_description='按主题浏览所有公开文章分类。',
+        page_description='按主题浏览所有文章分类。',
         page_meta={'title': '分类'},
         page_mode='category',
         canonical_url=_absolute_url(url_for('main.category', dirname='')),
@@ -994,16 +1007,16 @@ def docs_home():
 def posts():
     site_settings = _get_site_settings()
     _abort_if_blog_disabled(site_settings)
-    include_private = bool(getattr(current_user, 'is_authenticated', False))
+    include_private = _blog_listing_include_private()
     file_tree = get_public_post_tree(include_private=include_private)
     return _render_blog_listing(
         '全部文章',
         get_posts(include_private=include_private),
         file_tree,
-        empty_message='当前还没有已发布的文章。',
+        empty_message='当前还没有可展示的文章。',
         include_private=include_private,
         page_mode='posts',
-        page_description='按时间顺序浏览所有公开发布的文章。',
+        page_description='按时间顺序浏览所有文章。',
     )
 
 
@@ -1011,7 +1024,7 @@ def posts():
 def tag(tag_name):
     site_settings = _get_site_settings()
     _abort_if_blog_disabled(site_settings)
-    include_private = bool(getattr(current_user, 'is_authenticated', False))
+    include_private = _blog_listing_include_private()
     file_tree = get_public_post_tree(include_private=include_private)
     all_tags = get_all_tags(include_private=include_private)
     tag_details = _match_tag_details(tag_name, all_tags)
@@ -1019,10 +1032,10 @@ def tag(tag_name):
         f'标签：{tag_details["name"] if tag_details else tag_name}',
         get_tag_posts(tag_name, include_private=include_private),
         file_tree,
-        empty_message='当前标签下还没有已发布的文章。',
+        empty_message='当前标签下还没有文章。',
         include_private=include_private,
         page_mode='tag',
-        page_description=f'围绕标签“{tag_details["name"] if tag_details else tag_name}”浏览全部公开文章。',
+        page_description=f'围绕标签“{tag_details["name"] if tag_details else tag_name}”浏览全部文章。',
         tag_details=tag_details,
     )
 
@@ -1031,7 +1044,7 @@ def tag(tag_name):
 def archive():
     site_settings = _get_site_settings()
     _abort_if_blog_disabled(site_settings)
-    include_private = bool(getattr(current_user, 'is_authenticated', False))
+    include_private = _blog_listing_include_private()
     file_tree = get_public_post_tree(include_private=include_private)
     return _render_archive_listing(file_tree, include_private=include_private)
 
@@ -1040,7 +1053,7 @@ def archive():
 def tags_page():
     site_settings = _get_site_settings()
     _abort_if_blog_disabled(site_settings)
-    include_private = bool(getattr(current_user, 'is_authenticated', False))
+    include_private = _blog_listing_include_private()
     file_tree = get_public_post_tree(include_private=include_private)
     all_tags = get_all_tags(include_private=include_private)
     featured_tags = all_tags[:6]
@@ -1070,7 +1083,7 @@ def tags_page():
 def category(dirname):
     site_settings = _get_site_settings()
     _abort_if_blog_disabled(site_settings)
-    include_private = bool(getattr(current_user, 'is_authenticated', False))
+    include_private = _blog_listing_include_private()
     file_tree = get_public_post_tree(include_private=include_private)
     if not (dirname or '').strip('/'):
         return _render_category_overview(file_tree, include_private=include_private)
@@ -1088,10 +1101,10 @@ def category(dirname):
         get_posts(category_path=dirname, include_private=include_private),
         file_tree,
         category_path=dirname,
-        empty_message='当前分类下还没有已发布的文章。',
+        empty_message='当前分类下还没有文章。',
         include_private=include_private,
         page_mode='category',
-        page_description=f'浏览分类“{os.path.basename(dirname)}”下的公开文章。',
+        page_description=f'浏览分类“{os.path.basename(dirname)}”下的文章。',
     )
 
 
@@ -1099,18 +1112,25 @@ def category(dirname):
 def post_detail(slug):
     site_settings = _get_site_settings()
     _abort_if_blog_disabled(site_settings)
-    include_private = bool(getattr(current_user, 'is_authenticated', False))
+    include_private = _blog_detail_include_private()
     payload = get_post_by_slug(slug, include_private=include_private)
     if payload is None:
+        hidden_payload = get_post_by_slug(slug, include_private=True)
+        if hidden_payload is not None and not getattr(current_user, 'is_authenticated', False):
+            return redirect(url_for('auth.login', next=request.path))
         abort(404)
-    return _render_blog_post(payload['filename'], file_tree=get_public_post_tree(include_private=include_private), include_private=include_private)
+    return _render_blog_post(
+        payload['filename'],
+        file_tree=get_public_post_tree(include_private=_blog_listing_include_private()),
+        include_private=include_private,
+    )
 
 
 @main_bp.route('/search')
 def search():
     site_settings = _get_site_settings()
     _abort_if_blog_disabled(site_settings)
-    include_private = bool(getattr(current_user, 'is_authenticated', False))
+    include_private = _blog_listing_include_private()
     query = (request.args.get('q') or '').strip()
     file_tree = get_public_post_tree(include_private=include_private)
     results = search_posts(query, include_private=include_private) if query else []
@@ -1141,11 +1161,11 @@ def search():
         category_name='',
         page_title='搜索文章',
         site_settings=_get_site_settings(),
-        empty_message=f'没有搜索到与“{query}”匹配的公开文章。' if query else '输入关键词后即可搜索公开文章。',
+        empty_message=f'没有搜索到与“{query}”匹配的文章。' if query else '输入关键词后即可搜索文章。',
         tags=get_all_tags(include_private=include_private)[:18],
         archive_groups=get_archive_groups(include_private=include_private)[:8],
         page_meta={'title': '搜索文章'},
-        page_description='搜索公开发布的文章内容。',
+        page_description='搜索文章内容。',
         page_mode='search',
         page_robots='noindex,follow',
         canonical_url=_absolute_url(

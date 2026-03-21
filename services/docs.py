@@ -246,7 +246,14 @@ def _normalize_metadata(filename, raw_metadata, raw_content):
         'url': '',
         'reading_minutes': _estimate_reading_minutes(raw_content),
     }
-    metadata['url'] = str(raw_metadata.get('url') or (f"/post/{quote(metadata['slug'])}" if metadata['template'] == 'post' and metadata['public'] else _build_markdown_url(filename))).strip()
+    metadata['url'] = str(
+        raw_metadata.get('url')
+        or (
+            f"/post/{quote(metadata['slug'])}"
+            if metadata['template'] == 'post'
+            else _build_markdown_url(filename)
+        )
+    ).strip()
     return metadata
 
 
@@ -750,7 +757,7 @@ def get_all_tags(include_private=False):
         entry['heat_level'] = heat_level
         entry['font_scale'] = round(0.96 + weight_ratio * 0.42, 3)
         entry['heat_label'] = heat_label
-        entry['description'] = f'已关联 {count} 篇公开文章'
+        entry['description'] = f'已关联 {count} 篇文章'
 
     return tags
 

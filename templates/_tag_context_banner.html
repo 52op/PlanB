@@ -4,7 +4,7 @@
         <span class="tag-context-kicker">标签专题</span>
         <h2>#{{ tag_details.name }}</h2>
         <p>
-            当前标签下共有 {{ tag_details.count }} 篇公开文章。
+            当前标签下共有 {{ tag_details.count }} 篇文章。
             {{ tag_details.heat_label }}
             {% if tag_details.latest_post %}
             ，最近更新来自《{{ tag_details.latest_post.title }}》。

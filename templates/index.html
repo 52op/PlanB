@@ -285,7 +285,7 @@
                 </div>
                 {% else %}
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <a href="{{ url_for('main.posts') }}" style="color:#0f766e; text-decoration:none;">公开文章</a>
+                    <a href="{{ url_for('main.posts') }}" style="color:#0f766e; text-decoration:none;">博客文章</a>
                     <a href="{{ url_for('main.archive') }}" style="color:#b85c38; text-decoration:none;">归档</a>
                     <a href="{{ url_for('auth.login', next=request.path) }}" style="color:var(--color-primary); text-decoration:none;">管理登录</a>
                 </div>

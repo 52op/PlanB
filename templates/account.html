@@ -65,7 +65,7 @@
             <p>查看账号状态、修改密码，并管理自己发表的评论。</p>
             <div class="nav">
                 <a href="{{ url_for('main.index') }}">返回首页</a>
-                <a href="{{ url_for('main.posts') }}">公开文章</a>
+                <a href="{{ url_for('main.posts') }}">博客文章</a>
                 {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}<a href="{{ url_for('main.docs_home') }}">文档系统</a>{% endif %}
                 {% if current_user.role == 'admin' %}<a href="{{ url_for('admin.admin_dashboard') }}">后台管理</a>{% endif %}
             </div>

@@ -17,7 +17,7 @@
                 {% endif %}
             </div>
             <div class="hero-stats">
-                <span class="hero-stat"><i data-lucide="file-text"></i>{{ archive_groups|sum(attribute='count') if archive_groups else 0 }} 篇公开文章</span>
+                <span class="hero-stat"><i data-lucide="file-text"></i>{{ archive_groups|sum(attribute='count') if archive_groups else 0 }} 篇文章</span>
                 <span class="hero-stat"><i data-lucide="tag"></i>{{ tags|length if tags else 0 }} 个标签</span>
                 <span class="hero-stat"><i data-lucide="folder-tree"></i>{{ category_groups|length if category_groups else 0 }} 个分类</span>
             </div>
@@ -157,7 +157,7 @@
 <div class="empty-state">
     <div class="empty-state-icon">📝</div>
     <h3>还没有发布文章</h3>
-    <p>当你开始发布公开文章后，这个首页会自动形成一套很接近产品发布站的内容结构。</p>
+    <p>当你开始整理博客文章后，这个首页会自动形成一套很接近产品发布站的内容结构。</p>
 </div>
 {% endif %}
 {% endblock %}

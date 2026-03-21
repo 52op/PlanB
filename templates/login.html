@@ -480,9 +480,9 @@
         {% endif %}
         
         <div class="public-entry">
-            <div style="font-size:13px; color:#6c757d; margin-bottom:10px;">无需登录也可浏览已公开发布的文章。</div>
+            <div style="font-size:13px; color:#6c757d; margin-bottom:10px;">无需登录也可浏览博客文章；部分文章详情需要登录后查看。</div>
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <a class="public-link" href="{{ url_for('main.posts') }}">进入公开文章(博客)</a>
+                <a class="public-link" href="{{ url_for('main.posts') }}">进入博客文章</a>
                 {% if site_settings.show_docs_entry_in_blog or site_settings.site_mode == 'docs' %}
                 <a class="public-link" href="{{ url_for('main.docs_home') }}" style="background:#eaf4ff; color:#0056b3;">进入文档系统</a>
                 {% endif %}

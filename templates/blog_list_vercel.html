@@ -10,13 +10,13 @@
             <h1 class="hero-title">{{ page_title }}</h1>
             <p class="hero-subtitle">
                 {% if request.endpoint == 'main.search' and search_query %}
-                搜索关键词 “{{ search_query }}” 的公开结果
+                搜索关键词 “{{ search_query }}” 的文章结果
                 {% elif page_description %}
                 {{ page_description }}
                 {% elif category_name %}
                 正在浏览分类 {{ category_name }} 下的文章
                 {% else %}
-                浏览所有已发布的公开文章
+                浏览所有博客文章
                 {% endif %}
             </p>
             <div class="hero-meta-row">
@@ -117,7 +117,7 @@
     <div class="empty-state">
         <div class="empty-state-icon">🔍</div>
         <h3>没有找到内容</h3>
-        <p>{{ empty_message or '当前条件下还没有可显示的公开文章。' }}</p>
+        <p>{{ empty_message or '当前条件下还没有可显示的文章。' }}</p>
     </div>
     {% endif %}
 </section>

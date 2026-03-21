@@ -6,7 +6,7 @@
         <div>
             <span class="hero-eyebrow">分类总览</span>
             <h1 class="hero-title">{{ page_title }}</h1>
-            <p class="hero-subtitle">{{ page_description or '按分类组织全部公开文章，适合从主题入口开始浏览。' }}</p>
+            <p class="hero-subtitle">{{ page_description or '按分类组织全部文章，适合从主题入口开始浏览。' }}</p>
             <div class="hero-meta-row">
                 <span class="hero-meta-pill"><i data-lucide="folder-tree"></i>{{ category_groups|length if category_groups else 0 }} 个分类</span>
                 <span class="hero-meta-pill"><i data-lucide="file-text"></i>{{ category_groups|sum(attribute='count') if category_groups else 0 }} 篇文章</span>
@@ -64,7 +64,7 @@
 <div class="empty-state">
     <div class="empty-state-icon">📂</div>
     <h3>暂时还没有可显示的分类</h3>
-    <p>当公开文章开始按分类发布后，这里会自动形成分类索引。</p>
+    <p>当文章开始按分类整理后，这里会自动形成分类索引。</p>
 </div>
 {% endif %}
 {% endblock %}
