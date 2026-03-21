@@ -2133,6 +2133,20 @@
         .meta-field-hint.is-warning {
             color: #b45309;
         }
+        .meta-slug-suggestion {
+            display: inline;
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: currentColor;
+            font: inherit;
+            font-weight: 700;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .meta-slug-suggestion:hover {
+            opacity: 0.82;
+        }
         .meta-grid .full {
             grid-column: 1 / -1;
         }

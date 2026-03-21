@@ -15,6 +15,7 @@ class EditorManager {
         this.handleEditorKeydown = this.handleEditorKeydown.bind(this);
         this.handleMetaPanelFieldChange = this.handleMetaPanelFieldChange.bind(this);
         this.handleSlugFieldBlur = this.handleSlugFieldBlur.bind(this);
+        this.handleSlugHintClick = this.handleSlugHintClick.bind(this);
         this.initializeElements();
     }
 
@@ -29,6 +30,7 @@ class EditorManager {
         this.metaTitleInput = document.getElementById('metaTitle');
         this.metaSlugInput = document.getElementById('metaSlug');
         this.metaSlugHint = document.getElementById('metaSlugHint');
+        this.metaUpdatedInput = document.getElementById('metaUpdated');
         this.metaTemplateSelect = document.getElementById('metaTemplate');
         this.closeMetaBtn = document.getElementById('closeMetaBtn');
         this.applyMetaBtn = document.getElementById('applyMetaBtn');
@@ -130,6 +132,29 @@ class EditorManager {
         }
     }
 
+    setSlugHintWithSuggestion(message, tone = '', suggestedSlug = '') {
+        if (!this.metaSlugHint || !suggestedSlug) {
+            this.setSlugHint(message, tone);
+            return;
+        }
+
+        this.metaSlugHint.classList.remove('is-success', 'is-error', 'is-warning');
+        if (tone) {
+            this.metaSlugHint.classList.add(tone);
+        }
+
+        this.metaSlugHint.innerHTML = `${this.escapeHtml(message)} <button type="button" class="meta-slug-suggestion" data-suggested-slug="${this.escapeHtmlAttribute(suggestedSlug)}">${this.escapeHtml(suggestedSlug)}</button>`;
+
+        if (this.metaSlugInput) {
+            this.metaSlugInput.classList.remove('is-valid', 'is-invalid');
+            if (tone === 'is-success') {
+                this.metaSlugInput.classList.add('is-valid');
+            } else if (tone === 'is-error') {
+                this.metaSlugInput.classList.add('is-invalid');
+            }
+        }
+    }
+
     getSlugValidationSource() {
         const fileBaseName = (String(this.currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
         return this.metaSlugInput?.value.trim()
@@ -161,6 +186,34 @@ class EditorManager {
         this.slugValidationTimer = window.setTimeout(() => {
             this.validateSlugAvailability(options).catch(() => {});
         }, options.immediate ? 0 : 260);
+    }
+
+    applySuggestedSlug(suggestedSlug, options = {}) {
+        const normalized = window.frontMatterUtils?.slugifyValue?.(suggestedSlug || '') || String(suggestedSlug || '').trim();
+        if (!normalized || !this.metaSlugInput) return;
+
+        this.metaSlugInput.value = normalized;
+        this.updateMetaPanelDirtyState();
+        this.setSlugHint('已自动填入建议值，可继续保存或应用头部。', 'is-warning');
+
+        if (options.focus) {
+            this.metaSlugInput.focus();
+        }
+        if (options.select) {
+            this.metaSlugInput.select();
+        }
+        if (options.validate) {
+            this.scheduleSlugValidation({ silent: true, immediate: true });
+        }
+    }
+
+    syncMetaUpdatedFieldForSave() {
+        if (!this.metaUpdatedInput) return;
+        const today = new Date().toISOString().slice(0, 10);
+        this.metaUpdatedInput.value = today;
+        if (!this.metaPanelDirty) {
+            this.captureMetaPanelSnapshot();
+        }
     }
 
     async validateSlugAvailability(options = {}) {
@@ -203,13 +256,25 @@ class EditorManager {
 
             const suggestedText = result.suggested_slug ? `，建议改为 ${result.suggested_slug}` : '';
             const message = `当前 slug 已被其他文章占用${suggestedText}`;
-            this.setSlugHint(message, 'is-error');
+            if (result.suggested_slug) {
+                this.setSlugHintWithSuggestion('当前 slug 已被其他文章占用，建议改为', 'is-error', result.suggested_slug);
+            } else {
+                this.setSlugHint(message, 'is-error');
+            }
             if (!silent) {
                 await window.uiUtils?.showAlertDialog?.('Slug 冲突', `${message}。`);
             }
             if (focusOnError) {
-                this.metaSlugInput.focus();
-                this.metaSlugInput.select();
+                if (result.suggested_slug) {
+                    this.applySuggestedSlug(result.suggested_slug, {
+                        focus: true,
+                        select: true,
+                        validate: true,
+                    });
+                } else {
+                    this.metaSlugInput.focus();
+                    this.metaSlugInput.select();
+                }
             }
             return false;
         } catch (error) {
@@ -230,6 +295,7 @@ class EditorManager {
         });
 
         this.metaSlugInput?.addEventListener('blur', this.handleSlugFieldBlur);
+        this.metaSlugHint?.addEventListener('click', this.handleSlugHintClick);
         this.metaPanel.dataset.stateBound = 'true';
     }
 
@@ -248,6 +314,17 @@ class EditorManager {
         this.scheduleSlugValidation({ silent: true, immediate: true });
     }
 
+    handleSlugHintClick(event) {
+        const target = event.target.closest('button[data-suggested-slug]');
+        if (!(target instanceof HTMLElement)) return;
+
+        this.applySuggestedSlug(target.dataset.suggestedSlug || '', {
+            focus: true,
+            select: true,
+            validate: true,
+        });
+    }
+
     normalizeImageSize(value) {
         const raw = String(value || '').trim();
         if (!raw) return '';
@@ -264,6 +341,10 @@ class EditorManager {
             '"': '&quot;',
             "'": '&#39;',
         }[char] || char));
+    }
+
+    escapeHtml(value) {
+        return this.escapeHtmlAttribute(value);
     }
 
     buildImageHtmlMarkup(url, altText, widthValue, heightValue) {
@@ -633,6 +714,7 @@ class EditorManager {
             return false;
         }
 
+        this.syncMetaUpdatedFieldForSave();
         let newContent = this.composeDocumentContent(bodyContent);
         if (this.metaPanelDirty) {
             const shouldSaveMeta = await window.uiUtils?.showConfirmDialog?.(
@@ -710,6 +792,7 @@ class EditorManager {
     async applyFrontMatter() {
         if (!this.editorInstance) return;
 
+        this.syncMetaUpdatedFieldForSave();
         const slugReady = await this.validateSlugAvailability({
             silent: false,
             autoSuggest: false,
