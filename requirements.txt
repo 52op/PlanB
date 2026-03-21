@@ -11,3 +11,4 @@ bleach
 tinycss2
 waitress
 pypinyin
+redis

@@ -125,6 +125,23 @@ class EmailVerificationCode(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 
+class RateLimitAttempt(db.Model):
+    __tablename__ = 'rate_limit_attempts'
+    id = db.Column(db.Integer, primary_key=True)
+    bucket_type = db.Column(db.String(32), nullable=False, index=True)
+    scope_key = db.Column(db.String(512), nullable=False)
+    failures = db.Column(db.Integer, nullable=False, default=0)
+    last_attempt_at = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    blocked_until = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.UniqueConstraint('bucket_type', 'scope_key', name='uq_rate_limit_bucket_scope'),
+        db.Index('ix_rate_limit_bucket_scope', 'bucket_type', 'scope_key'),
+    )
+
+
 class Comment(db.Model):
     __tablename__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
@@ -219,6 +236,44 @@ def init_db(app):
             SystemSetting.set('site_logo', '')
         if SystemSetting.get('random_cover_api') is None:
             SystemSetting.set('random_cover_api', '')
+        if SystemSetting.get('security_rate_limit_backend') is None:
+            SystemSetting.set('security_rate_limit_backend', 'database')
+        if SystemSetting.get('security_redis_url') is None:
+            SystemSetting.set('security_redis_url', '')
+        if SystemSetting.get('security_redis_key_prefix') is None:
+            SystemSetting.set('security_redis_key_prefix', 'planning:rate-limit')
+        if SystemSetting.get('security_login_rate_limit_enabled') is None:
+            SystemSetting.set('security_login_rate_limit_enabled', 'true')
+        if SystemSetting.get('security_verification_rate_limit_enabled') is None:
+            SystemSetting.set('security_verification_rate_limit_enabled', 'true')
+        if SystemSetting.get('security_verification_send_rate_limit_enabled') is None:
+            SystemSetting.set('security_verification_send_rate_limit_enabled', 'true')
+        if SystemSetting.get('security_rate_limit_level1_attempts') is None:
+            SystemSetting.set('security_rate_limit_level1_attempts', '3')
+        if SystemSetting.get('security_rate_limit_level1_seconds') is None:
+            SystemSetting.set('security_rate_limit_level1_seconds', '30')
+        if SystemSetting.get('security_rate_limit_level2_attempts') is None:
+            SystemSetting.set('security_rate_limit_level2_attempts', '5')
+        if SystemSetting.get('security_rate_limit_level2_seconds') is None:
+            SystemSetting.set('security_rate_limit_level2_seconds', '300')
+        if SystemSetting.get('security_rate_limit_level3_attempts') is None:
+            SystemSetting.set('security_rate_limit_level3_attempts', '10')
+        if SystemSetting.get('security_rate_limit_level3_seconds') is None:
+            SystemSetting.set('security_rate_limit_level3_seconds', '1800')
+        if SystemSetting.get('security_send_rate_limit_level1_attempts') is None:
+            SystemSetting.set('security_send_rate_limit_level1_attempts', '5')
+        if SystemSetting.get('security_send_rate_limit_level1_seconds') is None:
+            SystemSetting.set('security_send_rate_limit_level1_seconds', '600')
+        if SystemSetting.get('security_send_rate_limit_level2_attempts') is None:
+            SystemSetting.set('security_send_rate_limit_level2_attempts', '10')
+        if SystemSetting.get('security_send_rate_limit_level2_seconds') is None:
+            SystemSetting.set('security_send_rate_limit_level2_seconds', '3600')
+        if SystemSetting.get('security_send_rate_limit_level3_attempts') is None:
+            SystemSetting.set('security_send_rate_limit_level3_attempts', '20')
+        if SystemSetting.get('security_send_rate_limit_level3_seconds') is None:
+            SystemSetting.set('security_send_rate_limit_level3_seconds', '86400')
+        if SystemSetting.get('security_rate_limit_record_ttl_seconds') is None:
+            SystemSetting.set('security_rate_limit_record_ttl_seconds', '7200')
 
         # 建立默认管理员
         admin = User.query.filter_by(username='admin').first()

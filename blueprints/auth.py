@@ -6,7 +6,10 @@ import os
 import uuid
 from PIL import Image as PILImage
 from services import (
+    check_verification_send_rate_limit,
+    build_verification_scope_key,
     check_rate_limit,
+    check_verification_rate_limit,
     create_email_verification_code,
     format_wait_time,
     get_client_ip,
@@ -16,6 +19,9 @@ from services import (
     mailer_is_configured,
     record_login_failure,
     record_login_success,
+    record_verification_send_attempt,
+    record_verification_failure,
+    record_verification_success,
     send_logged_mail,
     validate_registration_input,
     verify_email_code,
@@ -23,6 +29,28 @@ from services import (
 from blueprints.main import _get_site_settings
 
 auth_bp = Blueprint('auth', __name__, template_folder='templates')
+
+
+def _flash_failure_message(base_message, failure_count=0, wait_seconds=0):
+    if wait_seconds > 0 and failure_count > 0:
+        flash(f'{base_message}。连续失败 {failure_count} 次，请在 {format_wait_time(wait_seconds)} 后重试')
+        return
+    if failure_count > 0:
+        flash(f'{base_message}（已失败 {failure_count} 次）')
+        return
+    flash(base_message)
+
+
+def _can_send_verification_code(client_ip, email, purpose):
+    is_allowed, wait_seconds, failure_count, blocked_scope = check_verification_send_rate_limit(client_ip, email, purpose)
+    if is_allowed:
+        return True
+
+    if blocked_scope == 'email':
+        flash(f'该邮箱请求验证码过于频繁，请在 {format_wait_time(wait_seconds)} 后重试')
+    else:
+        flash(f'当前网络环境请求验证码过于频繁，请在 {format_wait_time(wait_seconds)} 后重试')
+    return False
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -64,10 +92,7 @@ def login():
                     return resp
                 else:
                     wait_seconds, failure_count = record_login_failure(client_ip)
-                    if wait_seconds > 0:
-                        flash(f'全局密码错误。连续失败 {failure_count} 次，请在 {format_wait_time(wait_seconds)} 后重试')
-                    else:
-                        flash(f'全局密码错误（已失败 {failure_count} 次）')
+                    _flash_failure_message('全局密码错误', failure_count, wait_seconds)
             
         # 处理账号密码登录（支持用户名或邮箱）
         elif action_type == 'user_login':
@@ -94,13 +119,10 @@ def login():
                     return redirect(target)
                 else:
                     wait_seconds, failure_count = record_login_failure(client_ip)
-                    if wait_seconds > 0:
-                        flash(f'用户名/邮箱或密码错误。连续失败 {failure_count} 次，请在 {format_wait_time(wait_seconds)} 后重试')
-                    else:
-                        flash(f'用户名/邮箱或密码错误（已失败 {failure_count} 次）')
+                    _flash_failure_message('用户名/邮箱或密码错误', failure_count, wait_seconds)
                     form_data['login_username'] = username_or_email
         
-        # 处理邮箱验证码登录（不需要频率限制，因为验证码本身有保护）
+        # 处理邮箱验证码登录
         elif action_type == 'email_login':
             email = (request.form.get('email') or '').strip().lower()
             code = (request.form.get('verification_code') or '').strip()
@@ -108,17 +130,25 @@ def login():
                 flash('请输入邮箱和验证码')
                 form_data['login_email'] = email
             else:
-                user = User.query.filter_by(email=email).first()
-                if not user:
-                    flash('该邮箱未注册')
-                    form_data['login_email'] = email
-                elif not verify_email_code(email, code, purpose='login'):
-                    flash('验证码无效或已过期')
+                verification_scope_key = build_verification_scope_key(client_ip, email, purpose='login')
+                is_allowed, wait_seconds, failure_count = check_verification_rate_limit(verification_scope_key)
+                if not is_allowed:
+                    flash(f'验证码尝试次数过多，请在 {format_wait_time(wait_seconds)} 后重试')
                     form_data['login_email'] = email
                 else:
-                    login_user(user)
-                    target = get_safe_redirect_target(request.args.get('next'))
-                    return redirect(target)
+                    user = User.query.filter_by(email=email).first()
+                    if not user:
+                        flash('该邮箱未注册')
+                        form_data['login_email'] = email
+                    elif not verify_email_code(email, code, purpose='login'):
+                        wait_seconds, failure_count = record_verification_failure(verification_scope_key)
+                        _flash_failure_message('验证码无效或已过期', failure_count, wait_seconds)
+                        form_data['login_email'] = email
+                    else:
+                        record_verification_success(verification_scope_key)
+                        login_user(user)
+                        target = get_safe_redirect_target(request.args.get('next'))
+                        return redirect(target)
         
         # 处理发送登录验证码
         elif action_type == 'send_login_code':
@@ -129,6 +159,8 @@ def login():
                 flash('该邮箱未注册')
             elif not mailer_is_configured():
                 flash('站点暂未配置邮件服务器')
+            elif not _can_send_verification_code(client_ip, email, 'login'):
+                pass
             else:
                 try:
                     site_settings = _get_site_settings()
@@ -143,6 +175,7 @@ def login():
                         f'您正在登录 {site_name}。请使用下面的验证码完成登录：',
                         f'<div style="margin:20px 0;padding:16px 18px;border-radius:14px;background:#fff1e5;color:#9a3412;font-size:28px;font-weight:800;letter-spacing:6px;text-align:center;">{code}</div><p style="color:#64748b;line-height:1.8;">验证码 10 分钟内有效。如非本人操作，请忽略本邮件。</p>'
                     )
+                    record_verification_send_attempt(client_ip, email, 'login')
                     flash('验证码已发送，请检查邮箱')
                 except ValueError as exc:
                     flash(str(exc))
@@ -157,6 +190,8 @@ def login():
                 flash('该邮箱已被使用')
             elif not mailer_is_configured():
                 flash('站点暂未配置邮件服务器，暂时无法注册')
+            elif not _can_send_verification_code(client_ip, email, 'register'):
+                pass
             else:
                 try:
                     site_settings = _get_site_settings()
@@ -171,6 +206,7 @@ def login():
                         f'欢迎注册 {site_name} 账号。请使用下面的验证码完成邮箱验证：',
                         f'<div style="margin:20px 0;padding:16px 18px;border-radius:14px;background:#fff1e5;color:#9a3412;font-size:28px;font-weight:800;letter-spacing:6px;text-align:center;">{code}</div><p style="color:#64748b;line-height:1.8;">验证码 10 分钟内有效。如非本人操作，请忽略本邮件。</p>'
                     )
+                    record_verification_send_attempt(client_ip, email, 'register')
                     flash('验证码已发送，请检查邮箱')
                 except ValueError as exc:
                     flash(str(exc))
@@ -205,21 +241,28 @@ def login():
                     flash('用户名已存在')
                 elif User.query.filter_by(email=email).first():
                     flash('该邮箱已被使用')
-                elif not verify_email_code(email, code, purpose='register'):
-                    flash('验证码无效或已过期')
                 else:
-                    user = User()
-                    user.username = username
-                    user.email = email
-                    user.role = 'guest'
-                    user.email_verified = True
-                    user.set_password(password)
-                    db.session.add(user)
-                    db.session.commit()
-                    login_user(user)
-                    flash('注册成功，已自动登录')
-                    target = get_safe_redirect_target(request.args.get('next'))
-                    return redirect(target)
+                    verification_scope_key = build_verification_scope_key(client_ip, email, purpose='register')
+                    is_allowed, wait_seconds, failure_count = check_verification_rate_limit(verification_scope_key)
+                    if not is_allowed:
+                        flash(f'验证码尝试次数过多，请在 {format_wait_time(wait_seconds)} 后重试')
+                    elif not verify_email_code(email, code, purpose='register'):
+                        wait_seconds, failure_count = record_verification_failure(verification_scope_key)
+                        _flash_failure_message('验证码无效或已过期', failure_count, wait_seconds)
+                    else:
+                        record_verification_success(verification_scope_key)
+                        user = User()
+                        user.username = username
+                        user.email = email
+                        user.role = 'guest'
+                        user.email_verified = True
+                        user.set_password(password)
+                        db.session.add(user)
+                        db.session.commit()
+                        login_user(user)
+                        flash('注册成功，已自动登录')
+                        target = get_safe_redirect_target(request.args.get('next'))
+                        return redirect(target)
             
     # 默认 Tab：只有从文档访问被拦截时才默认显示访客访问
     default_tab = 'visitor' if from_docs else 'login'
@@ -351,6 +394,7 @@ def change_password():
 @auth_bp.route('/account/send-verification', methods=['POST'])
 @login_required
 def send_account_verification():
+    client_ip = get_client_ip(request)
     if not current_user.email:
         flash('当前账号未绑定邮箱')
         return redirect(url_for('auth.account'))
@@ -359,6 +403,8 @@ def send_account_verification():
         return redirect(url_for('auth.account'))
     if not mailer_is_configured():
         flash('站点暂未配置邮件服务器')
+        return redirect(url_for('auth.account'))
+    if not _can_send_verification_code(client_ip, current_user.email, 'account_verify'):
         return redirect(url_for('auth.account'))
     try:
         code = create_email_verification_code(current_user.email, purpose='account_verify')
@@ -371,6 +417,7 @@ def send_account_verification():
             '请使用下面的验证码完成邮箱验证：',
             f'<div style="margin:20px 0;padding:16px 18px;border-radius:14px;background:#fff1e5;color:#9a3412;font-size:28px;font-weight:800;letter-spacing:6px;text-align:center;">{code}</div><p style="color:#64748b;line-height:1.8;">验证码 10 分钟内有效。</p>'
         )
+        record_verification_send_attempt(client_ip, current_user.email, 'account_verify')
         flash('验证邮件已发送，请检查邮箱')
     except ValueError as exc:
         flash(str(exc))
@@ -387,18 +434,27 @@ def verify_account_email():
         flash('当前账号未绑定邮箱')
     elif not code:
         flash('请输入验证码')
-    elif verify_email_code(current_user.email, code, purpose='account_verify'):
-        current_user.email_verified = True
-        db.session.commit()
-        flash('邮箱验证成功')
     else:
-        flash('验证码无效或已过期')
+        client_ip = get_client_ip(request)
+        verification_scope_key = build_verification_scope_key(client_ip, current_user.email, purpose='account_verify')
+        is_allowed, wait_seconds, failure_count = check_verification_rate_limit(verification_scope_key)
+        if not is_allowed:
+            flash(f'验证码尝试次数过多，请在 {format_wait_time(wait_seconds)} 后重试')
+        elif verify_email_code(current_user.email, code, purpose='account_verify'):
+            record_verification_success(verification_scope_key)
+            current_user.email_verified = True
+            db.session.commit()
+            flash('邮箱验证成功')
+        else:
+            wait_seconds, failure_count = record_verification_failure(verification_scope_key)
+            _flash_failure_message('验证码无效或已过期', failure_count, wait_seconds)
     return redirect(url_for('auth.account'))
 
 
 @auth_bp.route('/account/send-email-change', methods=['POST'])
 @login_required
 def send_email_change_code():
+    client_ip = get_client_ip(request)
     new_email = (request.form.get('new_email') or '').strip().lower()
     if not new_email:
         flash('请输入新的邮箱地址')
@@ -414,6 +470,8 @@ def send_email_change_code():
     if not mailer_is_configured():
         flash('站点暂未配置邮件服务器')
         return redirect(url_for('auth.account'))
+    if not _can_send_verification_code(client_ip, new_email, 'change_email'):
+        return redirect(url_for('auth.account'))
     try:
         code = create_email_verification_code(new_email, purpose='change_email')
         send_logged_mail(
@@ -425,6 +483,7 @@ def send_email_change_code():
             '请使用下面的验证码完成邮箱变更：',
             f'<div style="margin:20px 0;padding:16px 18px;border-radius:14px;background:#fff1e5;color:#9a3412;font-size:28px;font-weight:800;letter-spacing:6px;text-align:center;">{code}</div><p style="color:#64748b;line-height:1.8;">验证码 10 分钟内有效。</p>'
         )
+        record_verification_send_attempt(client_ip, new_email, 'change_email')
         flash('邮箱修改验证码已发送')
     except ValueError as exc:
         flash(str(exc))
@@ -449,9 +508,17 @@ def change_email():
     if User.query.filter(User.email == new_email, User.id != current_user.id).first():
         flash('该邮箱已被使用')
         return redirect(url_for('auth.account'))
-    if not verify_email_code(new_email, code, purpose='change_email'):
-        flash('验证码无效或已过期')
+    client_ip = get_client_ip(request)
+    verification_scope_key = build_verification_scope_key(client_ip, new_email, purpose='change_email')
+    is_allowed, wait_seconds, failure_count = check_verification_rate_limit(verification_scope_key)
+    if not is_allowed:
+        flash(f'验证码尝试次数过多，请在 {format_wait_time(wait_seconds)} 后重试')
         return redirect(url_for('auth.account'))
+    if not verify_email_code(new_email, code, purpose='change_email'):
+        wait_seconds, failure_count = record_verification_failure(verification_scope_key)
+        _flash_failure_message('验证码无效或已过期', failure_count, wait_seconds)
+        return redirect(url_for('auth.account'))
+    record_verification_success(verification_scope_key)
     current_user.email = new_email
     current_user.email_verified = True
     db.session.commit()

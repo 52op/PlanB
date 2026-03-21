@@ -2,10 +2,43 @@ import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from models import Comment, DocumentViewStat, NotificationLog, db, SystemSetting, User, DirectoryConfig, PermissionRule
-from services import get_comment_stats, get_posts, get_user_stats, mailer_is_configured, send_logged_mail
+from services import get_comment_stats, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, send_logged_mail
 from sqlalchemy import func
 
 admin_bp = Blueprint('admin', __name__, template_folder='templates', url_prefix='/admin')
+
+SECURITY_SETTING_DEFAULTS = {
+    'security_rate_limit_backend': 'database',
+    'security_redis_url': '',
+    'security_redis_key_prefix': 'planning:rate-limit',
+    'security_login_rate_limit_enabled': 'true',
+    'security_verification_rate_limit_enabled': 'true',
+    'security_verification_send_rate_limit_enabled': 'true',
+    'security_rate_limit_level1_attempts': '3',
+    'security_rate_limit_level1_seconds': '30',
+    'security_rate_limit_level2_attempts': '5',
+    'security_rate_limit_level2_seconds': '300',
+    'security_rate_limit_level3_attempts': '10',
+    'security_rate_limit_level3_seconds': '1800',
+    'security_send_rate_limit_level1_attempts': '5',
+    'security_send_rate_limit_level1_seconds': '600',
+    'security_send_rate_limit_level2_attempts': '10',
+    'security_send_rate_limit_level2_seconds': '3600',
+    'security_send_rate_limit_level3_attempts': '20',
+    'security_send_rate_limit_level3_seconds': '86400',
+    'security_rate_limit_record_ttl_seconds': '7200',
+}
+
+
+def _get_settings_map():
+    return {s.key: s.value for s in SystemSetting.query.all()}
+
+
+def _get_security_settings():
+    settings = _get_settings_map()
+    for key, default_value in SECURITY_SETTING_DEFAULTS.items():
+        settings.setdefault(key, default_value)
+    return settings
 
 @admin_bp.route('/images')
 @login_required
@@ -20,7 +53,7 @@ def admin_dashboard():
     if current_user.role != 'admin':
         abort(403)
         
-    settings = {s.key: s.value for s in SystemSetting.query.all()}
+    settings = _get_settings_map()
     user_query = User.query
     user_keyword = (request.args.get('user_q') or '').strip()
     user_role = (request.args.get('user_role') or 'all').strip()
@@ -87,6 +120,40 @@ def admin_dashboard():
         user_role=user_role,
         user_verified=user_verified,
     )
+
+
+@admin_bp.route('/security')
+@login_required
+def admin_security():
+    if current_user.role != 'admin':
+        abort(403)
+    return render_template(
+        'admin_security.html',
+        security_settings=_get_security_settings(),
+        rate_limit_status=get_rate_limit_backend_status(),
+    )
+
+
+@admin_bp.route('/security/settings', methods=['POST'])
+@login_required
+def update_security_settings():
+    if current_user.role != 'admin':
+        abort(403)
+
+    checkbox_keys = {
+        'security_login_rate_limit_enabled',
+        'security_verification_rate_limit_enabled',
+        'security_verification_send_rate_limit_enabled',
+    }
+
+    for key in SECURITY_SETTING_DEFAULTS:
+        if key in checkbox_keys:
+            SystemSetting.set(key, 'true' if request.form.get(key) else 'false')
+        else:
+            SystemSetting.set(key, (request.form.get(key) or '').strip())
+
+    flash('安全设置已更新')
+    return redirect(url_for('admin.admin_security'))
 
 @admin_bp.route('/settings', methods=['POST'])
 @login_required

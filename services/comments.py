@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import re
+import secrets
 
 import bleach
 import markdown
@@ -29,7 +30,7 @@ def create_email_verification_code(email, purpose='register'):
         seconds_left = 60 - int((datetime.utcnow() - latest.created_at).total_seconds())
         raise ValueError(f'请 {seconds_left} 秒后再发送验证码')
     EmailVerificationCode.query.filter_by(email=email, purpose=purpose).delete()
-    code = f'{datetime.utcnow().microsecond % 1000000:06d}'
+    code = f'{secrets.randbelow(1000000):06d}'
     record = EmailVerificationCode()
     record.email = email
     record.code = code

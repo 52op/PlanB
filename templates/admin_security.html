@@ -1,0 +1,506 @@
+{% extends "admin.html" %}
+
+{% block head %}
+<style>
+    .security-layout {
+        display: grid;
+        gap: 24px;
+    }
+    .security-hero {
+        display: grid;
+        gap: 18px;
+        padding: 24px 26px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #0f172a, #1d4ed8);
+        color: #e2e8f0;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+    }
+    .security-hero h2 {
+        margin: 0;
+        font-size: 28px;
+        color: #fff;
+    }
+    .security-hero p {
+        margin: 0;
+        line-height: 1.7;
+        color: rgba(226, 232, 240, 0.88);
+    }
+    .security-status-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .security-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #f8fafc;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .security-status-note {
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.18);
+        color: #dbeafe;
+        line-height: 1.7;
+    }
+    .security-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 24px;
+    }
+    .security-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+    }
+    .security-card-header {
+        padding: 18px 22px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    .security-card-header h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #0f172a;
+    }
+    .security-card-header p {
+        margin: 6px 0 0;
+        color: #64748b;
+        line-height: 1.6;
+        font-size: 13px;
+    }
+    .security-card-body {
+        padding: 22px;
+    }
+    .security-flash {
+        margin-bottom: 18px;
+    }
+    .security-flash .flash-messages {
+        margin-bottom: 0;
+    }
+    .security-section {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .security-section:last-child {
+        margin-bottom: 0;
+    }
+    .security-section-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: 0.02em;
+    }
+    .toggle-grid {
+        display: grid;
+        gap: 12px;
+    }
+    .toggle-card {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #fff;
+    }
+    .toggle-card h4 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        color: #0f172a;
+    }
+    .toggle-card p {
+        margin: 0;
+        color: #64748b;
+        line-height: 1.6;
+        font-size: 13px;
+    }
+    .switch {
+        position: relative;
+        width: 52px;
+        height: 30px;
+        flex: 0 0 auto;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .switch-slider {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        background: #cbd5e1;
+        transition: 0.2s ease;
+        border-radius: 999px;
+    }
+    .switch-slider::before {
+        content: "";
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        left: 4px;
+        top: 4px;
+        background: #fff;
+        border-radius: 50%;
+        transition: 0.2s ease;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+    }
+    .switch input:checked + .switch-slider {
+        background: #2563eb;
+    }
+    .switch input:checked + .switch-slider::before {
+        transform: translateX(22px);
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .threshold-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .threshold-card {
+        padding: 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #f8fafc;
+    }
+    .threshold-card h4 {
+        margin: 0 0 12px;
+        font-size: 14px;
+        color: #0f172a;
+    }
+    .threshold-fields {
+        display: grid;
+        gap: 12px;
+    }
+    .field-inline {
+        display: grid;
+        gap: 8px;
+    }
+    .field-inline label {
+        font-size: 13px;
+        color: #475569;
+        font-weight: 600;
+    }
+    .field-help {
+        color: #94a3b8;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    .status-list {
+        display: grid;
+        gap: 14px;
+    }
+    .status-item {
+        padding: 16px 18px;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+    }
+    .status-item strong {
+        display: block;
+        margin-bottom: 6px;
+        color: #0f172a;
+    }
+    .status-item span {
+        color: #64748b;
+        line-height: 1.6;
+        font-size: 13px;
+    }
+    .status-item.is-warning {
+        border-color: #fcd34d;
+        background: #fffbeb;
+    }
+    .status-item.is-good {
+        border-color: #86efac;
+        background: #f0fdf4;
+    }
+    .security-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 22px;
+    }
+    .security-actions .btn {
+        min-width: 140px;
+    }
+    .redis-settings[hidden] {
+        display: none;
+    }
+    @media (max-width: 960px) {
+        .security-grid,
+        .threshold-grid,
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="security-layout">
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="security-flash">
+            <div class="flash-messages">
+                {% for message in messages %}
+                    {{ message }}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <section class="security-hero">
+        <div>
+            <h2>安全设置</h2>
+            <p>这里集中管理登录与验证码防暴力猜解策略。默认使用数据库持久化，适合你当前这种不想额外部署 Redis 的场景；如果以后要提速，也可以直接切换成 Redis。</p>
+        </div>
+        <div class="security-status-row">
+            <span class="security-status-pill">偏好后端: {{ 'Redis' if rate_limit_status.preferred_backend == 'redis' else '数据库' }}</span>
+            <span class="security-status-pill">当前生效: {{ 'Redis' if rate_limit_status.active_backend == 'redis' else '数据库' }}</span>
+            <span class="security-status-pill">Redis 依赖: {{ '可用' if rate_limit_status.redis_available else '未就绪' }}</span>
+        </div>
+        <div class="security-status-note">{{ rate_limit_status.message }}</div>
+    </section>
+
+    <div class="security-grid">
+        <section class="security-card">
+            <div class="security-card-header">
+                <h3>限流策略</h3>
+                <p>同一套规则会同时作用于密码登录和验证码校验，但你可以分别关闭某一类限制。</p>
+            </div>
+            <div class="security-card-body">
+                <form method="POST" action="{{ url_for('admin.update_security_settings') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="security-section">
+                        <h4 class="security-section-title">防护开关</h4>
+                        <div class="toggle-grid">
+                            <div class="toggle-card">
+                                <div>
+                                    <h4>密码登录限流</h4>
+                                    <p>包含账号密码登录和全局访问密码校验，防止持续撞库或暴力尝试。</p>
+                                </div>
+                                <label class="switch" aria-label="切换密码登录限流">
+                                    <input type="checkbox" name="security_login_rate_limit_enabled" {% if security_settings.security_login_rate_limit_enabled != 'false' %}checked{% endif %}>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                            <div class="toggle-card">
+                                <div>
+                                    <h4>验证码校验限流</h4>
+                                    <p>覆盖邮箱验证码登录、注册验证码、账号邮箱验证和改邮箱验证码确认。</p>
+                                </div>
+                                <label class="switch" aria-label="切换验证码限流">
+                                    <input type="checkbox" name="security_verification_rate_limit_enabled" {% if security_settings.security_verification_rate_limit_enabled != 'false' %}checked{% endif %}>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                            <div class="toggle-card">
+                                <div>
+                                    <h4>验证码发送限流</h4>
+                                    <p>限制同一 IP 批量发送验证码，同时继续保留单邮箱 60 秒内不可重复发送的原有约束。</p>
+                                </div>
+                                <label class="switch" aria-label="切换验证码发送限流">
+                                    <input type="checkbox" name="security_verification_send_rate_limit_enabled" {% if security_settings.security_verification_send_rate_limit_enabled != 'false' %}checked{% endif %}>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="security-section">
+                        <h4 class="security-section-title">存储后端</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="securityRateLimitBackend">限流存储方式</label>
+                                <select id="securityRateLimitBackend" name="security_rate_limit_backend">
+                                    <option value="database" {% if security_settings.security_rate_limit_backend != 'redis' %}selected{% endif %}>数据库持久化</option>
+                                    <option value="redis" {% if security_settings.security_rate_limit_backend == 'redis' %}selected{% endif %}>Redis 优先，失败自动回退数据库</option>
+                                </select>
+                                <div class="field-help">推荐默认使用数据库。只有在你已经部署 Redis 时再切换成 Redis 优先。</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="securityRateLimitTtl">记录保留时长（秒）</label>
+                                <input id="securityRateLimitTtl" type="number" name="security_rate_limit_record_ttl_seconds" min="300" step="60" value="{{ security_settings.security_rate_limit_record_ttl_seconds }}">
+                                <div class="field-help">超过这个时间且不再封禁的历史记录会被当作可清理旧记录。</div>
+                            </div>
+                        </div>
+                        <div class="redis-settings" id="redisSettingsPanel" {% if security_settings.security_rate_limit_backend != 'redis' %}hidden{% endif %}>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="securityRedisUrl">Redis 连接地址</label>
+                                    <input id="securityRedisUrl" type="text" name="security_redis_url" value="{{ security_settings.security_redis_url }}" placeholder="redis://127.0.0.1:6379/0">
+                                    <div class="field-help">支持 `redis://`、`rediss://` 等标准 URL 形式。</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="securityRedisPrefix">Redis 键前缀</label>
+                                    <input id="securityRedisPrefix" type="text" name="security_redis_key_prefix" value="{{ security_settings.security_redis_key_prefix }}" placeholder="planning:rate-limit">
+                                    <div class="field-help">多站点共用一个 Redis 时，建议给每个站点单独前缀。</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="security-section">
+                        <h4 class="security-section-title">封禁阶梯</h4>
+                        <div class="threshold-grid">
+                            <div class="threshold-card">
+                                <h4>第 1 阶段</h4>
+                                <div class="threshold-fields">
+                                    <div class="field-inline">
+                                        <label for="securityLevel1Attempts">失败次数</label>
+                                        <input id="securityLevel1Attempts" type="number" name="security_rate_limit_level1_attempts" min="1" value="{{ security_settings.security_rate_limit_level1_attempts }}">
+                                    </div>
+                                    <div class="field-inline">
+                                        <label for="securityLevel1Seconds">等待秒数</label>
+                                        <input id="securityLevel1Seconds" type="number" name="security_rate_limit_level1_seconds" min="0" value="{{ security_settings.security_rate_limit_level1_seconds }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="threshold-card">
+                                <h4>第 2 阶段</h4>
+                                <div class="threshold-fields">
+                                    <div class="field-inline">
+                                        <label for="securityLevel2Attempts">失败次数</label>
+                                        <input id="securityLevel2Attempts" type="number" name="security_rate_limit_level2_attempts" min="1" value="{{ security_settings.security_rate_limit_level2_attempts }}">
+                                    </div>
+                                    <div class="field-inline">
+                                        <label for="securityLevel2Seconds">等待秒数</label>
+                                        <input id="securityLevel2Seconds" type="number" name="security_rate_limit_level2_seconds" min="0" value="{{ security_settings.security_rate_limit_level2_seconds }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="threshold-card">
+                                <h4>第 3 阶段</h4>
+                                <div class="threshold-fields">
+                                    <div class="field-inline">
+                                        <label for="securityLevel3Attempts">失败次数</label>
+                                        <input id="securityLevel3Attempts" type="number" name="security_rate_limit_level3_attempts" min="1" value="{{ security_settings.security_rate_limit_level3_attempts }}">
+                                    </div>
+                                    <div class="field-inline">
+                                        <label for="securityLevel3Seconds">等待秒数</label>
+                                        <input id="securityLevel3Seconds" type="number" name="security_rate_limit_level3_seconds" min="0" value="{{ security_settings.security_rate_limit_level3_seconds }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="security-section">
+                        <h4 class="security-section-title">发送频率阶梯</h4>
+                        <div class="threshold-grid">
+                            <div class="threshold-card">
+                                <h4>第 1 阶段</h4>
+                                <div class="threshold-fields">
+                                    <div class="field-inline">
+                                        <label for="securitySendLevel1Attempts">发送次数</label>
+                                        <input id="securitySendLevel1Attempts" type="number" name="security_send_rate_limit_level1_attempts" min="1" value="{{ security_settings.security_send_rate_limit_level1_attempts }}">
+                                    </div>
+                                    <div class="field-inline">
+                                        <label for="securitySendLevel1Seconds">等待秒数</label>
+                                        <input id="securitySendLevel1Seconds" type="number" name="security_send_rate_limit_level1_seconds" min="0" value="{{ security_settings.security_send_rate_limit_level1_seconds }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="threshold-card">
+                                <h4>第 2 阶段</h4>
+                                <div class="threshold-fields">
+                                    <div class="field-inline">
+                                        <label for="securitySendLevel2Attempts">发送次数</label>
+                                        <input id="securitySendLevel2Attempts" type="number" name="security_send_rate_limit_level2_attempts" min="1" value="{{ security_settings.security_send_rate_limit_level2_attempts }}">
+                                    </div>
+                                    <div class="field-inline">
+                                        <label for="securitySendLevel2Seconds">等待秒数</label>
+                                        <input id="securitySendLevel2Seconds" type="number" name="security_send_rate_limit_level2_seconds" min="0" value="{{ security_settings.security_send_rate_limit_level2_seconds }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="threshold-card">
+                                <h4>第 3 阶段</h4>
+                                <div class="threshold-fields">
+                                    <div class="field-inline">
+                                        <label for="securitySendLevel3Attempts">发送次数</label>
+                                        <input id="securitySendLevel3Attempts" type="number" name="security_send_rate_limit_level3_attempts" min="1" value="{{ security_settings.security_send_rate_limit_level3_attempts }}">
+                                    </div>
+                                    <div class="field-inline">
+                                        <label for="securitySendLevel3Seconds">等待秒数</label>
+                                        <input id="securitySendLevel3Seconds" type="number" name="security_send_rate_limit_level3_seconds" min="0" value="{{ security_settings.security_send_rate_limit_level3_seconds }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="security-actions">
+                        <button type="submit" class="btn">保存安全设置</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <aside class="security-card">
+            <div class="security-card-header">
+                <h3>运行说明</h3>
+                <p>这里显示当前模式的实际行为，方便你判断是否需要进一步部署 Redis。</p>
+            </div>
+            <div class="security-card-body">
+                <div class="status-list">
+                    <div class="status-item is-good">
+                        <strong>数据库持久化</strong>
+                        <span>适用于单机、多线程、多进程部署，不需要额外组件。对于登录和验证码这种低频写入场景，已经足够实用。</span>
+                    </div>
+                    <div class="status-item {% if rate_limit_status.preferred_backend == 'redis' and rate_limit_status.active_backend != 'redis' %}is-warning{% endif %}">
+                        <strong>Redis 可选加速</strong>
+                        <span>只有当你在上面选择 Redis 并正确配置连接地址后，才会优先使用 Redis；否则会自动回退数据库，不会让登录流程直接报错。</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>当前生效后端</strong>
+                        <span>{{ 'Redis' if rate_limit_status.active_backend == 'redis' else '数据库' }}。{{ rate_limit_status.message }}</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>建议策略</strong>
+                        <span>如果你现在没有部署 Redis，保持“数据库持久化”即可。后面如果流量明显上来，再切到 Redis 优先就行。</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const backendSelect = document.getElementById('securityRateLimitBackend');
+        const redisPanel = document.getElementById('redisSettingsPanel');
+        if (!backendSelect || !redisPanel) {
+            return;
+        }
+
+        function syncRedisPanel() {
+            if (backendSelect.value === 'redis') {
+                redisPanel.hidden = false;
+            } else {
+                redisPanel.hidden = true;
+            }
+        }
+
+        backendSelect.addEventListener('change', syncRedisPanel);
+        syncRedisPanel();
+    })();
+</script>
+{% endblock %}

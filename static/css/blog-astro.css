@@ -1965,6 +1965,13 @@ textarea:focus {
         flex-wrap: wrap;
     }
 
+    .theme-switcher .theme-options {
+        left: 0;
+        right: auto;
+        min-width: min(220px, calc(100vw - 32px));
+        max-width: calc(100vw - 32px);
+    }
+
     .user-name {
         display: none;
     }

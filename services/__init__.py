@@ -39,7 +39,21 @@ from .media import delete_media_file, get_all_images_with_status, get_local_imag
 from .mailer import mailer_is_configured, notification_allowed, record_notification, render_mail_layout, send_logged_mail, send_mail
 from .paths import InvalidPathError, get_docs_root, normalize_relative_path, resolve_docs_path
 from .permissions import check_permission, get_matched_permission_rule, has_explicit_permission
-from .rate_limit import check_rate_limit, format_wait_time, get_client_ip, record_login_failure, record_login_success
+from .rate_limit import (
+    build_verification_send_scope_key,
+    build_verification_scope_key,
+    check_rate_limit,
+    check_verification_send_rate_limit,
+    check_verification_rate_limit,
+    format_wait_time,
+    get_client_ip,
+    get_rate_limit_backend_status,
+    record_login_failure,
+    record_login_success,
+    record_verification_send_attempt,
+    record_verification_failure,
+    record_verification_success,
+)
 from .share_links import build_share_session_key, build_share_title, generate_share_token, get_share_link_by_token, is_share_expired, resolve_shared_path
 from .urls import force_https_url, get_safe_redirect_target
 
@@ -48,7 +62,11 @@ __all__ = [
     'check_global_access',
     'check_permission',
     'get_matched_permission_rule',
+    'build_verification_send_scope_key',
+    'build_verification_scope_key',
     'check_rate_limit',
+    'check_verification_send_rate_limit',
+    'check_verification_rate_limit',
     'can_delete_comment',
     'can_edit_comment',
     'clear_file_cache',
@@ -65,6 +83,7 @@ __all__ = [
     'get_all_images_with_status',
     'get_archive_groups',
     'get_client_ip',
+    'get_rate_limit_backend_status',
     'get_comment_stats',
     'get_comments_for_filename',
     'get_recent_comment_entries',
@@ -93,6 +112,9 @@ __all__ = [
     'read_markdown_file',
     'record_login_failure',
     'record_login_success',
+    'record_verification_send_attempt',
+    'record_verification_failure',
+    'record_verification_success',
     'resolve_docs_path',
     'record_notification',
     'render_mail_layout',

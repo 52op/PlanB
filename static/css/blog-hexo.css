@@ -1113,6 +1113,10 @@ img {
 /* Archive Page */
 .archive-year {
     margin-bottom: 30px;
+    background: var(--surface);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 26px 28px;
 }
 
 .archive-year-title {
@@ -1120,6 +1124,11 @@ img {
     font-weight: 700;
     margin-bottom: 20px;
     color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-light);
 }
 
 .archive-post-list {
@@ -1131,20 +1140,29 @@ img {
     border-bottom: 1px dashed var(--border-light);
     display: flex;
     gap: 20px;
+    align-items: flex-start;
 }
 
 .archive-post-date {
     color: var(--text-muted);
     font-size: 13px;
-    min-width: 100px;
+    min-width: 116px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-top: 2px;
 }
 
 .archive-post-title {
     flex: 1;
+    min-width: 0;
 }
 
 .archive-post-title a {
     color: var(--text);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.65;
 }
 
 .archive-post-title a:hover {
@@ -1197,6 +1215,20 @@ img {
 
     .sidebar {
         grid-template-columns: 1fr;
+    }
+
+    .archive-year {
+        padding: 20px 18px;
+        border-radius: 14px;
+    }
+
+    .archive-post-item {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .archive-post-date {
+        min-width: 0;
     }
 
     .article-header,
