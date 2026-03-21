@@ -95,9 +95,53 @@
                 <input type="number" name="blog_home_count" min="1" max="50" value="{{ settings.blog_home_count or 12 }}">
             </div>
             <div class="form-group">
-                <label>随机封面图 API</label>
+                <label>缺省封面来源</label>
+                <select name="random_cover_source_type" id="random_cover_source_type">
+                    <option value="url" {% if (settings.random_cover_source_type or 'url') == 'url' %}selected{% endif %}>远程直链 / 随机图接口</option>
+                    <option value="local_dir" {% if settings.random_cover_source_type == 'local_dir' %}selected{% endif %}>本地目录</option>
+                    <option value="pexels" {% if settings.random_cover_source_type == 'pexels' %}selected{% endif %}>Pexels 标签搜索</option>
+                </select>
+                <small style="color:#6c757d;">当文章没有封面图时，博客主题会按这里的规则自动补一个兜底封面。</small>
+            </div>
+            <div class="form-group" id="random_cover_url_wrap">
+                <label>远程封面地址 / 随机图接口</label>
                 <input type="text" name="random_cover_api" value="{{ settings.random_cover_api or '' }}" placeholder="例如：https://picsum.photos/1200/630 或你的随机图接口">
-                <small style="color:#6c757d;">当博客文章没有封面图时，Hexo / Astro / Vercel 等主题可自动使用这个地址作为兜底封面。留空则不启用。</small>
+                <small style="color:#6c757d;">保持兼容旧配置。这里直接填写一个图片直链，或返回图片内容的随机图地址即可。</small>
+            </div>
+            <div class="form-group" id="random_cover_local_dir_wrap">
+                <label>本地封面目录</label>
+                <input type="text" name="random_cover_local_dir" value="{{ settings.random_cover_local_dir or '' }}" placeholder="例如：static/fallback-covers 或 D:\\covers">
+                <small style="color:#6c757d;">支持项目根目录下的相对路径，也支持绝对路径。系统会从该目录及其子目录中稳定选择一张图片作为文章封面。</small>
+            </div>
+            <div id="random_cover_pexels_wrap">
+                <div class="form-group">
+                    <label>Pexels API Key</label>
+                    <input type="password" name="random_cover_pexels_api_key" value="{{ settings.random_cover_pexels_api_key or '' }}" placeholder="填写你的 Pexels API Key">
+                    <small style="color:#6c757d;">请求将由后端发起，密钥不会暴露到前台页面。</small>
+                </div>
+                <div class="form-group">
+                    <label>Pexels 默认查询词</label>
+                    <input type="text" name="random_cover_pexels_default_query" value="{{ settings.random_cover_pexels_default_query or 'nature' }}" placeholder="文章没有标签时，默认使用的关键词">
+                    <small style="color:#6c757d;">优先取文章第一个标签作为 `query`，没有标签时才使用这里的默认词。</small>
+                </div>
+                <div class="form-group">
+                    <label>Pexels 图片方向</label>
+                    <select name="random_cover_pexels_orientation">
+                        <option value="landscape" {% if (settings.random_cover_pexels_orientation or 'landscape') == 'landscape' %}selected{% endif %}>横图 landscape</option>
+                        <option value="portrait" {% if settings.random_cover_pexels_orientation == 'portrait' %}selected{% endif %}>竖图 portrait</option>
+                        <option value="square" {% if settings.random_cover_pexels_orientation == 'square' %}selected{% endif %}>方图 square</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Pexels 备选张数</label>
+                    <input type="number" name="random_cover_pexels_per_page" min="1" max="20" value="{{ settings.random_cover_pexels_per_page or 6 }}">
+                    <small style="color:#6c757d;">每个关键词会拉取一组候选图，再按文章 slug 稳定选中其中一张，避免每次刷新都变图。</small>
+                </div>
+                <div class="form-group">
+                    <label>Pexels 缓存时长（小时）</label>
+                    <input type="number" name="random_cover_pexels_cache_hours" min="1" max="168" value="{{ settings.random_cover_pexels_cache_hours or 24 }}">
+                    <small style="color:#6c757d;">为了避免频繁请求 Pexels，搜索结果会缓存到数据库。</small>
+                </div>
             </div>
             <div class="form-group">
                 <label><input type="checkbox" name="comments_enabled" {% if settings.comments_enabled != 'false' %}checked{% endif %}> 启用评论模块</label>
@@ -366,4 +410,34 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const sourceTypeSelect = document.getElementById('random_cover_source_type');
+    const urlWrap = document.getElementById('random_cover_url_wrap');
+    const localDirWrap = document.getElementById('random_cover_local_dir_wrap');
+    const pexelsWrap = document.getElementById('random_cover_pexels_wrap');
+
+    function refreshCoverSourceVisibility() {
+        if (!sourceTypeSelect) return;
+        const value = sourceTypeSelect.value;
+        if (urlWrap) {
+            urlWrap.style.display = value === 'url' ? 'block' : 'none';
+        }
+        if (localDirWrap) {
+            localDirWrap.style.display = value === 'local_dir' ? 'block' : 'none';
+        }
+        if (pexelsWrap) {
+            pexelsWrap.style.display = value === 'pexels' ? 'block' : 'none';
+        }
+    }
+
+    if (sourceTypeSelect) {
+        sourceTypeSelect.addEventListener('change', refreshCoverSourceVisibility);
+        refreshCoverSourceVisibility();
+    }
+});
+</script>
 {% endblock %}

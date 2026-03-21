@@ -15,6 +15,7 @@ from .comments import (
     validate_registration_input,
     verify_email_code,
 )
+from .covers import get_cover_fallback_settings, get_local_cover_base_dir, resolve_fallback_cover
 from .docs import (
     clear_file_cache,
     get_adjacent_posts,
@@ -72,6 +73,7 @@ __all__ = [
     'clear_file_cache',
     'comments_enabled',
     'comments_require_approval',
+    'get_cover_fallback_settings',
     'create_comment',
     'create_email_verification_code',
     'delete_comment',
@@ -92,6 +94,7 @@ __all__ = [
     'get_document_payload',
     'get_docs_root',
     'get_flat_files_list',
+    'get_local_cover_base_dir',
     'get_markdown_files',
     'get_local_images',
     'get_post_by_slug',
@@ -115,6 +118,7 @@ __all__ = [
     'record_verification_send_attempt',
     'record_verification_failure',
     'record_verification_success',
+    'resolve_fallback_cover',
     'resolve_docs_path',
     'record_notification',
     'render_mail_layout',

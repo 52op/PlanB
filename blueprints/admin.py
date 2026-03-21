@@ -29,6 +29,17 @@ SECURITY_SETTING_DEFAULTS = {
     'security_rate_limit_record_ttl_seconds': '7200',
 }
 
+COVER_SETTING_DEFAULTS = {
+    'random_cover_api': '',
+    'random_cover_source_type': 'url',
+    'random_cover_local_dir': '',
+    'random_cover_pexels_api_key': '',
+    'random_cover_pexels_default_query': 'nature',
+    'random_cover_pexels_orientation': 'landscape',
+    'random_cover_pexels_per_page': '6',
+    'random_cover_pexels_cache_hours': '24',
+}
+
 
 def _get_settings_map():
     return {s.key: s.value for s in SystemSetting.query.all()}
@@ -61,6 +72,8 @@ def _get_admin_stats_context():
 
 def _get_admin_base_context():
     settings = _get_settings_map()
+    for key, default_value in COVER_SETTING_DEFAULTS.items():
+        settings.setdefault(key, default_value)
     users = User.query.all()
     permissions = PermissionRule.query.all()
 
@@ -164,10 +177,14 @@ def update_settings():
         's3_endpoint', 's3_bucket', 's3_access_key', 's3_secret_key',
         's3_cdn_domain', 's3_path_prefix', 's3_path_style', 'site_name',
         'site_logo', 'site_tagline', 'home_title', 'home_description', 'footer_html', 'blog_home_count',
-        'random_cover_api',
+        'random_cover_api', 'random_cover_source_type', 'random_cover_local_dir',
+        'random_cover_pexels_api_key', 'random_cover_pexels_default_query',
+        'random_cover_pexels_orientation', 'random_cover_pexels_per_page',
+        'random_cover_pexels_cache_hours',
         'comments_enabled', 'comments_require_approval', 'smtp_host', 'smtp_port',
         'smtp_username', 'smtp_password', 'smtp_use_ssl', 'smtp_sender',
-        'default_theme_color', 'default_theme_mode', 'site_mode', 'blog_theme'
+        'default_theme_color', 'default_theme_mode', 'site_mode', 'blog_theme',
+        'allow_user_theme_override', 'blog_enabled', 'show_docs_entry_in_blog'
     ]
 
     for key in settings_to_update:

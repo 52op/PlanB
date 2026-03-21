@@ -142,6 +142,17 @@ class RateLimitAttempt(db.Model):
     )
 
 
+class CoverFallbackCache(db.Model):
+    __tablename__ = 'cover_fallback_cache'
+    id = db.Column(db.Integer, primary_key=True)
+    provider = db.Column(db.String(32), nullable=False, index=True)
+    cache_key = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    payload = db.Column(db.Text, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+
 class Comment(db.Model):
     __tablename__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
@@ -236,6 +247,20 @@ def init_db(app):
             SystemSetting.set('site_logo', '')
         if SystemSetting.get('random_cover_api') is None:
             SystemSetting.set('random_cover_api', '')
+        if SystemSetting.get('random_cover_source_type') is None:
+            SystemSetting.set('random_cover_source_type', 'url')
+        if SystemSetting.get('random_cover_local_dir') is None:
+            SystemSetting.set('random_cover_local_dir', '')
+        if SystemSetting.get('random_cover_pexels_api_key') is None:
+            SystemSetting.set('random_cover_pexels_api_key', '')
+        if SystemSetting.get('random_cover_pexels_default_query') is None:
+            SystemSetting.set('random_cover_pexels_default_query', 'nature')
+        if SystemSetting.get('random_cover_pexels_orientation') is None:
+            SystemSetting.set('random_cover_pexels_orientation', 'landscape')
+        if SystemSetting.get('random_cover_pexels_per_page') is None:
+            SystemSetting.set('random_cover_pexels_per_page', '6')
+        if SystemSetting.get('random_cover_pexels_cache_hours') is None:
+            SystemSetting.set('random_cover_pexels_cache_hours', '24')
         if SystemSetting.get('security_rate_limit_backend') is None:
             SystemSetting.set('security_rate_limit_backend', 'database')
         if SystemSetting.get('security_redis_url') is None:

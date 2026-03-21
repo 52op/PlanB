@@ -34,10 +34,13 @@ from services import (
     get_post_by_slug,
     get_posts,
     get_public_post_tree,
+    get_cover_fallback_settings,
+    get_local_cover_base_dir,
     resolve_shared_path,
     get_safe_redirect_target,
     has_valid_global_access_cookie,
     paginate_posts,
+    resolve_fallback_cover,
     search_posts,
     get_tag_posts,
     resolve_docs_path,
@@ -167,13 +170,20 @@ def _get_site_settings():
     blog_enabled = (SystemSetting.get('blog_enabled', 'true') or 'true').strip().lower() != 'false'
     show_docs_entry_in_blog = (SystemSetting.get('show_docs_entry_in_blog', 'true') or 'true').strip().lower() != 'false'
     site_logo = SystemSetting.get('site_logo', '') or ''
-    random_cover_api = SystemSetting.get('random_cover_api', '') or ''
+    cover_settings = get_cover_fallback_settings()
 
     return {
         'site_name': SystemSetting.get('site_name', 'Planning') or 'Planning',
         'site_logo': site_logo,
         'site_logo_url': _absolute_url(site_logo) if site_logo else '',
-        'random_cover_api': random_cover_api.strip(),
+        'random_cover_api': str(cover_settings.get('random_cover_api') or '').strip(),
+        'random_cover_source_type': cover_settings.get('random_cover_source_type') or 'url',
+        'random_cover_local_dir': str(cover_settings.get('random_cover_local_dir') or '').strip(),
+        'random_cover_pexels_api_key': str(cover_settings.get('random_cover_pexels_api_key') or '').strip(),
+        'random_cover_pexels_default_query': str(cover_settings.get('random_cover_pexels_default_query') or '').strip(),
+        'random_cover_pexels_orientation': str(cover_settings.get('random_cover_pexels_orientation') or '').strip(),
+        'random_cover_pexels_per_page': int(cover_settings.get('random_cover_pexels_per_page') or 6),
+        'random_cover_pexels_cache_hours': int(cover_settings.get('random_cover_pexels_cache_hours') or 24),
         'site_tagline': SystemSetting.get('site_tagline', '轻量 Markdown 内容站') or '轻量 Markdown 内容站',
         'home_title': SystemSetting.get('home_title', '') or '',
         'home_description': SystemSetting.get('home_description', '') or '',
@@ -190,26 +200,15 @@ def _get_site_settings():
     }
 
 
-def _normalize_blog_cover(cover_value, site_settings=None):
-    raw_cover = str(cover_value or '').strip()
-    fallback_cover = str((site_settings or {}).get('random_cover_api') or '').strip()
-    if not raw_cover:
-        return fallback_cover
-
-    normalized_cover = raw_cover.lower()
-    if normalized_cover == '__none__':
-        return ''
-    if normalized_cover in {'none', 'false'}:
-        return fallback_cover
-
-    return raw_cover
+def _normalize_blog_cover(item, site_settings=None):
+    return resolve_fallback_cover(item, site_settings)
 
 
 def _with_blog_cover(item, site_settings=None):
     if not item:
         return item
     next_item = dict(item)
-    next_item['cover'] = _normalize_blog_cover(next_item.get('cover'), site_settings)
+    next_item['cover'] = _normalize_blog_cover(next_item, site_settings)
     return next_item
 
 
@@ -1664,3 +1663,31 @@ def docs_search():
 @main_bp.route('/media/<path:filename>')
 def media_file(filename):
     return send_from_directory(os.path.join(current_app.root_path, 'static', 'uploads'), filename)
+
+
+@main_bp.route('/cover/local/<path:filename>')
+def local_cover_file(filename):
+    base_dir = get_local_cover_base_dir()
+    if not base_dir:
+        abort(404)
+
+    normalized_filename = os.path.normpath(str(filename or '').replace('\\', '/')).replace('\\', '/')
+    if normalized_filename in {'', '.', '..'} or normalized_filename.startswith('../'):
+        abort(404)
+
+    absolute_path = os.path.abspath(os.path.join(base_dir, normalized_filename))
+    try:
+        if os.path.commonpath([base_dir, absolute_path]) != base_dir:
+            abort(404)
+    except ValueError:
+        abort(404)
+
+    if not os.path.isfile(absolute_path):
+        abort(404)
+
+    extension = os.path.splitext(absolute_path)[1].lower()
+    if extension not in {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'}:
+        abort(404)
+
+    relative_path = os.path.relpath(absolute_path, base_dir).replace('\\', '/')
+    return send_from_directory(base_dir, relative_path)
