@@ -48,7 +48,7 @@ class PublicPostManager {
                     <div>
                         <div class="public-posts-kicker">公开文档管理</div>
                         <h3 id="publicPostsTitle">已公开文档</h3>
-                        <p>这里集中展示当前能在博客系统看到的文章，可按时间轴浏览并快速取消公开。</p>
+                        <p>按时间轴查看当前已公开到博客的文档。</p>
                     </div>
                     <div class="public-posts-header-actions">
                         <button type="button" class="btn btn-secondary" id="refreshPublicPostsBtn">刷新</button>
@@ -236,15 +236,15 @@ class PublicPostManager {
         this.summaryNode.innerHTML = `
             <div class="public-posts-stat">
                 <strong>${items.length}</strong>
-                <span>当前结果</span>
+                <span>公开中</span>
             </div>
             <div class="public-posts-stat">
                 <strong>${editableCount}</strong>
-                <span>可直接管理</span>
+                <span>可管理</span>
             </div>
             <div class="public-posts-stat">
-                <strong>${currentItem ? '当前文档已公开' : '未选中公开文档'}</strong>
-                <span>${currentItem ? currentItem.title : '可在列表中快速定位'}</span>
+                <strong>${currentItem ? '当前文档已公开' : '当前未命中'}</strong>
+                <span>${currentItem ? currentItem.title : '可用搜索快速定位'}</span>
             </div>
         `;
     }
