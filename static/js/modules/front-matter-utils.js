@@ -74,8 +74,7 @@ class FrontMatterUtils {
         if (!text) return 'post';
 
         const normalized = text.normalize('NFKD');
-        const asciiText = normalized.replace(/[\u0300-\u036f]/g, '').replace(/[^\x00-\x7F]/g, '');
-        const slugSource = asciiText || text;
+        const slugSource = normalized.replace(/[\u0300-\u036f]/g, '');
         const slug = slugSource
             .replace(/[^\w\u4e00-\u9fff-]+/gu, '-')
             .replace(/-{2,}/g, '-')
@@ -128,13 +127,13 @@ class FrontMatterUtils {
         const hints = this.extractFrontMatterHints(bodyContent);
         const fileBaseName = (String(currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
         const existingSlug = this.unwrapFrontMatterValue(metadata.slug);
-        const slugFallback = this.slugifyValue(existingSlug || hints.title || fileBaseName);
+        const slugFallback = existingSlug || hints.title || fileBaseName;
 
         if (this.metaTitleInput) {
             this.metaTitleInput.value = this.unwrapFrontMatterValue(metadata.title) || hints.title || '';
         }
         if (this.metaSlugInput) {
-            this.metaSlugInput.value = existingSlug ? this.slugifyValue(existingSlug) : slugFallback;
+            this.metaSlugInput.value = slugFallback;
         }
         if (this.metaDateInput) {
             this.metaDateInput.value = this.unwrapFrontMatterValue(metadata.date) || '';

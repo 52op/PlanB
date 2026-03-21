@@ -14,6 +14,7 @@ import yaml
 from bleach.css_sanitizer import CSSSanitizer
 from flask import abort
 from flask_login import current_user
+from pypinyin import Style, lazy_pinyin
 
 from models import DirectoryConfig, DocumentViewStat
 from .paths import InvalidPathError, get_docs_root, normalize_relative_path, resolve_docs_path
@@ -215,8 +216,15 @@ def _format_category_name(category_path):
 def _slugify(value):
     text = str(value or '').strip().lower()
     normalized = unicodedata.normalize('NFKD', text)
-    ascii_text = normalized.encode('ascii', 'ignore').decode('ascii')
-    slug_source = ascii_text or text
+    slug_source = ''.join(char for char in normalized if not unicodedata.combining(char))
+    slug_source = '-'.join(
+        token for token in lazy_pinyin(
+            slug_source,
+            style=Style.NORMAL,
+            errors=lambda item: [item],
+            neutral_tone_with_five=True,
+        ) if str(token or '').strip()
+    )
     slug = re.sub(r'[^\w\u4e00-\u9fff-]+', '-', slug_source, flags=re.UNICODE)
     slug = re.sub(r'-{2,}', '-', slug).strip('-_')
     return slug or 'post'
@@ -277,7 +285,7 @@ def _suggest_unique_post_slug(slug, exclude_filename=''):
     if not _find_post_slug_conflicts(base_slug, exclude_filename=exclude_filename):
         return base_slug
 
-    suffix = 2
+    suffix = 1
     while True:
         candidate = f'{base_slug}-{suffix}'
         if not _find_post_slug_conflicts(candidate, exclude_filename=exclude_filename):

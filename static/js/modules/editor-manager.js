@@ -8,6 +8,7 @@ class EditorManager {
         this.frontMatterDirty = false;
         this.metaPanelDirty = false;
         this.metaPanelSnapshot = '';
+        this.slugManuallyEdited = false;
         this.canResumeHiddenSession = false;
         this.editModeState = { sidebarHidden: false, tocHidden: false };
         this.slugValidationTimer = null;
@@ -62,6 +63,7 @@ class EditorManager {
         this.loadedFrontMatterMetadata = parsed.metadata || {};
         this.frontMatterDirty = false;
         this.metaPanelDirty = false;
+        this.slugManuallyEdited = !!String(parsed.metadata?.slug || '').trim();
         return parsed;
     }
 
@@ -92,6 +94,7 @@ class EditorManager {
     async prepareMetaPanelState() {
         this.captureMetaPanelSnapshot();
         const hasExplicitSlug = !!String(this.loadedFrontMatterMetadata?.slug || '').trim();
+        this.slugManuallyEdited = hasExplicitSlug;
         await this.validateSlugAvailability({
             silent: true,
             autoSuggest: !hasExplicitSlug,
@@ -157,6 +160,9 @@ class EditorManager {
 
     getSlugValidationSource() {
         const fileBaseName = (String(this.currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
+        if (this.slugManuallyEdited) {
+            return this.metaSlugInput?.value.trim() || '';
+        }
         return this.metaSlugInput?.value.trim()
             || this.metaTitleInput?.value.trim()
             || fileBaseName;
@@ -189,10 +195,11 @@ class EditorManager {
     }
 
     applySuggestedSlug(suggestedSlug, options = {}) {
-        const normalized = window.frontMatterUtils?.slugifyValue?.(suggestedSlug || '') || String(suggestedSlug || '').trim();
+        const normalized = String(suggestedSlug || '').trim();
         if (!normalized || !this.metaSlugInput) return;
 
         this.metaSlugInput.value = normalized;
+        this.slugManuallyEdited = true;
         this.updateMetaPanelDirtyState();
         this.setSlugHint('已自动填入建议值，可继续保存或应用头部。', 'is-warning');
 
@@ -226,29 +233,36 @@ class EditorManager {
         if (!this.metaSlugInput || !window.frontMatterUtils) return true;
 
         const template = this.metaTemplateSelect?.value || 'post';
-        const normalizedSlug = window.frontMatterUtils.slugifyValue(this.getSlugValidationSource());
-        this.metaSlugInput.value = normalizedSlug;
+        const slugSource = this.getSlugValidationSource();
+        const isAutoMode = !this.slugManuallyEdited;
 
         if (template !== 'post') {
             this.setSlugHint('当前模板是文档，slug 暂不参与博客路由唯一性校验。切换为文章时会再次检查。', 'is-warning');
             return true;
         }
 
+        if (!slugSource) {
+            this.setSlugHint('当前未填写 slug，保存时会按标题或文件名自动生成。', 'is-warning');
+            return true;
+        }
+
         const requestId = ++this.slugValidationRequestId;
 
         try {
-            const result = await this.requestSlugCheck(normalizedSlug);
+            const result = await this.requestSlugCheck(slugSource);
             if (requestId !== this.slugValidationRequestId) {
                 return false;
             }
 
             if (result.available) {
-                this.metaSlugInput.value = result.slug || normalizedSlug;
+                if (isAutoMode) {
+                    this.metaSlugInput.value = result.slug || String(slugSource || '').trim();
+                }
                 this.setSlugHint('当前 slug 可用。', 'is-success');
                 return true;
             }
 
-            if (autoSuggest && result.suggested_slug && result.suggested_slug !== (result.slug || normalizedSlug)) {
+            if (isAutoMode && autoSuggest && result.suggested_slug && result.suggested_slug !== (result.slug || String(slugSource || '').trim())) {
                 this.metaSlugInput.value = result.suggested_slug;
                 this.setSlugHint(`已自动调整为可用 slug：${result.suggested_slug}`, 'is-warning');
                 return true;
@@ -305,8 +319,19 @@ class EditorManager {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
 
-        if (target === this.metaSlugInput || target === this.metaTemplateSelect || target === this.metaTitleInput) {
-            this.scheduleSlugValidation({ silent: true });
+        if (target === this.metaSlugInput) {
+            this.slugManuallyEdited = true;
+            this.scheduleSlugValidation({ silent: true, autoSuggest: false });
+            return;
+        }
+
+        if (target === this.metaTitleInput) {
+            this.scheduleSlugValidation({ silent: true, autoSuggest: !this.slugManuallyEdited });
+            return;
+        }
+
+        if (target === this.metaTemplateSelect) {
+            this.scheduleSlugValidation({ silent: true, autoSuggest: !this.slugManuallyEdited });
         }
     }
 
