@@ -29,6 +29,10 @@
         <a href="{{ url_for('main.tags_page') }}">按标签浏览</a>
     </div>
 
+    {% if page_mode == 'tag' and tag_details %}
+    {% include '_tag_context_banner.html' %}
+    {% endif %}
+
 {% if posts %}
     <div class="post-list posts-index-list">
         {% for post in posts %}

@@ -136,6 +136,25 @@ def _absolute_url(path_or_url):
     return f"{request.url_root.rstrip('/')}/{value.lstrip('/')}"
 
 
+def _match_tag_details(tag_name, all_tags):
+    target = str(tag_name or '').strip().lower()
+    for tag in all_tags or []:
+        if str(tag.get('name') or '').strip().lower() == target:
+            return tag
+    if not target:
+        return None
+    return {
+        'name': str(tag_name or '').strip(),
+        'count': 0,
+        'rank': None,
+        'heat_level': 1,
+        'heat_label': '暂未归档',
+        'font_scale': 1,
+        'latest_post': None,
+        'description': '当前标签下还没有公开文章。',
+    }
+
+
 def _get_site_settings():
     blog_home_count = SystemSetting.get('blog_home_count', '12') or '12'
     try:
@@ -465,6 +484,28 @@ def _build_share_directory_entries(share_link, current_dir_path):
 
 def _render_archive_listing(file_tree, include_private=False):
     site_settings = _get_site_settings()
+    archive_groups = get_archive_groups(include_private=include_private)
+    archive_year_map = {}
+    for group in archive_groups:
+        year_label = group.get('year') or '未设置日期'
+        year_entry = archive_year_map.setdefault(year_label, {
+            'year': year_label,
+            'count': 0,
+            'months': [],
+            'latest_post': group.get('latest_post'),
+        })
+        year_entry['count'] += int(group.get('count') or 0)
+        year_entry['months'].append({
+            'label': group.get('label'),
+            'month_label': group.get('month_label') or group.get('label'),
+            'count': group.get('count') or 0,
+            'anchor': group.get('anchor') or f"archive-{group.get('label', '').replace(' ', '-')}",
+            'group': group,
+        })
+
+    archive_years = sorted(archive_year_map.values(), key=lambda item: item.get('year') or '', reverse=True)
+    archive_total_posts = sum(int(group.get('count') or 0) for group in archive_groups)
+    featured_archive_post = archive_groups[0].get('latest_post') if archive_groups else None
     return render_template(
         _get_template_name('archive'),
         file_tree=file_tree,
@@ -475,13 +516,18 @@ def _render_archive_listing(file_tree, include_private=False):
         config=current_app.config.get('APP_CONFIG', {}),
         can_edit=False,
         can_upload=False,
-        archive_groups=get_archive_groups(include_private=include_private),
+        archive_groups=archive_groups,
+        archive_years=archive_years,
+        archive_total_posts=archive_total_posts,
+        featured_archive_post=featured_archive_post,
         tags=get_all_tags(include_private=include_private)[:18],
         site_settings=site_settings,
         page_meta={'title': '文章归档'},
         page_title='文章归档',
         page_description='按时间线回看所有公开发布的文章。',
         page_mode='archive',
+        canonical_url=_absolute_url(url_for('main.archive')),
+        page_robots='index,follow',
         absolute_url=_absolute_url,
     )
 
@@ -539,6 +585,8 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
         page_title=page_meta.get('title') or '文章详情',
         page_description=page_meta.get('summary') or page_meta.get('category_name') or '',
         page_mode='post',
+        canonical_url=_absolute_url(page_meta.get('url') or url_for('main.post_detail', slug=page_meta.get('slug'))),
+        page_robots='index,follow',
         absolute_url=_absolute_url,
     )
 
@@ -564,6 +612,8 @@ def _render_homepage(file_tree, posts):
         },
         page_title=site_settings['home_title'] or site_settings['site_name'],
         page_description=site_settings['home_description'] or site_settings['site_tagline'],
+        canonical_url=_absolute_url(url_for('main.blog_home')),
+        page_robots='index,follow',
         absolute_url=_absolute_url,
     )
 
@@ -638,7 +688,7 @@ def _is_comment_moderator():
     return bool(getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', '') == 'admin')
 
 
-def _render_blog_listing(title, posts, file_tree, category_path='', empty_message='', include_private=False):
+def _render_blog_listing(title, posts, file_tree, category_path='', empty_message='', include_private=False, page_mode='posts', page_description='', tag_details=None):
     site_settings = _get_site_settings()
     normalized_category = (category_path or '').replace('\\', '/').strip('/')
     category_name = os.path.basename(normalized_category) if normalized_category else ''
@@ -647,11 +697,13 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
     if not posts and empty_message:
         posts = []
 
+    all_posts = get_posts(include_private=include_private)
     post_url_map = {}
-    for post in get_posts(include_private=include_private):
+    for post in all_posts:
         filename = (post.get('filename') or '').strip()
         if filename:
             post_url_map[filename] = post.get('url') or url_for('main.post_detail', slug=post.get('slug'))
+    all_tags = get_all_tags(include_private=include_private)
 
     page = request.args.get('page', 1, type=int)
     pagination = paginate_posts(posts, page=page, per_page=12)
@@ -666,6 +718,23 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
         page_num: url_for(endpoint, **pagination_base_args, **extra_args, page=page_num)
         for page_num in range(1, pagination['total_pages'] + 1)
     }
+
+    canonical_args = dict(pagination_base_args)
+    canonical_args.update(extra_args)
+    if pagination['page'] > 1:
+        canonical_args['page'] = pagination['page']
+    canonical_url = _absolute_url(url_for(endpoint, **canonical_args))
+
+    derived_page_description = page_description
+    if not derived_page_description:
+        if page_mode == 'tag' and tag_details:
+            derived_page_description = f'围绕标签“{tag_details["name"]}”浏览全部公开文章，并查看该主题的最新更新。'
+        elif page_mode == 'category' and category_name:
+            derived_page_description = f'分类“{category_name}”下的公开文章列表。'
+        elif page_mode == 'search':
+            derived_page_description = '搜索公开发布的文章内容。'
+        else:
+            derived_page_description = empty_message if not posts else '公开发布的文章列表。'
 
     return render_template(
         _get_template_name('blog_list'),
@@ -683,12 +752,15 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
         page_title=title,
         site_settings=site_settings,
         empty_message=empty_message,
-        tags=get_all_tags(include_private=include_private)[:18],
+        tags=all_tags[:18],
         archive_groups=get_archive_groups(include_private=include_private)[:8],
         page_meta={'title': title},
-        page_description=empty_message if not posts else '公开发布的文章列表。',
-        page_mode='posts',
-        search_query='',
+        page_description=derived_page_description,
+        page_mode=page_mode,
+        page_robots='noindex,follow' if page_mode == 'search' else 'index,follow',
+        search_query=request.args.get('q', '') if page_mode == 'search' else '',
+        tag_details=tag_details,
+        canonical_url=canonical_url,
         absolute_url=_absolute_url,
         pagination=pagination,
         post_url_map=post_url_map,
@@ -764,6 +836,9 @@ def _render_category_overview(file_tree, include_private=False):
         page_title='分类',
         page_description='按主题浏览所有公开文章分类。',
         page_meta={'title': '分类'},
+        page_mode='category',
+        canonical_url=_absolute_url(url_for('main.category', dirname='')),
+        page_robots='index,follow',
         absolute_url=_absolute_url,
     )
 
@@ -895,6 +970,8 @@ def posts():
         file_tree,
         empty_message='当前还没有已发布的文章。',
         include_private=include_private,
+        page_mode='posts',
+        page_description='按时间顺序浏览所有公开发布的文章。',
     )
 
 
@@ -904,12 +981,17 @@ def tag(tag_name):
     _abort_if_blog_disabled(site_settings)
     include_private = bool(getattr(current_user, 'is_authenticated', False))
     file_tree = get_public_post_tree(include_private=include_private)
+    all_tags = get_all_tags(include_private=include_private)
+    tag_details = _match_tag_details(tag_name, all_tags)
     return _render_blog_listing(
-        f'标签：{tag_name}',
+        f'标签：{tag_details["name"] if tag_details else tag_name}',
         get_tag_posts(tag_name, include_private=include_private),
         file_tree,
         empty_message='当前标签下还没有已发布的文章。',
         include_private=include_private,
+        page_mode='tag',
+        page_description=f'围绕标签“{tag_details["name"] if tag_details else tag_name}”浏览全部公开文章。',
+        tag_details=tag_details,
     )
 
 
@@ -929,16 +1011,24 @@ def tags_page():
     include_private = bool(getattr(current_user, 'is_authenticated', False))
     file_tree = get_public_post_tree(include_private=include_private)
     all_tags = get_all_tags(include_private=include_private)
+    featured_tags = all_tags[:6]
+    tag_total_posts = sum(int(tag.get('count') or 0) for tag in all_tags)
+    hottest_tag = featured_tags[0] if featured_tags else None
     
     return render_template(
         _get_template_name('tags'),
         file_tree=file_tree,
         tags=all_tags,
+        featured_tags=featured_tags,
+        tag_total_posts=tag_total_posts,
+        hottest_tag=hottest_tag,
         site_settings=site_settings,
         page_title='标签',
         page_description='浏览所有标签',
         page_meta={'title': '标签'},
         archive_groups=get_archive_groups(include_private=include_private)[:8],
+        canonical_url=_absolute_url(url_for('main.tags_page')),
+        page_robots='index,follow',
         absolute_url=_absolute_url,
     )
 
@@ -968,6 +1058,8 @@ def category(dirname):
         category_path=dirname,
         empty_message='当前分类下还没有已发布的文章。',
         include_private=include_private,
+        page_mode='category',
+        page_description=f'浏览分类“{os.path.basename(dirname)}”下的公开文章。',
     )
 
 
@@ -1022,7 +1114,14 @@ def search():
         archive_groups=get_archive_groups(include_private=include_private)[:8],
         page_meta={'title': '搜索文章'},
         page_description='搜索公开发布的文章内容。',
-        page_mode='posts',
+        page_mode='search',
+        page_robots='noindex,follow',
+        canonical_url=_absolute_url(
+            url_for('main.search', q=query, page=pagination['page'])
+            if query and pagination['page'] > 1 else
+            url_for('main.search', q=query) if query else
+            url_for('main.search')
+        ),
         search_query=query,
         absolute_url=_absolute_url,
         pagination=pagination,
@@ -1064,24 +1163,57 @@ def rss_feed():
 @main_bp.route('/sitemap.xml')
 def sitemap():
     site_settings = _get_site_settings()
-    urls = {
-        _absolute_url(url_for('main.index')),
-        _absolute_url(url_for('main.docs_home')),
-    }
+    entries = {}
+
+    def add_entry(url_value, lastmod=''):
+        location = str(url_value or '').strip()
+        if not location:
+            return
+        normalized_lastmod = str(lastmod or '').strip()
+        existing = entries.get(location)
+        if existing and existing.get('lastmod') and existing['lastmod'] >= normalized_lastmod:
+            return
+        entries[location] = {'loc': location, 'lastmod': normalized_lastmod}
+
+    add_entry(_absolute_url(url_for('main.index')))
+    add_entry(_absolute_url(url_for('main.docs_home')))
+
     if _blog_enabled(site_settings):
-        urls.update({
-            _absolute_url(url_for('main.blog_home')),
-            _absolute_url(url_for('main.posts')),
-            _absolute_url(url_for('main.archive')),
-            _absolute_url(url_for('main.search')),
-            _absolute_url(url_for('main.rss_feed')),
-        })
-        for post in get_posts(include_private=False):
-            urls.add(_absolute_url(post.get('url')))
+        posts = get_posts(include_private=False)
+        latest_blog_update = ''
+        if posts:
+            latest_blog_update = posts[0].get('updated') or posts[0].get('date') or ''
+
+        add_entry(_absolute_url(url_for('main.blog_home')), latest_blog_update)
+        add_entry(_absolute_url(url_for('main.posts')), latest_blog_update)
+        add_entry(_absolute_url(url_for('main.archive')), latest_blog_update)
+        add_entry(_absolute_url(url_for('main.tags_page')), latest_blog_update)
+        add_entry(_absolute_url(url_for('main.category', dirname='')), latest_blog_update)
+
+        category_lastmod = {}
+        for post in posts:
+            post_lastmod = post.get('updated') or post.get('date') or ''
+            add_entry(_absolute_url(post.get('url')), post_lastmod)
+
+            category_path = str(post.get('category_path') or post.get('category') or '').strip('/').replace('\\', '/')
+            if category_path and (category_path not in category_lastmod or category_lastmod[category_path] < post_lastmod):
+                category_lastmod[category_path] = post_lastmod
+
+        for tag in get_all_tags(include_private=False):
+            latest_post = tag.get('latest_post') or {}
+            tag_lastmod = latest_post.get('updated') or latest_post.get('date') or ''
+            add_entry(_absolute_url(url_for('main.tag', tag_name=tag.get('name'))), tag_lastmod)
+
+        for category_path, lastmod in category_lastmod.items():
+            add_entry(_absolute_url(url_for('main.category', dirname=category_path)), lastmod)
 
     xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for item in sorted(urls):
-        xml.append(f'<url><loc>{escape(item)}</loc></url>')
+    for item in sorted(entries.values(), key=lambda value: value['loc']):
+        xml.append('<url>')
+        xml.append(f'<loc>{escape(item["loc"])}</loc>')
+        if item.get('lastmod'):
+            xml.append(f'<lastmod>{escape(item["lastmod"])}</lastmod>')
+        xml.append('</url>')
     xml.append('</urlset>')
     return Response(''.join(xml), mimetype='application/xml')
 

@@ -22,7 +22,7 @@
 {% block content %}
 {% if archive_groups %}
     {% for group in archive_groups %}
-    <div class="archive-year" id="archive-{{ group.label|replace(' ', '-') }}">
+    <div class="archive-year" id="{{ group.anchor }}">
         <h2 class="archive-year-title">{{ group.label }}</h2>
         <ul class="archive-post-list">
             {% for post in group.posts %}

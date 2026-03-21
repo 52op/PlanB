@@ -16,28 +16,64 @@
 
 {% block content %}
 {% if archive_groups %}
-    {% for group in archive_groups %}
-    <div class="archive-year" id="archive-{{ group.label|replace(' ', '-') }}">
-        <h2 class="archive-year-title">{{ group.label }}</h2>
-        <ul class="archive-post-list">
-            {% for post in group.posts %}
-            <li class="archive-post-item">
-                <span class="archive-post-date"><i data-lucide="calendar"></i>{{ post.date_display }}</span>
-                <div class="archive-post-title">
-                    <a href="{{ post.url }}">{{ post.title }}</a>
-                    {% if post.tags %}
-                    <div class="archive-post-tags">
-                        {% for tag in post.tags[:3] %}
-                        <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
+    <div class="archive-timeline-nav">
+        {% for year in archive_years %}
+        <a href="#archive-year-{{ year.year|replace(' ', '-') }}" class="archive-year-pill">
+            <strong>{{ year.year }}</strong>
+            <span>{{ year.count }} 篇</span>
+        </a>
+        {% endfor %}
     </div>
-    {% endfor %}
+
+    <div class="archive-timeline">
+        {% for year in archive_years %}
+        <section class="archive-timeline-year-block" id="archive-year-{{ year.year|replace(' ', '-') }}">
+            <div class="archive-timeline-year-head">
+                <div>
+                    <p class="archive-timeline-kicker">Archive Year</p>
+                    <h2>{{ year.year }}</h2>
+                </div>
+                <span>{{ year.count }} 篇文章</span>
+            </div>
+
+            {% for month in year.months %}
+            {% set group = month.group %}
+            <article class="archive-year archive-timeline-card" id="{{ group.anchor }}">
+                <div class="archive-timeline-marker">
+                    <strong>{{ group.month_label }}</strong>
+                    <span>{{ group.count }} 篇</span>
+                </div>
+                <div class="archive-timeline-content">
+                    <div class="archive-timeline-summary">
+                        {% if group.latest_post %}
+                        <span>最近更新：<a href="{{ group.latest_post.url }}">{{ group.latest_post.title }}</a></span>
+                        {% else %}
+                        <span>这个时间段还没有公开文章</span>
+                        {% endif %}
+                    </div>
+                    <ul class="archive-post-list">
+                        {% for post in group.posts %}
+                        <li class="archive-post-item">
+                            <span class="archive-post-date"><i data-lucide="calendar"></i>{{ post.date_display }}</span>
+                            <div class="archive-post-title">
+                                <a href="{{ post.url }}">{{ post.title }}</a>
+                                {% if post.tags %}
+                                <div class="archive-post-tags">
+                                    {% for tag in post.tags[:3] %}
+                                    <a href="{{ url_for('main.tag', tag_name=tag) }}" class="tag">{{ tag }}</a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </article>
+            {% endfor %}
+        </section>
+        {% endfor %}
+    </div>
 {% else %}
     <div class="empty-state">
         <div class="empty-state-icon">📚</div>

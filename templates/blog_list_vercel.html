@@ -44,6 +44,10 @@
         </div>
     </div>
 
+    {% if page_mode == 'tag' and tag_details %}
+    {% include '_tag_context_banner.html' %}
+    {% endif %}
+
     {% if posts %}
     <div class="posts-stack">
         {% for post in posts %}

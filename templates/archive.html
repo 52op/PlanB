@@ -8,7 +8,7 @@
 {% if archive_groups %}
     <div class="archive-list">
         {% for group in archive_groups %}
-        <div class="archive-year" id="archive-{{ group.label|replace(' ', '-') }}">
+        <div class="archive-year" id="{{ group.anchor }}">
             <h3 class="archive-year-title">{{ group.label }}</h3>
             <div class="archive-items">
                 {% for post in group.posts %}

@@ -1,0 +1,44 @@
+{% if tags %}
+<section class="tag-overview-panel">
+    <div class="tag-overview-head">
+        <div>
+            <p class="tag-overview-kicker">热门标签</p>
+            <h2>标签热度总览</h2>
+            <p>按公开文章数量排序，热度越高，标签会越醒目，也能更快看到它最近关联的内容。</p>
+        </div>
+        <div class="tag-overview-stats">
+            <span><strong>{{ tags|length }}</strong> 个标签</span>
+            <span><strong>{{ tag_total_posts or (tags|sum(attribute='count')) }}</strong> 次关联</span>
+            {% if hottest_tag %}
+            <span><strong>#{{ hottest_tag.name }}</strong> 当前最热门</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if featured_tags %}
+    <div class="tag-overview-grid">
+        {% for tag in featured_tags %}
+        <article class="tag-overview-card tag-overview-level-{{ tag.heat_level }}">
+            <div class="tag-overview-card-top">
+                <a href="{{ url_for('main.tag', tag_name=tag.name) }}" class="tag-overview-name">#{{ tag.name }}</a>
+                <span class="tag-overview-count">{{ tag.count }}</span>
+            </div>
+            <p class="tag-overview-meta">{{ tag.heat_label }}</p>
+            {% if tag.latest_post %}
+            <a href="{{ tag.latest_post.url }}" class="tag-overview-latest">最新文章：{{ tag.latest_post.title }}</a>
+            {% endif %}
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+<div class="tag-cloud-page">
+    {% for tag in tags %}
+    <a href="{{ url_for('main.tag', tag_name=tag.name) }}" class="tag-cloud-pill tag-heat-{{ tag.heat_level }}" style="--tag-scale: {{ tag.font_scale }};">
+        <span>{{ tag.name }}</span>
+        <span class="tag-cloud-count">{{ tag.count }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}

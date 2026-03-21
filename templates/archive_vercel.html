@@ -18,26 +18,55 @@
 
 {% block content %}
 {% if archive_groups %}
-<section class="archive-listing">
-    {% for group in archive_groups %}
-    <article class="archive-section" id="archive-{{ group.label|replace(' ', '-') }}">
-        <div class="archive-head">
-            <h2>{{ group.label }}</h2>
-            <span class="archive-count">{{ group.count }} 篇</span>
-        </div>
-        <ul class="archive-items">
-            {% for post in group.posts %}
-            <li class="archive-item">
-                <div class="archive-date">{{ post.date_display }}</div>
+<section class="archive-timeline-shell">
+    <div class="archive-timeline-nav">
+        {% for year in archive_years %}
+        <a href="#archive-year-{{ year.year|replace(' ', '-') }}" class="archive-year-pill">
+            <strong>{{ year.year }}</strong>
+            <span>{{ year.count }} 篇</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="archive-listing archive-timeline-listing">
+        {% for year in archive_years %}
+        <section class="archive-year-group" id="archive-year-{{ year.year|replace(' ', '-') }}">
+            <div class="archive-year-group-head">
                 <div>
-                    <h3><a href="{{ post.url }}">{{ post.title }}</a></h3>
-                    <p>{{ post.summary or '点击查看完整内容。' }}</p>
+                    <p class="hero-eyebrow">Archive Year</p>
+                    <h2>{{ year.year }}</h2>
                 </div>
-            </li>
+                <span class="archive-count">{{ year.count }} 篇</span>
+            </div>
+
+            {% for month in year.months %}
+            {% set group = month.group %}
+            <article class="archive-section archive-timeline-card" id="{{ group.anchor }}">
+                <div class="archive-head">
+                    <div>
+                        <h2>{{ group.month_label }}</h2>
+                        {% if group.latest_post %}
+                        <p class="archive-timeline-note">最近更新：<a href="{{ group.latest_post.url }}">{{ group.latest_post.title }}</a></p>
+                        {% endif %}
+                    </div>
+                    <span class="archive-count">{{ group.count }} 篇</span>
+                </div>
+                <ul class="archive-items">
+                    {% for post in group.posts %}
+                    <li class="archive-item">
+                        <div class="archive-date">{{ post.date_display }}</div>
+                        <div>
+                            <h3><a href="{{ post.url }}">{{ post.title }}</a></h3>
+                            <p>{{ post.summary or '点击查看完整内容。' }}</p>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </article>
             {% endfor %}
-        </ul>
-    </article>
-    {% endfor %}
+        </section>
+        {% endfor %}
+    </div>
 </section>
 {% else %}
 <div class="empty-state">

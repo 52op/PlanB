@@ -84,7 +84,7 @@
     <div class="widget-title"><i data-lucide="archive"></i><h3>近期归档</h3></div>
     <ul class="archive-mini-list">
         {% for group in archive_groups[:6] %}
-        <li><a href="{{ url_for('main.archive') }}#archive-{{ group.label|replace(' ', '-') }}">{{ group.label }} ({{ group.count }})</a></li>
+        <li><a href="{{ url_for('main.archive') }}#{{ group.anchor }}">{{ group.label }} ({{ group.count }})</a></li>
         {% endfor %}
     </ul>
 </section>

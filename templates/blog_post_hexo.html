@@ -88,7 +88,7 @@
     <ul class="archive-list">
         {% for group in archive_groups[:6] %}
         <li class="archive-item">
-            <a href="{{ url_for('main.archive') }}#archive-{{ group.label|replace(' ', '-') }}" class="archive-link">{{ group.label }}</a>
+            <a href="{{ url_for('main.archive') }}#{{ group.anchor }}" class="archive-link">{{ group.label }}</a>
             <span class="archive-count">{{ group.count }}</span>
         </li>
         {% endfor %}

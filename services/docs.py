@@ -614,19 +614,70 @@ def get_tag_posts(tag_name, include_private=False):
 
 def get_all_tags(include_private=False):
     tag_map = {}
-    for post in get_posts(include_private=include_private):
-        for tag in post.get('tags', []):
-            normalized = str(tag).strip()
+    posts = get_posts(include_private=include_private)
+
+    for post in posts:
+        latest_post = {
+            'title': post.get('title') or '未命名文章',
+            'url': post.get('url') or '',
+            'date': post.get('date') or '',
+            'date_display': post.get('date_display') or '',
+            'updated': post.get('updated') or '',
+            'updated_display': post.get('updated_display') or '',
+            'summary': post.get('summary') or '',
+            'cover': post.get('cover') or '',
+        }
+
+        for raw_tag in post.get('tags', []):
+            normalized = str(raw_tag).strip()
             if not normalized:
                 continue
-            if normalized not in tag_map:
-                tag_map[normalized] = 0
-            tag_map[normalized] += 1
 
-    return [
-        {'name': tag, 'count': count}
-        for tag, count in sorted(tag_map.items(), key=lambda item: (-item[1], item[0].lower()))
-    ]
+            key = normalized.lower()
+            entry = tag_map.setdefault(key, {
+                'name': normalized,
+                'count': 0,
+                'latest_post': None,
+            })
+            entry['count'] += 1
+            if entry['latest_post'] is None:
+                entry['latest_post'] = dict(latest_post)
+
+    tags = sorted(tag_map.values(), key=lambda item: (-item['count'], item['name'].lower()))
+    if not tags:
+        return []
+
+    counts = [int(item.get('count') or 0) for item in tags]
+    max_count = max(counts)
+    min_count = min(counts)
+
+    for index, entry in enumerate(tags, start=1):
+        count = int(entry.get('count') or 0)
+        if max_count == min_count:
+            weight_ratio = 1.0
+        else:
+            weight_ratio = (count - min_count) / float(max_count - min_count)
+
+        heat_level = min(5, max(1, int(round(weight_ratio * 4)) + 1))
+        if heat_level >= 5:
+            heat_label = '高热标签'
+        elif heat_level == 4:
+            heat_label = '热门标签'
+        elif heat_level == 3:
+            heat_label = '持续活跃'
+        elif heat_level == 2:
+            heat_label = '稳定更新'
+        else:
+            heat_label = '小众主题'
+
+        entry['rank'] = index
+        entry['weight_ratio'] = round(weight_ratio, 3)
+        entry['heat_level'] = heat_level
+        entry['font_scale'] = round(0.96 + weight_ratio * 0.42, 3)
+        entry['heat_label'] = heat_label
+        entry['description'] = f'已关联 {count} 篇公开文章'
+
+    return tags
 
 
 def get_archive_groups(include_private=False):
@@ -637,10 +688,29 @@ def get_archive_groups(include_private=False):
             key = '未设置日期'
         groups.setdefault(key, []).append(post)
 
-    return [
-        {'label': label, 'posts': _sort_posts(posts), 'count': len(posts)}
-        for label, posts in sorted(groups.items(), key=lambda item: item[0], reverse=True)
-    ]
+    archive_groups = []
+    for label, posts in sorted(groups.items(), key=lambda item: item[0], reverse=True):
+        sorted_posts = _sort_posts(posts)
+        year = ''
+        month = ''
+        month_label = label
+        if re.match(r'^\d{4}-\d{2}$', label):
+            year, month = label.split('-', 1)
+            month_label = f'{int(month)} 月'
+
+        archive_groups.append({
+            'label': label,
+            'posts': sorted_posts,
+            'count': len(sorted_posts),
+            'year': year,
+            'month': month,
+            'month_label': month_label,
+            'range_label': f'{year} 年 {int(month)} 月' if year and month else label,
+            'anchor': f"archive-{label.replace(' ', '-')}",
+            'latest_post': sorted_posts[0] if sorted_posts else None,
+        })
+
+    return archive_groups
 
 
 def get_adjacent_posts(filename, include_private=False):

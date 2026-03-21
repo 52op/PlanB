@@ -7,17 +7,24 @@
     {% set raw_title = page_meta.title if page_meta and page_meta.title else (page_title if page_title else base_site_name) %}
     {% set meta_title = raw_title ~ ' | ' ~ base_site_name if raw_title != base_site_name else base_site_name %}
     {% set meta_description = page_description if page_description else (page_meta.summary if page_meta and page_meta.summary else (site_settings.site_tagline if site_settings else 'Planning')) %}
-    {% set meta_image = page_meta.cover if page_meta and page_meta.cover else '' %}
+    {% set raw_meta_image = page_meta.cover if page_meta and page_meta.cover else '' %}
+    {% set meta_image = '' if raw_meta_image in ['NONE', '__NONE__', 'false', 'False'] else raw_meta_image %}
+    {% set robots_value = page_robots if page_robots else 'index,follow' %}
+    {% set canonical_value = canonical_url if canonical_url else request.base_url %}
     <title>{{ meta_title }}</title>
     <meta name="description" content="{{ meta_description }}">
+    <meta name="robots" content="{{ robots_value }}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:title" content="{{ meta_title }}">
     <meta property="og:description" content="{{ meta_description }}">
-    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:url" content="{{ canonical_value }}">
     <meta property="og:site_name" content="{{ base_site_name }}">
     {% if meta_image %}<meta property="og:image" content="{{ absolute_url(meta_image) }}">{% endif %}
     <meta name="twitter:card" content="summary_large_image">
-    <link rel="canonical" href="{{ request.url }}">
+    <meta name="twitter:title" content="{{ meta_title }}">
+    <meta name="twitter:description" content="{{ meta_description }}">
+    {% if meta_image %}<meta name="twitter:image" content="{{ absolute_url(meta_image) }}">{% endif %}
+    <link rel="canonical" href="{{ canonical_value }}">
     <link rel="alternate" type="application/rss+xml" title="{{ base_site_name }}" href="{{ url_for('main.rss_feed') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/blog-indigo-new.css') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">

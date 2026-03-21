@@ -17,22 +17,7 @@
 
 {% block content %}
 {% if tags %}
-<section>
-    <div class="section-header">
-        <div>
-            <h2>全部标签</h2>
-            <p>标签数量会随着公开文章变化自动更新。</p>
-        </div>
-    </div>
-    <div class="tag-cloud-page">
-        {% for tag in tags %}
-        <a href="{{ url_for('main.tag', tag_name=tag.name) }}" class="tag tag-cloud-pill">
-            <span>{{ tag.name }}</span>
-            <span class="tag-cloud-count">{{ tag.count }}</span>
-        </a>
-        {% endfor %}
-    </div>
-</section>
+    {% include '_tag_overview_shared.html' %}
 {% else %}
 <div class="empty-state">
     <div class="empty-state-icon">🏷️</div>

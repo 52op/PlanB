@@ -15,15 +15,30 @@
 
 {% block content %}
 {% if tags %}
+{% include '_tag_overview_shared.html' %}
 <div class="tags-layout">
     <!-- Main Content Area -->
     <div class="tags-main">
         <div class="tags-content-header">
-            <h2 class="tags-content-title">
-                <i data-lucide="tag"></i>
-                <span id="currentTagName">{{ tags[0].name if tags else '全部' }}</span>
-                <span class="tags-content-count" id="currentTagCount">({{ tags[0].count if tags else 0 }} 篇)</span>
-            </h2>
+            <div>
+                <h2 class="tags-content-title">
+                    <i data-lucide="tag"></i>
+                    <span id="currentTagName">{{ tags[0].name if tags else '全部' }}</span>
+                    <span class="tags-content-count" id="currentTagCount">({{ tags[0].count if tags else 0 }} 篇)</span>
+                </h2>
+                <p class="tags-content-meta" id="currentTagMeta">{{ tags[0].heat_label if tags else '' }}</p>
+            </div>
+            {% if tags and tags[0].latest_post %}
+            <a href="{{ tags[0].latest_post.url }}" class="tags-current-latest" id="currentTagLatestLink">
+                <span>最新文章</span>
+                <strong id="currentTagLatestTitle">{{ tags[0].latest_post.title }}</strong>
+            </a>
+            {% else %}
+            <a href="javascript:void(0)" class="tags-current-latest" id="currentTagLatestLink" style="display: none;">
+                <span>最新文章</span>
+                <strong id="currentTagLatestTitle"></strong>
+            </a>
+            {% endif %}
         </div>
         
         <!-- Posts List -->
@@ -45,6 +60,9 @@
                    class="tag-item {% if loop.first %}active{% endif %}" 
                    data-tag="{{ tag.name }}"
                    data-count="{{ tag.count }}"
+                   data-heat-label="{{ tag.heat_label }}"
+                   data-latest-title="{{ tag.latest_post.title if tag.latest_post else '' }}"
+                   data-latest-url="{{ tag.latest_post.url if tag.latest_post else '' }}"
                    onclick="loadTagPosts('{{ tag.name }}', {{ tag.count }}, this)">
                     <span>{{ tag.name }}</span>
                     <span class="tag-count">{{ tag.count }}</span>
@@ -74,6 +92,17 @@ async function loadTagPosts(tagName, count, element) {
     // Update header
     document.getElementById('currentTagName').textContent = tagName;
     document.getElementById('currentTagCount').textContent = '(' + count + ' 篇)';
+    document.getElementById('currentTagMeta').textContent = element.dataset.heatLabel || '';
+    const latestLink = document.getElementById('currentTagLatestLink');
+    const latestTitle = document.getElementById('currentTagLatestTitle');
+    if (element.dataset.latestUrl && latestLink && latestTitle) {
+        latestLink.href = element.dataset.latestUrl;
+        latestTitle.textContent = element.dataset.latestTitle || '查看最新文章';
+        latestLink.style.display = 'inline-flex';
+    } else if (latestLink && latestTitle) {
+        latestLink.style.display = 'none';
+        latestTitle.textContent = '';
+    }
     
     // Show loading
     const postsList = document.getElementById('tagPostsList');
