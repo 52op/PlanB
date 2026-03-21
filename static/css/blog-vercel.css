@@ -619,9 +619,59 @@ button { cursor: pointer; }
 .article-body pre { position: relative; padding: 20px; border-radius: 22px; border: 1px solid var(--line); background: #0f172a; color: #e2e8f0; overflow: auto; }
 html[data-theme='dark'] .article-body pre { background: #09090b; }
 .article-body pre code { background: transparent; border: none; color: inherit; padding: 0; }
+.reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    z-index: 220;
+    opacity: 0;
+    pointer-events: none;
+    background: rgba(17, 17, 17, 0.08);
+    transition: opacity 0.2s ease;
+}
+.reading-progress.is-visible { opacity: 1; }
+.reading-progress-bar {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--text), #52525b);
+    box-shadow: 0 0 14px rgba(17, 17, 17, 0.22);
+    transition: width 0.12s ease-out;
+}
 .code-block-wrapper { position: relative; }
+.code-block-wrapper.has-code-toolbar pre,
+.article-body pre.has-code-toolbar {
+    padding-top: 58px;
+}
+.code-toolbar {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100% - 28px);
+}
+.code-language-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(15, 23, 42, 0.68);
+    color: #e2e8f0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
 .code-copy-btn {
-    position: absolute; top: 14px; right: 14px; z-index: 2; height: 34px; padding: 0 12px; border-radius: 999px;
+    z-index: 2; height: 34px; padding: 0 12px; border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(15, 23, 42, 0.72); color: #e2e8f0;
     display: inline-flex; align-items: center; gap: 8px; opacity: 0.38;
     transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease;
@@ -637,6 +687,24 @@ html[data-theme='dark'] .article-body pre { background: #09090b; }
     .code-copy-btn { opacity: 1; }
 }
 .code-copy-btn.copied { background: rgba(15, 118, 110, 0.84); }
+@media (max-width: 768px) {
+    .code-block-wrapper.has-code-toolbar pre,
+    .article-body pre.has-code-toolbar {
+        padding-top: 54px;
+    }
+
+    .code-toolbar {
+        top: 8px;
+        right: 8px;
+        gap: 6px;
+    }
+
+    .code-language-badge {
+        min-height: 24px;
+        padding: 0 8px;
+        font-size: 10px;
+    }
+}
 .article-nav {
     margin-top: 22px; padding: 18px; border-radius: var(--radius-lg); border: 1px solid var(--line);
     background: var(--card); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;

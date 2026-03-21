@@ -1503,6 +1503,32 @@ textarea:focus {
     color: inherit;
 }
 
+.reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    z-index: 220;
+    opacity: 0;
+    pointer-events: none;
+    background: rgba(79, 70, 229, 0.08);
+    transition: opacity 0.2s ease;
+}
+
+.reading-progress.is-visible {
+    opacity: 1;
+}
+
+.reading-progress-bar {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #4f46e5, #fb7185 72%, #fb923c);
+    box-shadow: 0 0 16px rgba(79, 70, 229, 0.3);
+    transition: width 0.12s ease-out;
+}
+
 .article-content img {
     margin: 1.5em auto;
     border-radius: var(--radius-lg);
@@ -1717,10 +1743,39 @@ textarea:focus {
     position: relative;
 }
 
-.code-copy-btn {
+.code-block-wrapper.has-code-toolbar pre,
+.article-content pre.has-code-toolbar {
+    padding-top: 56px;
+}
+
+.code-toolbar {
     position: absolute;
     top: 12px;
     right: 12px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100% - 24px);
+}
+
+.code-language-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.78);
+    color: #dbe7ff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.code-copy-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1752,6 +1807,25 @@ textarea:focus {
 .code-copy-btn.copied {
     background: rgba(34, 197, 94, 0.88);
     color: white;
+}
+
+@media (max-width: 768px) {
+    .code-block-wrapper.has-code-toolbar pre,
+    .article-content pre.has-code-toolbar {
+        padding-top: 52px;
+    }
+
+    .code-toolbar {
+        top: 8px;
+        right: 8px;
+        gap: 6px;
+    }
+
+    .code-language-badge {
+        min-height: 24px;
+        padding: 0 8px;
+        font-size: 10px;
+    }
 }
 
 .site-footer {

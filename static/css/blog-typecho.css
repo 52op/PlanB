@@ -1414,10 +1414,39 @@ html {
     margin: 0;
 }
 
-.code-copy-btn {
+.code-block-wrapper.has-code-toolbar pre,
+.article-content pre.has-code-toolbar {
+    padding-top: 56px;
+}
+
+.code-toolbar {
     position: absolute;
     top: 8px;
     right: 8px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100% - 16px);
+}
+
+.code-language-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--text-color);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.code-copy-btn {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1466,12 +1495,53 @@ html {
     white-space: nowrap;
 }
 
+.reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    z-index: 220;
+    opacity: 0;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.06);
+    transition: opacity 0.2s ease;
+}
+
+.reading-progress.is-visible {
+    opacity: 1;
+}
+
+.reading-progress-bar {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--link-color);
+    box-shadow: 0 0 12px rgba(51, 122, 183, 0.28);
+    transition: width 0.12s ease-out;
+}
+
 /* Mobile adjustments for code copy button */
 @media (max-width: 768px) {
+    .code-block-wrapper.has-code-toolbar pre,
+    .article-content pre.has-code-toolbar {
+        padding-top: 52px;
+    }
+
+    .code-toolbar {
+        gap: 6px;
+    }
+
     .code-copy-btn {
         opacity: 1;
         padding: 4px 8px;
         font-size: 11px;
+    }
+
+    .code-language-badge {
+        min-height: 24px;
+        padding: 0 8px;
+        font-size: 10px;
     }
     
     .code-copy-btn .copy-text {
