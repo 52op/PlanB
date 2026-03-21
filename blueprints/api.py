@@ -10,10 +10,12 @@ from services import (
     build_share_session_key,
     build_share_title,
     check_permission,
+    clear_file_cache,
     delete_media_file,
     force_https_url,
     generate_share_token,
     get_all_images_with_status,
+    get_public_post_documents,
     get_share_link_by_token,
     is_share_expired,
     get_local_images,
@@ -24,6 +26,7 @@ from services import (
     update_all_image_references,
     upload_media_file,
 )
+from services.docs import _build_front_matter, _split_front_matter
 from werkzeug.utils import secure_filename
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -230,6 +233,79 @@ def save_markdown():
         return jsonify({'success': True, 'content': content})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/public-posts', methods=['GET'])
+@login_required
+def list_public_posts():
+    items = get_public_post_documents()
+    return jsonify({
+        'success': True,
+        'items': [
+            {
+                'filename': item.get('filename') or item.get('path') or '',
+                'path': item.get('path') or item.get('filename') or '',
+                'title': item.get('title') or '未命名文档',
+                'summary': item.get('summary') or '',
+                'category_name': item.get('category_name') or '',
+                'category_path': item.get('category_path') or '',
+                'date': item.get('date') or '',
+                'date_display': item.get('date_display') or '',
+                'updated': item.get('updated') or '',
+                'updated_display': item.get('updated_display') or '',
+                'timeline_date': item.get('timeline_date') or '',
+                'timeline_display': item.get('timeline_display') or '',
+                'doc_url': item.get('doc_url') or '',
+                'post_url': item.get('url') or '',
+                'view_count': int(item.get('view_count') or 0),
+                'can_edit': bool(item.get('can_edit')),
+                'public': True,
+            }
+            for item in items
+        ],
+    })
+
+
+@api_bp.route('/public-posts/toggle', methods=['POST'])
+@login_required
+def toggle_public_post():
+    data = request.get_json() or {}
+    filename = data.get('filename', '')
+    is_public = bool(data.get('public'))
+
+    try:
+        _, filename, filepath = resolve_docs_path(filename)
+    except InvalidPathError:
+        return jsonify({'error': '目标文档路径无效'}), 400
+
+    if not check_permission(current_user, filename, 'edit'):
+        return jsonify({'error': '没有该文档的编辑权限'}), 403
+
+    if not os.path.isfile(filepath):
+        return jsonify({'error': '目标文档不存在'}), 404
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file_obj:
+            content = file_obj.read()
+
+        raw_metadata, body_content = _split_front_matter(content)
+        raw_metadata = dict(raw_metadata or {})
+        raw_metadata['template'] = raw_metadata.get('template') or 'post'
+        raw_metadata['public'] = is_public
+
+        final_content = _build_front_matter(raw_metadata, body_content, filename)
+        with open(filepath, 'w', encoding='utf-8') as file_obj:
+            file_obj.write(final_content)
+
+        clear_file_cache(filename)
+        update_all_image_references()
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'public': is_public,
+        })
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
 
 @api_bp.route('/media_upload', methods=['POST'])
 @login_required

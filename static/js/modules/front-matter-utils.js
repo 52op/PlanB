@@ -64,6 +64,11 @@ class FrontMatterUtils {
         return ['true', 'True', '1'].includes(String(value || '').trim());
     }
 
+    normalizeCoverFieldValue(value) {
+        const text = this.unwrapFrontMatterValue(value);
+        return ['__NONE__', '__none__'].includes(text) ? 'none' : text;
+    }
+
     escapeYamlValue(value) {
         if (!value) return value;
         const text = String(value);
@@ -134,7 +139,7 @@ class FrontMatterUtils {
             this.metaSummaryInput.value = this.unwrapFrontMatterValue(metadata.summary) || hints.summary || '';
         }
         if (this.metaCoverInput) {
-            this.metaCoverInput.value = this.unwrapFrontMatterValue(metadata.cover) || hints.cover || '';
+            this.metaCoverInput.value = this.normalizeCoverFieldValue(metadata.cover) || hints.cover || '';
         }
         if (this.metaPublicCheck) {
             this.metaPublicCheck.checked = this.parseFrontMatterBoolean(metadata.public);
@@ -168,7 +173,7 @@ class FrontMatterUtils {
 
         if (cover) {
             const coverLower = cover.toLowerCase();
-            if (coverLower === 'none' || coverLower === 'false') {
+            if (coverLower === 'none' || coverLower === 'false' || coverLower === '__none__') {
                 lines.push(`cover: ${coverLower}`);
             } else {
                 lines.push(`cover: ${this.escapeYamlValue(cover)}`);

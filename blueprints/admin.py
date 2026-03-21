@@ -101,6 +101,7 @@ def update_settings():
         's3_endpoint', 's3_bucket', 's3_access_key', 's3_secret_key',
         's3_cdn_domain', 's3_path_prefix', 's3_path_style', 'site_name',
         'site_logo', 'site_tagline', 'home_title', 'home_description', 'footer_html', 'blog_home_count',
+        'random_cover_api',
         'comments_enabled', 'comments_require_approval', 'smtp_host', 'smtp_port',
         'smtp_username', 'smtp_password', 'smtp_use_ssl', 'smtp_sender',
         'default_theme_color', 'default_theme_mode', 'site_mode', 'blog_theme'

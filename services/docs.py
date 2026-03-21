@@ -571,6 +571,44 @@ def get_posts(limit=None, category_path='', include_private=False):
     return posts
 
 
+def get_public_post_documents():
+    items = []
+    filenames = []
+
+    for filename in _iter_markdown_filenames():
+        if not _has_read_permission(filename):
+            continue
+
+        payload = _parse_markdown_file(filename)
+        if not payload:
+            continue
+
+        metadata = payload.get('metadata') or {}
+        if metadata.get('template') != 'post':
+            continue
+        if not metadata.get('public') or metadata.get('draft'):
+            continue
+
+        item = dict(metadata)
+        item['path'] = filename
+        item['doc_url'] = _build_markdown_url(filename)
+        item['can_edit'] = bool(check_permission(current_user, filename, 'edit'))
+        item['timeline_date'] = item.get('updated') or item.get('date') or ''
+        item['timeline_display'] = item.get('updated_display') or item.get('date_display') or '未设置日期'
+        items.append(item)
+        filenames.append(filename)
+
+    if filenames:
+        filename_map = {item.get('filename') or item.get('path'): item for item in items}
+        stats = DocumentViewStat.query.filter(DocumentViewStat.filename.in_(filenames)).all()
+        for stat in stats:
+            target = filename_map.get(stat.filename)
+            if target is not None:
+                target['view_count'] = int(stat.view_count or 0)
+
+    return _sort_posts(items)
+
+
 def get_directory_articles(dirname='', include_private=False):
     try:
         normalized_dirname = normalize_relative_path(dirname)

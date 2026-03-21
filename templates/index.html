@@ -87,6 +87,9 @@
             </div>
             <div class="site-header-right">
                 <button class="header-action-btn" id="openSearchBtnDesktop" type="button" title="搜索 (Ctrl+K)"><i data-lucide="search" class="icon-inline"></i></button>
+                {% if current_user.is_authenticated %}
+                <button class="header-action-btn" id="publicPostsBtnDesktop" type="button" title="管理已公开文档"><i data-lucide="list" class="icon-inline"></i></button>
+                {% endif %}
                 <button class="header-action-btn" id="themeToggleBtnDesktop" type="button"><i data-lucide="palette" class="icon-inline"></i> 主题</button>
                 <a class="header-action-link" href="{{ url_for('main.posts') }}"><i data-lucide="newspaper" class="icon-inline"></i> 博客页面</a>
                 {% if current_user.is_authenticated %}
@@ -130,6 +133,9 @@
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
                 <button class="menu-btn menu-btn-icon" id="openSearchBtnMobile" title="搜索"><i data-lucide="search"></i></button>
+                {% if current_user.is_authenticated %}
+                <button class="menu-btn menu-btn-icon" id="publicPostsBtnMobile" title="已公开文档"><i data-lucide="list"></i></button>
+                {% endif %}
                 <button class="menu-btn menu-btn-icon" id="themeToggleBtnMobile" title="主题"><i data-lucide="palette"></i></button>
                 {% if current_user.is_authenticated %}
                 <button class="menu-btn menu-btn-icon" id="userMenuBtnMobile" title="{{ current_user.username }}">
@@ -294,7 +300,7 @@
                 {% if page_meta.category_name %}<span><i data-lucide="folder-tree" class="icon-inline"></i> {{ page_meta.category_name }}</span>{% endif %}
                 {% if page_meta.reading_minutes %}<span><i data-lucide="clock-3" class="icon-inline"></i> {{ page_meta.reading_minutes }} 分钟阅读</span>{% endif %}
                 {% if page_meta.view_count %}<span><i data-lucide="eye" class="icon-inline"></i> {{ page_meta.view_count }} 次阅读</span>{% endif %}
-                {% if page_meta.public %}<span><i data-lucide="globe" class="icon-inline"></i> 公开文章</span>{% endif %}
+                {% if page_meta.public %}<span id="postPublicBadge"><i data-lucide="globe" class="icon-inline"></i> 公开文章</span>{% endif %}
             </div>
             <h1>{{ page_meta.title }}</h1>
             {% if page_meta.summary %}<p class="post-summary">{{ page_meta.summary }}</p>{% endif %}
@@ -525,6 +531,7 @@
     <script src="{{ url_for('static', filename='js/modules/front-matter-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/editor-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/share-manager.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/public-post-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 
     <script>

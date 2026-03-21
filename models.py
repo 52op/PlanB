@@ -217,6 +217,8 @@ def init_db(app):
             SystemSetting.set('blog_theme', 'default')
         if SystemSetting.get('site_logo') is None:
             SystemSetting.set('site_logo', '')
+        if SystemSetting.get('random_cover_api') is None:
+            SystemSetting.set('random_cover_api', '')
 
         # 建立默认管理员
         admin = User.query.filter_by(username='admin').first()

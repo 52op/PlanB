@@ -166,11 +166,13 @@ def _get_site_settings():
     blog_enabled = (SystemSetting.get('blog_enabled', 'true') or 'true').strip().lower() != 'false'
     show_docs_entry_in_blog = (SystemSetting.get('show_docs_entry_in_blog', 'true') or 'true').strip().lower() != 'false'
     site_logo = SystemSetting.get('site_logo', '') or ''
+    random_cover_api = SystemSetting.get('random_cover_api', '') or ''
 
     return {
         'site_name': SystemSetting.get('site_name', 'Planning') or 'Planning',
         'site_logo': site_logo,
         'site_logo_url': _absolute_url(site_logo) if site_logo else '',
+        'random_cover_api': random_cover_api.strip(),
         'site_tagline': SystemSetting.get('site_tagline', '轻量 Markdown 内容站') or '轻量 Markdown 内容站',
         'home_title': SystemSetting.get('home_title', '') or '',
         'home_description': SystemSetting.get('home_description', '') or '',
@@ -185,6 +187,33 @@ def _get_site_settings():
         'blog_enabled': blog_enabled,
         'show_docs_entry_in_blog': show_docs_entry_in_blog,
     }
+
+
+def _normalize_blog_cover(cover_value, site_settings=None):
+    raw_cover = str(cover_value or '').strip()
+    fallback_cover = str((site_settings or {}).get('random_cover_api') or '').strip()
+    if not raw_cover:
+        return fallback_cover
+
+    normalized_cover = raw_cover.lower()
+    if normalized_cover == '__none__':
+        return ''
+    if normalized_cover in {'none', 'false'}:
+        return fallback_cover
+
+    return raw_cover
+
+
+def _with_blog_cover(item, site_settings=None):
+    if not item:
+        return item
+    next_item = dict(item)
+    next_item['cover'] = _normalize_blog_cover(next_item.get('cover'), site_settings)
+    return next_item
+
+
+def _with_blog_covers(items, site_settings=None):
+    return [_with_blog_cover(item, site_settings) for item in (items or [])]
 
 
 def _get_docs_endpoint(filename=None, dirname=None):
@@ -540,7 +569,8 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
     if payload is None:
         abort(404)
 
-    page_meta = payload.get('metadata') or {}
+    site_settings = _get_site_settings()
+    page_meta = _with_blog_cover(payload.get('metadata') or {}, site_settings)
     if page_meta.get('template') != 'post':
         abort(404)
 
@@ -573,7 +603,7 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
         toc=toc_html,
         current_file=current_file,
         page_meta=page_meta,
-        site_settings=_get_site_settings(),
+        site_settings=site_settings,
         previous_post=previous_post,
         next_post=next_post,
         comments=comment_pagination['items'] if comment_pagination else comments,
@@ -593,9 +623,10 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
 
 def _render_homepage(file_tree, posts):
     site_settings = _get_site_settings()
-    featured = posts[0] if posts else None
-    recent_posts = posts[1:] if len(posts) > 1 else []
-    category_groups = _build_category_overview(posts)[:6]
+    posts_with_cover = _with_blog_covers(posts, site_settings)
+    featured = posts_with_cover[0] if posts_with_cover else None
+    recent_posts = posts_with_cover[1:] if len(posts_with_cover) > 1 else []
+    category_groups = _build_category_overview(posts_with_cover)[:6]
     return render_template(
         _get_template_name('home'),
         file_tree=file_tree,
@@ -628,6 +659,7 @@ def _render_blog_home():
 def _render_document(filename, file_tree=None):
     if file_tree is None:
         file_tree = get_markdown_files()
+    site_settings = _get_site_settings()
 
     flat_files = get_flat_files_list(file_tree)
     if filename not in flat_files:
@@ -678,7 +710,7 @@ def _render_document(filename, file_tree=None):
         comment_pagination=comment_pagination,
         can_delete_comment=can_delete_comment,
         page_meta=page_meta,
-        site_settings=_get_site_settings(),
+        site_settings=site_settings,
         absolute_url=_absolute_url,
         comments_enabled_flag=comments_enabled(),
     )
@@ -746,7 +778,7 @@ def _render_blog_listing(title, posts, file_tree, category_path='', empty_messag
         config=current_app.config.get('APP_CONFIG', {}),
         can_edit=False,
         can_upload=False,
-        posts=pagination['items'],
+        posts=_with_blog_covers(pagination['items'], site_settings),
         category_path=normalized_category,
         category_name=category_name,
         page_title=title,

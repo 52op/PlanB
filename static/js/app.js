@@ -94,6 +94,11 @@ class PlanningApp {
             window.shareManager.setCurrentPaths(this.currentFilePath, this.currentDirPath);
         }
 
+        if (window.publicPostManager) {
+            window.publicPostManager.setCSRFToken(this.csrfToken);
+            window.publicPostManager.setCurrentFile(this.currentFilePath);
+        }
+
         // 绑定模块事件
         if (window.editorManager) {
             window.editorManager.bindEvents();
@@ -109,6 +114,10 @@ class PlanningApp {
 
         if (window.shareManager) {
             window.shareManager.bindEvents();
+        }
+
+        if (window.publicPostManager) {
+            window.publicPostManager.bindEvents();
         }
 
         // 初始化搜索页面

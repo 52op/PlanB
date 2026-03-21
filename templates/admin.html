@@ -553,6 +553,11 @@
                         <input type="number" name="blog_home_count" min="1" max="50" value="{{ settings.blog_home_count or 12 }}">
                     </div>
                     <div class="form-group">
+                        <label>随机封面图 API</label>
+                        <input type="text" name="random_cover_api" value="{{ settings.random_cover_api or '' }}" placeholder="例如：https://picsum.photos/1200/630 或你的随机图接口">
+                        <small style="color:#6c757d;">当博客文章没有封面图时，Hexo / Astro / Vercel 等主题可自动使用这个地址作为兜底封面。留空则不启用。</small>
+                    </div>
+                    <div class="form-group">
                         <label><input type="checkbox" name="comments_enabled" {% if settings.comments_enabled != 'false' %}checked{% endif %}> 启用评论模块</label>
                     </div>
                     <div class="form-group">
