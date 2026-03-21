@@ -3,6 +3,7 @@ import secrets
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from runtime_paths import get_data_subdir
 
 db = SQLAlchemy()
 
@@ -197,8 +198,10 @@ def init_db(app):
         _ensure_column(app, 'comments', 'approval_token', 'VARCHAR(64)')
         
         # 确保上传目录存在
-        uploads_dir = os.path.join(app.root_path, 'static', 'uploads')
+        uploads_dir = app.config.get('UPLOADS_DIR') or get_data_subdir('uploads')
         os.makedirs(uploads_dir, exist_ok=True)
+        os.makedirs(get_data_subdir('jobs'), exist_ok=True)
+        os.makedirs(get_data_subdir('covers'), exist_ok=True)
 
         # 初始化默认设置
         if SystemSetting.get('docs_dir') is None:
@@ -250,7 +253,7 @@ def init_db(app):
         if SystemSetting.get('random_cover_source_type') is None:
             SystemSetting.set('random_cover_source_type', 'url')
         if SystemSetting.get('random_cover_local_dir') is None:
-            SystemSetting.set('random_cover_local_dir', '')
+            SystemSetting.set('random_cover_local_dir', 'covers')
         if SystemSetting.get('random_cover_pexels_api_key') is None:
             SystemSetting.set('random_cover_pexels_api_key', '')
         if SystemSetting.get('random_cover_pexels_default_query') is None:

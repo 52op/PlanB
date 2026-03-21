@@ -8,6 +8,7 @@ from urllib.request import Request, urlopen
 from flask import current_app, url_for
 
 from models import CoverFallbackCache, SystemSetting, db
+from runtime_paths import resolve_data_path
 
 ALLOWED_COVER_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'}
 DEFAULT_PEXELS_QUERY = 'nature'
@@ -98,7 +99,7 @@ def get_cover_fallback_settings(site_settings=None):
         settings.get('random_cover_api') if 'random_cover_api' in settings else SystemSetting.get('random_cover_api', '')
     ).strip()
     random_cover_local_dir = str(
-        settings.get('random_cover_local_dir') if 'random_cover_local_dir' in settings else SystemSetting.get('random_cover_local_dir', '')
+        settings.get('random_cover_local_dir') if 'random_cover_local_dir' in settings else SystemSetting.get('random_cover_local_dir', 'covers')
     ).strip()
     random_cover_pexels_api_key = str(
         settings.get('random_cover_pexels_api_key') if 'random_cover_pexels_api_key' in settings else SystemSetting.get('random_cover_pexels_api_key', '')
@@ -145,13 +146,7 @@ def get_cover_fallback_settings(site_settings=None):
 
 
 def _resolve_local_cover_directory(raw_dir):
-    directory_value = str(raw_dir or '').strip()
-    if not directory_value:
-        return ''
-    expanded_dir = os.path.expandvars(os.path.expanduser(directory_value))
-    if not os.path.isabs(expanded_dir):
-        expanded_dir = os.path.join(current_app.root_path, expanded_dir)
-    absolute_dir = os.path.abspath(expanded_dir)
+    absolute_dir = resolve_data_path(raw_dir, 'covers')
     return absolute_dir if os.path.isdir(absolute_dir) else ''
 
 

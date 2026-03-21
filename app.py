@@ -5,9 +5,15 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from models import db, init_db, User
+from runtime_paths import (
+    get_config_path,
+    get_data_dir,
+    get_data_subdir,
+    normalize_database_uri,
+)
 
 def load_config():
-    config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+    config_path = get_config_path()
     if os.path.exists(config_path):
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
@@ -15,7 +21,7 @@ def load_config():
         config = {
             'port': 5000,
             'debug': True,
-            'database_path': 'sqlite:///app.db'
+            'database_path': '',
         }
     return config
 
@@ -23,12 +29,18 @@ def create_app():
     app = Flask(__name__)
 
     config = load_config()
+    data_dir = get_data_dir()
+    uploads_dir = get_data_subdir('uploads')
+    get_data_subdir('jobs')
+    get_data_subdir('covers')
     
     app.config['APP_CONFIG'] = config
     app.config['APP_TIMEZONE'] = config.get('timezone', 'Asia/Shanghai')
+    app.config['DATA_DIR'] = data_dir
+    app.config['UPLOADS_DIR'] = uploads_dir
     if config.get('force_https_for_external_urls', False):
         app.config['PREFERRED_URL_SCHEME'] = 'https'
-    app.config['SQLALCHEMY_DATABASE_URI'] = config.get('database_path', 'sqlite:///app.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = normalize_database_uri(config.get('database_path'))
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     debug_enabled = bool(config.get('debug', True))
     secret_key = os.environ.get('PLANNING_SECRET_KEY') or config.get('secret_key')

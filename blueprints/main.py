@@ -1890,7 +1890,10 @@ def docs_search():
 
 @main_bp.route('/media/<path:filename>')
 def media_file(filename):
-    return send_from_directory(os.path.join(current_app.root_path, 'static', 'uploads'), filename)
+    upload_dir = current_app.config.get('UPLOADS_DIR')
+    if not upload_dir:
+        abort(404)
+    return send_from_directory(upload_dir, filename)
 
 
 @main_bp.route('/cover/local/<path:filename>')

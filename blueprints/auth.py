@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required, login_user, logout_user
 from models import Comment, SystemSetting, User, db
 from werkzeug.utils import secure_filename
@@ -339,12 +339,13 @@ def update_profile():
             flash('头像仅支持 png/jpg/jpeg/gif/webp')
             return redirect(url_for('auth.account'))
         
-        upload_dir = os.path.join(os.path.dirname(__file__), '..', 'static', 'uploads', 'avatars')
+        upload_dir = os.path.join(current_app.config.get('UPLOADS_DIR'), 'avatars')
         os.makedirs(upload_dir, exist_ok=True)
         
         # 删除旧头像
-        if current_user.avatar_url:
-            old_avatar_path = os.path.join(os.path.dirname(__file__), '..', current_user.avatar_url.lstrip('/'))
+        if current_user.avatar_url and current_user.avatar_url.startswith('/media/'):
+            old_avatar_relative = current_user.avatar_url.replace('/media/', '', 1).lstrip('/')
+            old_avatar_path = os.path.join(current_app.config.get('UPLOADS_DIR'), old_avatar_relative)
             if os.path.exists(old_avatar_path):
                 try:
                     os.remove(old_avatar_path)
@@ -365,7 +366,7 @@ def update_profile():
         image = image.crop((left, top, left + size, top + size)).resize((512, 512))
         image.save(save_path, format='JPEG', quality=85, optimize=True)
         
-        current_user.avatar_url = f'/static/uploads/avatars/{file_name}'
+        current_user.avatar_url = f'/media/avatars/{file_name}'
 
     db.session.commit()
     flash('个人资料已更新')

@@ -10,6 +10,8 @@ from flask import current_app, url_for
 from werkzeug.utils import secure_filename
 
 from models import Image, SystemSetting, db
+from runtime_paths import get_data_subdir
+from .paths import get_docs_root
 
 
 def _upload_to_local(file_storage):
@@ -22,7 +24,8 @@ def _upload_to_local(file_storage):
     size = file_storage.tell()
     file_storage.seek(0)
 
-    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', date_folder)
+    base_upload_dir = current_app.config.get('UPLOADS_DIR') or get_data_subdir('uploads')
+    upload_folder = os.path.join(base_upload_dir, date_folder)
     os.makedirs(upload_folder, exist_ok=True)
 
     save_path = os.path.join(upload_folder, unique_filename)
@@ -117,7 +120,8 @@ def upload_media_file(file_storage):
 
 def _delete_from_local(image):
     try:
-        file_path = os.path.join(current_app.root_path, 'static', 'uploads', image.path)
+        base_upload_dir = current_app.config.get('UPLOADS_DIR') or get_data_subdir('uploads')
+        file_path = os.path.join(base_upload_dir, image.path)
         if os.path.exists(file_path):
             os.remove(file_path)
             return True
@@ -157,8 +161,7 @@ def delete_media_file(image):
 
 
 def update_all_image_references():
-    docs_dir_name = SystemSetting.get('docs_dir', 'jobs') or 'jobs'
-    docs_root = os.path.abspath(os.path.join(current_app.root_path, docs_dir_name))
+    docs_root = get_docs_root()
     all_md_files = []
     for root, _, files in os.walk(docs_root):
         for filename in files:
@@ -236,7 +239,7 @@ def _get_all_storage_images():
 
 def get_local_images():
     images = {}
-    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+    upload_folder = current_app.config.get('UPLOADS_DIR') or get_data_subdir('uploads')
     if not os.path.exists(upload_folder):
         return images
 

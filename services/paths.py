@@ -3,6 +3,7 @@ import os
 from flask import current_app
 
 from models import SystemSetting
+from runtime_paths import resolve_data_path
 
 
 class InvalidPathError(ValueError):
@@ -11,7 +12,7 @@ class InvalidPathError(ValueError):
 
 def get_docs_root():
     docs_dir_name = SystemSetting.get('docs_dir', 'jobs')
-    docs_root = os.path.abspath(os.path.join(current_app.root_path, docs_dir_name))
+    docs_root = resolve_data_path(docs_dir_name, 'jobs')
     os.makedirs(docs_root, exist_ok=True)
     return docs_root
 

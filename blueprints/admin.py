@@ -2,7 +2,7 @@ import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
 from models import Comment, DocumentViewStat, NotificationLog, db, SystemSetting, User, PermissionRule
-from services import get_comment_stats, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, preview_cover_source, send_logged_mail
+from services import get_comment_stats, get_docs_root, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, preview_cover_source, send_logged_mail
 from sqlalchemy import func
 
 admin_bp = Blueprint('admin', __name__, template_folder='templates', url_prefix='/admin')
@@ -32,7 +32,7 @@ SECURITY_SETTING_DEFAULTS = {
 COVER_SETTING_DEFAULTS = {
     'random_cover_api': '',
     'random_cover_source_type': 'url',
-    'random_cover_local_dir': '',
+    'random_cover_local_dir': 'covers',
     'random_cover_pexels_api_key': '',
     'random_cover_pexels_default_query': 'nature',
     'random_cover_pexels_orientation': 'landscape',
@@ -88,7 +88,7 @@ def _get_admin_base_context():
     comment_page = request.args.get('comment_page', 1, type=int)
     comment_pagination = comment_query.paginate(page=comment_page, per_page=20, error_out=False)
 
-    docs_dir = os.path.join(os.path.dirname(__file__), '..', SystemSetting.get('docs_dir', 'jobs') or 'jobs')
+    docs_dir = get_docs_root()
     all_dirs = []
     if os.path.exists(docs_dir):
         for root, dirs, files in os.walk(docs_dir):
