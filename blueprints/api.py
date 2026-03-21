@@ -26,7 +26,7 @@ from services import (
     update_all_image_references,
     upload_media_file,
 )
-from services.docs import _build_front_matter, _can_access_document_metadata, _parse_markdown_file, _split_front_matter
+from services.docs import _build_front_matter, _can_access_document_metadata, _has_front_matter_block, _parse_markdown_file, _split_front_matter
 from werkzeug.utils import secure_filename
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -326,6 +326,47 @@ def toggle_public_post():
                 if (raw_metadata.get('template') or 'doc') == 'post' and raw_metadata.get('slug')
                 else ''
             ),
+        })
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@api_bp.route('/public-posts/remove-front-matter', methods=['POST'])
+@login_required
+def remove_public_post_front_matter():
+    data = request.get_json() or {}
+    filename = data.get('filename', '')
+
+    try:
+        _, filename, filepath = resolve_docs_path(filename)
+    except InvalidPathError:
+        return jsonify({'error': '目标文档路径无效'}), 400
+
+    if not check_permission(current_user, filename, 'edit'):
+        return jsonify({'error': '没有该文档的编辑权限'}), 403
+
+    if not os.path.isfile(filepath):
+        return jsonify({'error': '目标文档不存在'}), 404
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file_obj:
+            content = file_obj.read()
+
+        if not _has_front_matter_block(content):
+            return jsonify({'error': '该文档没有可移除的头部信息'}), 400
+
+        _, body_content = _split_front_matter(content)
+        normalized_body = body_content.lstrip('\n')
+        final_content = normalized_body if normalized_body else ''
+
+        with open(filepath, 'w', encoding='utf-8') as file_obj:
+            file_obj.write(final_content)
+
+        clear_file_cache(filename)
+        update_all_image_references()
+        return jsonify({
+            'success': True,
+            'filename': filename,
         })
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500

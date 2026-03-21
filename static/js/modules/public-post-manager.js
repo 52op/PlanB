@@ -51,6 +51,7 @@ class PublicPostManager {
                         <p>按时间轴查看全部带头部信息的文档，并分别控制公开状态和博客展示状态。</p>
                     </div>
                     <div class="public-posts-header-actions">
+                        <a href="/manage-posts" class="btn btn-secondary" id="openManagePostsPage">进入完整管理页</a>
                         <button type="button" class="btn btn-secondary" id="refreshPublicPostsBtn">刷新</button>
                         <button type="button" class="btn btn-secondary" id="closePublicPostsModal">关闭</button>
                     </div>
@@ -132,6 +133,12 @@ class PublicPostManager {
             const blogButton = event.target.closest('[data-blog-toggle]');
             if (blogButton instanceof HTMLElement) {
                 this.toggleBlogVisibility(blogButton.dataset.filename || '', blogButton.dataset.blogVisible === 'true');
+                return;
+            }
+
+            const removeButton = event.target.closest('[data-remove-front-matter]');
+            if (removeButton instanceof HTMLElement) {
+                this.removeFrontMatter(removeButton.dataset.filename || '', removeButton.dataset.title || '当前文档');
             }
         });
 
@@ -317,6 +324,12 @@ class PublicPostManager {
                     ${item.is_blog_visible ? '取消博客显示' : '显示到博客'}
                </button>`
             : '';
+        const removeFrontMatterButton = item.can_edit
+            ? `<button type="button" class="btn btn-secondary public-posts-toggle-btn" data-remove-front-matter="1" data-filename="${this.escapeHtml(item.path)}" data-title="${this.escapeHtml(item.title || '未命名文档')}">
+                    <i data-lucide="eraser"></i>
+                    移除头部
+               </button>`
+            : '';
         const statusBadges = [
             item.public
                 ? '<span class="public-posts-visibility-badge is-public"><i data-lucide="shield-check"></i>公开内容</span>'
@@ -337,6 +350,7 @@ class PublicPostManager {
                             ${item.is_blog_visible && item.post_url ? `<a href="${this.escapeHtml(item.post_url)}" class="btn btn-secondary" target="_blank" rel="noopener">博客预览</a>` : ''}
                             ${blogToggleButton}
                             ${publicToggleButton}
+                            ${removeFrontMatterButton}
                         </div>
                     </div>
                     <h5 class="public-posts-item-title">
@@ -436,6 +450,62 @@ class PublicPostManager {
             window.uiUtils?.showToast?.(nextBlogVisibleState ? '文档已显示到博客' : '文档已从博客隐藏', 'success');
         } catch (error) {
             window.uiUtils?.showAlertDialog('更新失败', error.message || '请稍后重试');
+        }
+    }
+
+    async removeFrontMatter(filename, title) {
+        if (!filename) return;
+
+        const confirmed = await window.uiUtils?.showConfirmDialog?.(
+            '移除头部',
+            `确定要移除“${title}”的头部信息吗？移除后会保留正文内容，但这篇文档会退出当前管理列表。`,
+            '移除'
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/public-posts/remove-front-matter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken,
+                },
+                body: JSON.stringify({
+                    filename,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || '移除头部失败');
+            }
+
+            this.items = this.items.filter((item) => item.path !== filename);
+            this.render();
+            this.clearCurrentPageStateAfterFrontMatterRemoval(filename);
+            window.uiUtils?.showToast?.('头部已移除，文档已退出博客文章管理列表', 'success');
+        } catch (error) {
+            window.uiUtils?.showAlertDialog('移除失败', error.message || '请稍后重试');
+        }
+    }
+
+    clearCurrentPageStateAfterFrontMatterRemoval(filename) {
+        if (filename !== this.currentFilePath) return;
+
+        const publicBadge = document.getElementById('postPublicBadge');
+        if (publicBadge) {
+            publicBadge.style.display = 'none';
+        }
+
+        const metaPublicCheckbox = document.getElementById('metaPublic');
+        if (metaPublicCheckbox) {
+            metaPublicCheckbox.checked = false;
+        }
+
+        const metaTemplateSelect = document.getElementById('metaTemplate');
+        if (metaTemplateSelect) {
+            metaTemplateSelect.value = 'doc';
         }
     }
 

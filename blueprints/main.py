@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Blueprint, Response, flash, render_template, request, redirect, url_for, abort, current_app, send_from_directory, session
 from flask_login import current_user
+from flask_login import login_required
 
 from models import DocumentViewStat, SystemSetting, db
 from services import (
@@ -1178,6 +1179,18 @@ def search():
         absolute_url=_absolute_url,
         pagination=pagination,
         post_url_map=post_url_map,
+    )
+
+
+@main_bp.route('/manage-posts')
+@login_required
+def manage_posts():
+    site_settings = _get_site_settings()
+    return render_template(
+        'manage_posts.html',
+        site_settings=site_settings,
+        page_title='博客文章管理',
+        page_meta={'title': '博客文章管理'},
     )
 
 

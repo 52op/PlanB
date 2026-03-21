@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% set base_site_name = site_settings.site_name if site_settings and site_settings.site_name else 'Planning' %}
+    <title>{{ page_title or '博客文章管理' }} - {{ base_site_name }}</title>
+    <meta name="description" content="集中管理全部带头部信息的博客文章文档，支持搜索、筛选、分页和状态切换。">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/manage-posts-page.css') }}">
+    <script src="{{ url_for('static', filename='vendor/lucide/lucide.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/ui-utils.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/manage-posts-page.js') }}" defer></script>
+</head>
+<body>
+    <div id="appToast" class="app-toast"></div>
+    <div class="manage-posts-shell">
+        <header class="manage-posts-hero">
+            <div class="manage-posts-hero-main">
+                <span class="manage-posts-eyebrow">文章工作台</span>
+                <h1>{{ page_title or '博客文章管理' }}</h1>
+                <p>这里会集中显示全部带头部信息的 Markdown 文档。你可以在这里更适合地批量浏览、筛选和管理博客相关内容，而不必一直挤在弹层里操作。</p>
+                <div class="manage-posts-hero-actions">
+                    <a class="manage-posts-btn is-primary" href="{{ url_for('main.docs_home') }}">返回文档系统</a>
+                    <a class="manage-posts-btn" href="{{ url_for('main.posts') }}">打开博客文章列表</a>
+                </div>
+            </div>
+            <div class="manage-posts-hero-stats" id="managePostsHeroStats">
+                <article class="manage-posts-stat-card">
+                    <span>带头部文档</span>
+                    <strong id="heroTotalCount">0</strong>
+                </article>
+                <article class="manage-posts-stat-card">
+                    <span>公开内容</span>
+                    <strong id="heroPublicCount">0</strong>
+                </article>
+                <article class="manage-posts-stat-card">
+                    <span>显示到博客</span>
+                    <strong id="heroBlogCount">0</strong>
+                </article>
+                <article class="manage-posts-stat-card">
+                    <span>我可编辑</span>
+                    <strong id="heroEditableCount">0</strong>
+                </article>
+            </div>
+        </header>
+
+        <section class="manage-posts-toolbar-card">
+            <div class="manage-posts-toolbar-row">
+                <label class="manage-posts-search">
+                    <span>搜索</span>
+                    <input id="managePostsSearch" type="search" placeholder="标题、路径、分类、摘要">
+                </label>
+
+                <label class="manage-posts-select">
+                    <span>排序</span>
+                    <select id="managePostsSort">
+                        <option value="updated_desc">最近更新</option>
+                        <option value="date_desc">发布时间</option>
+                        <option value="title_asc">标题 A-Z</option>
+                    </select>
+                </label>
+
+                <label class="manage-posts-select">
+                    <span>公开状态</span>
+                    <select id="managePostsPublicFilter">
+                        <option value="all">全部</option>
+                        <option value="public">仅公开内容</option>
+                        <option value="private">仅未公开</option>
+                    </select>
+                </label>
+
+                <label class="manage-posts-select">
+                    <span>博客显示</span>
+                    <select id="managePostsBlogFilter">
+                        <option value="all">全部</option>
+                        <option value="blog">仅博客可见</option>
+                        <option value="doc">仅文档可见</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="manage-posts-toolbar-row">
+                <label class="manage-posts-toggle">
+                    <input id="managePostsEditableOnly" type="checkbox">
+                    <span>仅显示我可编辑的文档</span>
+                </label>
+
+                <label class="manage-posts-select">
+                    <span>每页显示</span>
+                    <select id="managePostsPageSize">
+                        <option value="15">15</option>
+                        <option value="30" selected>30</option>
+                        <option value="60">60</option>
+                    </select>
+                </label>
+
+                <div class="manage-posts-toolbar-actions">
+                    <button class="manage-posts-btn" id="managePostsRefreshBtn" type="button">刷新列表</button>
+                    <button class="manage-posts-btn" id="managePostsResetBtn" type="button">重置筛选</button>
+                </div>
+            </div>
+
+            <div class="manage-posts-statusbar">
+                <p id="managePostsStatus">正在读取博客文章管理列表...</p>
+                <p id="managePostsCurrentHint">可在这里快速切换公开状态、博客显示状态，或移除头部。</p>
+            </div>
+            <div class="manage-posts-filter-summary" id="managePostsFilterSummary" hidden></div>
+        </section>
+
+        <section class="manage-posts-table-card">
+            <div class="manage-posts-table-wrap">
+                <table class="manage-posts-table">
+                    <thead>
+                        <tr>
+                            <th>文档</th>
+                            <th>状态</th>
+                            <th>时间</th>
+                            <th>阅读</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="managePostsTableBody">
+                        <tr>
+                            <td colspan="5" class="manage-posts-empty-cell">正在读取博客文章管理列表...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="manage-posts-pagination-card">
+            <div class="manage-posts-pagination-summary" id="managePostsPaginationSummary">第 1 / 1 页</div>
+            <div class="manage-posts-pagination-actions">
+                <button class="manage-posts-btn" id="managePostsPrevBtn" type="button">上一页</button>
+                <div class="manage-posts-page-numbers" id="managePostsPageNumbers"></div>
+                <button class="manage-posts-btn" id="managePostsNextBtn" type="button">下一页</button>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
