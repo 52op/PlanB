@@ -51,14 +51,22 @@ def _parse_positive_int(value, default, minimum=1, maximum=None):
     return parsed
 
 
+def _contains_cjk(value):
+    for char in str(value or ''):
+        if '\u3400' <= char <= '\u9fff':
+            return True
+    return False
+
+
 def _coerce_tag_query(tags):
     if isinstance(tags, (list, tuple)):
         for tag in tags:
             tag_value = str(tag or '').strip()
-            if tag_value:
+            if tag_value and not _contains_cjk(tag_value):
                 return tag_value
+        return ''
     tag_value = str(tags or '').strip()
-    return tag_value
+    return tag_value if tag_value and not _contains_cjk(tag_value) else ''
 
 
 def _build_stable_seed(item):
@@ -376,9 +384,7 @@ def resolve_fallback_cover(item_metadata, site_settings=None):
     item = dict(item_metadata or {})
     raw_cover = str(item.get('cover') or '').strip()
     normalized_cover = raw_cover.lower()
-    if normalized_cover == '__none__':
-        return ''
-    if raw_cover and normalized_cover not in {'none', 'false'}:
+    if raw_cover and normalized_cover not in {'none', 'false', '__none__'}:
         return raw_cover
 
     settings = get_cover_fallback_settings(site_settings)

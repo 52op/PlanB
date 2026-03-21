@@ -129,7 +129,7 @@
                 <div class="form-group">
                     <label>Pexels 默认查询词</label>
                     <input type="text" name="random_cover_pexels_default_query" value="{{ settings.random_cover_pexels_default_query or 'nature' }}" placeholder="文章没有标签时，默认使用的关键词">
-                    <small style="color:#6c757d;">优先取文章第一个标签作为 `query`。如果没有标签，这里支持填写一个或多个默认关键词，多个请用英文逗号 `,` 分隔，系统会按文章稳定地选中其中一个。</small>
+                    <small style="color:#6c757d;">优先取文章里第一个非中文标签作为 `query`。如果没有合适标签，这里支持填写一个或多个默认关键词，多个请用英文逗号 `,` 分隔，系统会按文章稳定地选中其中一个。</small>
                 </div>
                 <div class="form-group">
                     <label>Pexels 图片方向</label>
@@ -505,8 +505,8 @@ document.addEventListener('DOMContentLoaded', function () {
         coverStrategyBadge.style.background = '#ede9fe';
         coverStrategyBadge.style.color = '#6d28d9';
         coverStrategySummary.innerHTML = pexelsQueries.length
-            ? `优先使用文章第一个标签搜索图片；如果文章没有标签，就会从默认关键词池 <code style="background:#f8fafc; padding:2px 6px; border-radius:6px;">${pexelsQueries.join(', ')}</code> 中按文章稳定选一个关键词。`
-            : '当前还没有填写默认关键词。没有标签的文章将无法从 Pexels 获得兜底封面。';
+            ? `优先使用文章里第一个非中文标签搜索图片；如果没有合适标签，就会从默认关键词池 <code style="background:#f8fafc; padding:2px 6px; border-radius:6px;">${pexelsQueries.join(', ')}</code> 中按文章稳定选一个关键词。`
+            : '当前还没有填写默认关键词。没有合适的非中文标签时，文章将无法从 Pexels 获得兜底封面。';
     }
 
     function refreshCoverSourceVisibility() {
