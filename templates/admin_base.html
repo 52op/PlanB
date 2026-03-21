@@ -103,6 +103,13 @@
                 </select>
                 <small style="color:#6c757d;">当文章没有封面图时，博客主题会按这里的规则自动补一个兜底封面。</small>
             </div>
+            <div class="form-group" style="margin-top:-6px; padding:14px 16px; border:1px solid #e5e7eb; border-radius:10px; background:#fff;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
+                    <span id="coverStrategyBadge" style="display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-size:12px; font-weight:700;">当前策略</span>
+                    <span style="font-size:12px; color:#64748b;">测试按钮会优先使用当前表单里的未保存配置，不必先点“保存设置”。</span>
+                </div>
+                <div id="coverStrategySummary" style="font-size:13px; color:#334155; line-height:1.8;"></div>
+            </div>
             <div class="form-group" id="random_cover_url_wrap">
                 <label>远程封面地址 / 随机图接口</label>
                 <input type="text" name="random_cover_api" value="{{ settings.random_cover_api or '' }}" placeholder="例如：https://picsum.photos/1200/630 或你的随机图接口">
@@ -153,6 +160,13 @@
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
                     <input type="text" id="coverPreviewQueryInput" class="form-control" placeholder="可选：输入一个测试标签/关键词，例如 code、travel" style="flex:1; min-width:240px;">
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+                    <button type="button" class="btn btn-sm cover-preview-chip" data-query="code" style="background:#e2e8f0; color:#334155;">code</button>
+                    <button type="button" class="btn btn-sm cover-preview-chip" data-query="product" style="background:#e2e8f0; color:#334155;">product</button>
+                    <button type="button" class="btn btn-sm cover-preview-chip" data-query="nature" style="background:#e2e8f0; color:#334155;">nature</button>
+                    <button type="button" class="btn btn-sm cover-preview-chip" data-query="travel" style="background:#e2e8f0; color:#334155;">travel</button>
+                    <button type="button" class="btn btn-sm cover-preview-chip" data-query="" style="background:#eef2ff; color:#4338ca;">清空测试关键词</button>
                 </div>
                 <div id="coverPreviewStatus" style="font-size:13px; color:#64748b;">点击“测试当前设置”后，会在这里显示当前兜底封面的解析结果。</div>
                 <div id="coverPreviewMeta" style="display:none; margin-top:10px; font-size:13px; color:#475569;"></div>
@@ -435,11 +449,65 @@ document.addEventListener('DOMContentLoaded', function () {
     const urlWrap = document.getElementById('random_cover_url_wrap');
     const localDirWrap = document.getElementById('random_cover_local_dir_wrap');
     const pexelsWrap = document.getElementById('random_cover_pexels_wrap');
+    const coverStrategyBadge = document.getElementById('coverStrategyBadge');
+    const coverStrategySummary = document.getElementById('coverStrategySummary');
     const coverPreviewBtn = document.getElementById('coverPreviewBtn');
     const coverPreviewQueryInput = document.getElementById('coverPreviewQueryInput');
     const coverPreviewStatus = document.getElementById('coverPreviewStatus');
     const coverPreviewMeta = document.getElementById('coverPreviewMeta');
     const coverPreviewGrid = document.getElementById('coverPreviewGrid');
+    const coverPreviewChips = document.querySelectorAll('.cover-preview-chip');
+
+    function parseDefaultQueries(rawValue) {
+        return String(rawValue || '')
+            .replace(/，/g, ',')
+            .replace(/；/g, ',')
+            .replace(/;/g, ',')
+            .replace(/\n/g, ',')
+            .split(',')
+            .map(function (item) {
+                return item.trim();
+            })
+            .filter(Boolean);
+    }
+
+    function updateCoverStrategySummary() {
+        if (!sourceTypeSelect || !coverStrategySummary || !coverStrategyBadge || !settingsForm) return;
+        const sourceType = sourceTypeSelect.value;
+        const urlField = settingsForm.querySelector('[name="random_cover_api"]');
+        const localDirField = settingsForm.querySelector('[name="random_cover_local_dir"]');
+        const pexelsDefaultField = settingsForm.querySelector('[name="random_cover_pexels_default_query"]');
+        const urlValue = urlField ? String(urlField.value || '').trim() : '';
+        const localDirValue = localDirField ? String(localDirField.value || '').trim() : '';
+        const pexelsQueries = parseDefaultQueries(pexelsDefaultField ? pexelsDefaultField.value : '');
+
+        if (sourceType === 'url') {
+            coverStrategyBadge.textContent = '远程直链模式';
+            coverStrategyBadge.style.background = '#dbeafe';
+            coverStrategyBadge.style.color = '#1d4ed8';
+            coverStrategySummary.innerHTML = urlValue
+                ? `没有封面图时，将直接使用 <code style="background:#f8fafc; padding:2px 6px; border-radius:6px;">${urlValue}</code> 作为兜底封面。适合固定品牌图或随机图接口。`
+                : '当前还没有填写远程封面地址。保存后博客将不会获得可用的兜底封面。';
+            return;
+        }
+
+        if (sourceType === 'local_dir') {
+            coverStrategyBadge.textContent = '本地目录模式';
+            coverStrategyBadge.style.background = '#dcfce7';
+            coverStrategyBadge.style.color = '#166534';
+            coverStrategySummary.innerHTML = localDirValue
+                ? `没有封面图时，将从目录 <code style="background:#f8fafc; padding:2px 6px; border-radius:6px;">${localDirValue}</code> 及其子目录中稳定选一张图。相同文章会尽量保持同一张，不会每次刷新乱变。`
+                : '当前还没有填写本地封面目录。建议填写项目内相对路径或磁盘绝对路径。';
+            return;
+        }
+
+        coverStrategyBadge.textContent = 'Pexels 模式';
+        coverStrategyBadge.style.background = '#ede9fe';
+        coverStrategyBadge.style.color = '#6d28d9';
+        coverStrategySummary.innerHTML = pexelsQueries.length
+            ? `优先使用文章第一个标签搜索图片；如果文章没有标签，就会从默认关键词池 <code style="background:#f8fafc; padding:2px 6px; border-radius:6px;">${pexelsQueries.join(', ')}</code> 中按文章稳定选一个关键词。`
+            : '当前还没有填写默认关键词。没有标签的文章将无法从 Pexels 获得兜底封面。';
+    }
 
     function refreshCoverSourceVisibility() {
         if (!sourceTypeSelect) return;
@@ -453,11 +521,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (pexelsWrap) {
             pexelsWrap.style.display = value === 'pexels' ? 'block' : 'none';
         }
-    }
-
-    if (sourceTypeSelect) {
-        sourceTypeSelect.addEventListener('change', refreshCoverSourceVisibility);
-        refreshCoverSourceVisibility();
+        updateCoverStrategySummary();
     }
 
     function renderCoverPreview(result) {
@@ -475,11 +539,17 @@ document.addEventListener('DOMContentLoaded', function () {
         coverPreviewStatus.textContent = preview.message || '测试完成。';
 
         const metaLines = [];
+        if (preview.source_label) {
+            metaLines.push(`来源模式：${preview.source_label}`);
+        }
         if (preview.source_type === 'local_dir' && preview.directory) {
             metaLines.push(`目录：${preview.directory}`);
         }
         if (preview.source_type === 'pexels' && preview.query) {
             metaLines.push(`查询关键词：${preview.query}`);
+        }
+        if (preview.source_type === 'pexels' && Array.isArray(preview.default_queries) && preview.default_queries.length) {
+            metaLines.push(`默认关键词池：${preview.default_queries.join(', ')}`);
         }
         if (typeof preview.count === 'number') {
             metaLines.push(`候选数量：${preview.count}`);
@@ -579,6 +649,38 @@ document.addEventListener('DOMContentLoaded', function () {
             coverPreviewBtn.disabled = false;
         }
     }
+
+    if (sourceTypeSelect) {
+        sourceTypeSelect.addEventListener('change', refreshCoverSourceVisibility);
+        refreshCoverSourceVisibility();
+    }
+
+    if (settingsForm) {
+        [
+            'random_cover_api',
+            'random_cover_local_dir',
+            'random_cover_pexels_default_query',
+            'random_cover_pexels_orientation',
+            'random_cover_pexels_per_page',
+            'random_cover_pexels_cache_hours'
+        ].forEach(function (name) {
+            const field = settingsForm.querySelector(`[name="${name}"]`);
+            if (field) {
+                field.addEventListener('input', updateCoverStrategySummary);
+                field.addEventListener('change', updateCoverStrategySummary);
+            }
+        });
+        updateCoverStrategySummary();
+    }
+
+    coverPreviewChips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            if (coverPreviewQueryInput) {
+                coverPreviewQueryInput.value = chip.getAttribute('data-query') || '';
+                coverPreviewQueryInput.focus();
+            }
+        });
+    });
 
     if (coverPreviewBtn) {
         coverPreviewBtn.addEventListener('click', runCoverPreview);

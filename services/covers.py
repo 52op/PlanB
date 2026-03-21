@@ -321,6 +321,7 @@ def preview_cover_source(settings=None, sample_query=''):
         selected_url = str(resolved_settings.get('random_cover_api') or '').strip()
         return {
             'source_type': 'url',
+            'source_label': '远程直链 / 随机图接口',
             'selected_url': selected_url,
             'candidates': [selected_url] if selected_url else [],
             'count': 1 if selected_url else 0,
@@ -333,6 +334,7 @@ def preview_cover_source(settings=None, sample_query=''):
         preview_files = local_files[:4]
         return {
             'source_type': 'local_dir',
+            'source_label': '本地目录',
             'selected_url': resolve_fallback_cover(sample_item, resolved_settings),
             'candidates': [_build_local_cover_url(path) for path in preview_files],
             'count': len(local_files),
@@ -353,11 +355,13 @@ def preview_cover_source(settings=None, sample_query=''):
     query_label = '测试关键词' if sample_query else ('默认关键词池' if query_source == 'default' else '文章标签')
     return {
         'source_type': 'pexels',
+        'source_label': 'Pexels 标签搜索',
         'selected_url': selected_url,
         'candidates': preview_candidates,
         'count': len(candidates),
         'query': query_value,
         'query_source': query_source,
+        'default_queries': resolved_settings.get('random_cover_pexels_default_queries') or [DEFAULT_PEXELS_QUERY],
         'message': (
             '当前还没有填写 Pexels API Key，无法拉取候选封面图。'
             if not str(resolved_settings.get('random_cover_pexels_api_key') or '').strip() else
