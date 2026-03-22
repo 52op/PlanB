@@ -1,45 +1,59 @@
 @echo off
-chcp 65001 >nul
-setlocal
+setlocal EnableExtensions
+
+cd /d "%~dp0"
 
 echo ========================================
-echo   Planning 单文件打包脚本
+echo   Planning Onefile Build Script
 echo ========================================
 echo.
 
 if exist "venv\Scripts\python.exe" (
-    set "PYTHON=venv\Scripts\python.exe"
+    set "PYTHON_EXE=%CD%\venv\Scripts\python.exe"
 ) else (
-    set "PYTHON=python"
+    set "PYTHON_EXE=python"
 )
 
-%PYTHON% -c "import PyInstaller" 2>nul
+echo [1/4] Using Python:
+echo     %PYTHON_EXE%
+echo.
+
+"%PYTHON_EXE%" -c "import PyInstaller" >nul 2>nul
 if errorlevel 1 (
-    echo [提示] 未检测到 PyInstaller，正在安装...
-    %PYTHON% -m pip install pyinstaller
+    echo [2/4] PyInstaller not found. Installing...
+    "%PYTHON_EXE%" -m pip install pyinstaller
     if errorlevel 1 (
-        echo [错误] PyInstaller 安装失败
+        echo.
+        echo ERROR: Failed to install PyInstaller.
         pause
         exit /b 1
     )
+) else (
+    echo [2/4] PyInstaller is already installed.
 )
 
-echo [清理] 删除旧的 build/dist 目录...
+echo.
+echo [3/4] Cleaning old build output...
 if exist "build" rmdir /s /q "build"
 if exist "dist" rmdir /s /q "dist"
 
-echo [打包] 开始生成单文件 exe...
-%PYTHON% -m PyInstaller --clean --noconfirm planning.spec
+echo.
+echo [4/4] Building onefile exe...
+"%PYTHON_EXE%" -m PyInstaller --clean --noconfirm planning.spec
 if errorlevel 1 (
     echo.
-    echo [错误] 打包失败
+    echo ERROR: Build failed.
     pause
     exit /b 1
 )
 
 echo.
-echo [完成] 打包成功：dist\planning.exe
-echo [提示] 程序首次运行会在 exe 同目录自动创建 data\ 目录
-echo [提示] 如需重置 admin 密码，请在 exe 同目录创建 .changepassword 后重新启动
+echo Build completed successfully.
+echo Output: dist\planning.exe
+echo.
+echo Notes:
+echo   1. The exe will create a data\ folder next to itself on first run.
+echo   2. To reset the admin password, create a .changepassword file
+echo      next to the exe and start it again.
 echo.
 pause

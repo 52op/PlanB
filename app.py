@@ -2,7 +2,7 @@ import os
 import secrets
 import sys
 import yaml
-from flask import Flask
+from flask import Flask, request
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from models import db, init_db, User
@@ -13,6 +13,21 @@ from runtime_paths import (
     normalize_database_uri,
 )
 
+def _coerce_bool(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    normalized = str(value).strip().lower()
+    if normalized in {'1', 'true', 'yes', 'y', 'on'}:
+        return True
+    if normalized in {'0', 'false', 'no', 'n', 'off'}:
+        return False
+    return default
+
+
 def _build_default_config():
     return {
         'port': 5000,
@@ -20,6 +35,7 @@ def _build_default_config():
         'database_path': '',
         'secret_key': secrets.token_hex(32),
         'timezone': 'Asia/Shanghai',
+        'cookie_secure': False,
     }
 
 
@@ -27,6 +43,22 @@ def _save_config(config_path, config):
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
     with open(config_path, 'w', encoding='utf-8') as f:
         yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
+
+
+def _request_is_secure():
+    forwarded_proto = str(request.headers.get('X-Forwarded-Proto') or '').strip().lower()
+    if forwarded_proto:
+        return forwarded_proto == 'https'
+    return bool(request.is_secure)
+
+
+def _is_local_host(host_value):
+    host = str(host_value or '').strip().lower()
+    if not host:
+        return False
+    if ':' in host:
+        host = host.split(':', 1)[0]
+    return host in {'127.0.0.1', 'localhost', '::1'}
 
 
 def load_config():
@@ -67,7 +99,8 @@ def create_app():
         app.config['PREFERRED_URL_SCHEME'] = 'https'
     app.config['SQLALCHEMY_DATABASE_URI'] = normalize_database_uri(config.get('database_path'))
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    debug_enabled = bool(config.get('debug', True))
+    debug_enabled = _coerce_bool(config.get('debug', True), default=True)
+    cookie_secure_enabled = _coerce_bool(config.get('cookie_secure', False), default=False)
     secret_key = os.environ.get('PLANNING_SECRET_KEY') or config.get('secret_key')
     if not secret_key:
         if debug_enabled:
@@ -80,9 +113,9 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['REMEMBER_COOKIE_HTTPONLY'] = True
     app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
-    if not debug_enabled:
-        app.config['SESSION_COOKIE_SECURE'] = True
-        app.config['REMEMBER_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_SECURE'] = cookie_secure_enabled
+    app.config['REMEMBER_COOKIE_SECURE'] = cookie_secure_enabled
+    app.config['COOKIE_SECURE_WARNING_PRINTED'] = False
 
     # 初始化数据库
     init_db(app)
@@ -96,6 +129,26 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
+
+    @app.before_request
+    def warn_insecure_cookie_usage():
+        if not app.config.get('SESSION_COOKIE_SECURE'):
+            return None
+        if app.config.get('COOKIE_SECURE_WARNING_PRINTED'):
+            return None
+        if _request_is_secure():
+            return None
+        if _is_local_host(request.host):
+            return None
+        app.config['COOKIE_SECURE_WARNING_PRINTED'] = True
+        print(
+            "[planning] WARNING: Detected HTTP access from a non-local address "
+            f"({request.host}). cookie_secure=true may prevent session cookies "
+            "from being sent, which can cause login/CSRF failures. If you are "
+            "using LAN HTTP access, set cookie_secure: false in data/config.yaml "
+            "or switch the site to HTTPS."
+        )
+        return None
 
     # 注册蓝图
     from blueprints.main import main_bp
@@ -113,9 +166,22 @@ def create_app():
 if __name__ == '__main__':
     app, config = create_app()
     port = config.get('port', 5000)
-    debug_enabled = config.get('debug', True)
+    debug_enabled = _coerce_bool(config.get('debug', True), default=True)
 
     print(f"准备启动planning文档&博客系统")
+    if app.config.get('SESSION_COOKIE_SECURE'):
+        print(
+            "[planning] 启用了 cookie_secure=true。如果你通过普通的 HTTP 访问该网站，"
+            "例如使用局域网地址 http://192.168.x.x，"
+            "登录和 CSRF 验证可能会失败。请使用 HTTPS 或在 data/config.yaml 中设置 "
+            "cookie_secure: false。"
+        )
+    else:
+        print(
+            "[planning] 当前使用 cookie_secure=false，适合本机或局域网 HTTP 访问。"
+            "如果你后续启用对外 HTTPS/SSL，请记得在 data/config.yaml 中改为 "
+            "cookie_secure: true，以保护登录会话 Cookie。"
+        )
     if debug_enabled:
         # 开发模式：使用 Flask 自带服务器
         print(f"[开发模式] 启动 Flask 开发服务器: http://0.0.0.0:{port}")

@@ -7,7 +7,13 @@ port: 5002
 debug: true
 
 # 数据库路径
-database_path: "sqlite:///app.db"
+# 留空时默认使用 data/app.db
+database_path: ""
+
+# Cookie 安全选项
+# false: 适合本机或局域网 HTTP 访问
+# true: 仅建议在正式 HTTPS/SSL 环境开启
+cookie_secure: false
 
 # 强制外部 URL 使用 HTTPS
 force_https_for_external_urls: true

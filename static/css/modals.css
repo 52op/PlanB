@@ -178,6 +178,195 @@
     font-family: Consolas, "Courier New", monospace;
 }
 
+.article-crawler-dialog {
+    width: min(1040px, calc(100vw - 32px));
+    max-height: min(90vh, 960px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border-radius: 20px;
+    border: 1px solid #dbe4f0;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+
+.article-crawler-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 24px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.article-crawler-header h3 {
+    margin: 4px 0 8px;
+    font-size: 1.25rem;
+    color: #0f172a;
+}
+
+.article-crawler-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.article-crawler-kicker {
+    color: var(--color-primary);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.article-crawler-toolbar {
+    padding: 18px 24px 12px;
+    border-bottom: 1px solid #eef2f7;
+    display: grid;
+    gap: 16px;
+}
+
+.article-crawler-url-field,
+.article-crawler-field,
+.article-crawler-body-field,
+.article-crawler-select-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.article-crawler-url-field > span,
+.article-crawler-field > span,
+.article-crawler-body-field > span,
+.article-crawler-select-field > span {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.article-crawler-url-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+}
+
+.article-crawler-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    align-items: end;
+}
+
+.article-crawler-check-field {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    min-height: 42px;
+    padding: 0 2px;
+    font-size: 13px;
+    color: #334155;
+}
+
+.article-crawler-check-field input {
+    margin: 0;
+}
+
+.article-crawler-status {
+    margin: 14px 24px 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.article-crawler-status.is-muted {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.article-crawler-status.is-success {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.article-crawler-status.is-error {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.article-crawler-preview {
+    padding: 18px 24px 0;
+    overflow: auto;
+}
+
+.article-crawler-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+}
+
+.article-crawler-field-wide {
+    grid-column: span 2;
+}
+
+.article-crawler-cover-box {
+    margin-top: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 14px;
+    background: linear-gradient(180deg, #f8fafc, #ffffff);
+}
+
+.article-crawler-cover-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.article-crawler-cover-head strong {
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.article-crawler-cover-head span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.article-crawler-cover-box img {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 12px;
+    display: block;
+    background: #e2e8f0;
+}
+
+.article-crawler-body-field {
+    margin-top: 16px;
+    margin-bottom: 20px;
+}
+
+.article-crawler-body-field textarea {
+    min-height: 320px;
+    resize: vertical;
+    font-family: Consolas, "Courier New", monospace;
+    line-height: 1.7;
+}
+
+.article-crawler-actions {
+    padding: 16px 24px 22px;
+    border-top: 1px solid #eef2f7;
+    margin-top: 0;
+}
+
 /* Toast 通知样式 */
 .app-toast {
     position: fixed;
@@ -192,6 +381,48 @@
     transition: transform 0.3s ease;
     max-width: 300px;
     word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+    .article-crawler-dialog {
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+        border-radius: 16px;
+    }
+
+    .article-crawler-header,
+    .article-crawler-toolbar,
+    .article-crawler-preview,
+    .article-crawler-actions {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .article-crawler-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .article-crawler-url-row,
+    .article-crawler-options,
+    .article-crawler-preview-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .article-crawler-field-wide {
+        grid-column: span 1;
+    }
+
+    .article-crawler-close,
+    .article-crawler-url-row .btn,
+    .article-crawler-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .article-crawler-body-field textarea {
+        min-height: 240px;
+    }
 }
 
 .app-toast.show {

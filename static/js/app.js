@@ -89,6 +89,11 @@ class PlanningApp {
             window.uploadManager.setCurrentPaths(this.currentFilePath, this.currentDirPath);
         }
 
+        if (window.articleCrawler) {
+            window.articleCrawler.setCSRFToken(this.csrfToken);
+            window.articleCrawler.setCurrentFile(this.currentFilePath);
+        }
+
         if (window.shareManager) {
             window.shareManager.setCSRFToken(this.csrfToken);
             window.shareManager.setCurrentPaths(this.currentFilePath, this.currentDirPath);
@@ -110,6 +115,10 @@ class PlanningApp {
 
         if (window.uploadManager) {
             window.uploadManager.bindEvents();
+        }
+
+        if (window.articleCrawler) {
+            window.articleCrawler.bindEvents();
         }
 
         if (window.shareManager) {

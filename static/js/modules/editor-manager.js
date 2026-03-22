@@ -389,6 +389,151 @@ class EditorManager {
         return [Math.max(1, lines.length), lines[lines.length - 1].length];
     }
 
+    editorPositionToMarkdownIndex(content, position) {
+        const text = String(content || '');
+        if (!Array.isArray(position) || position.length < 2) {
+            return text.length;
+        }
+
+        const line = Math.max(1, Number(position[0]) || 1);
+        const column = Math.max(0, Number(position[1]) || 0);
+        const lines = text.split('\n');
+        let index = 0;
+
+        for (let currentLine = 1; currentLine < line && currentLine <= lines.length; currentLine += 1) {
+            index += (lines[currentLine - 1] || '').length + 1;
+        }
+
+        const currentLineText = lines[line - 1] || '';
+        return Math.max(0, Math.min(index + Math.min(column, currentLineText.length), text.length));
+    }
+
+    normalizeImportedMarkdown(markdown) {
+        return String(markdown || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    }
+
+    getEditorSelectionRange(content) {
+        const text = String(content || '');
+        const selection = this.editorInstance?.getSelection?.();
+        if (!Array.isArray(selection) || selection.length < 2) {
+            return [text.length, text.length];
+        }
+
+        return [
+            this.editorPositionToMarkdownIndex(text, selection[0]),
+            this.editorPositionToMarkdownIndex(text, selection[1]),
+        ];
+    }
+
+    setMetaFieldValue(element, value) {
+        if (!element) return;
+        element.value = value ?? '';
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    applyImportedMarkdown(markdown, mode = 'append') {
+        if (!this.editorInstance) return false;
+
+        const imported = this.normalizeImportedMarkdown(markdown);
+        if (!imported) return false;
+
+        const currentContent = String(this.editorInstance.getMarkdown?.() || '');
+        let nextContent = currentContent;
+        let cursorIndex = currentContent.length;
+
+        if (mode === 'replace') {
+            nextContent = imported;
+            cursorIndex = imported.length;
+        } else if (mode === 'cursor') {
+            const [selectionStart, selectionEnd] = this.getEditorSelectionRange(currentContent);
+            let insertion = imported;
+            const prefix = currentContent.slice(0, selectionStart);
+            const suffix = currentContent.slice(selectionEnd);
+
+            if (prefix.trim() && !prefix.endsWith('\n') && !insertion.startsWith('\n')) {
+                insertion = `\n\n${insertion}`;
+            } else if (prefix && !prefix.endsWith('\n') && insertion.startsWith('#')) {
+                insertion = `\n\n${insertion}`;
+            }
+
+            if (suffix.trim() && !suffix.startsWith('\n') && !insertion.endsWith('\n')) {
+                insertion = `${insertion}\n\n`;
+            } else if (suffix.trim() && insertion.endsWith('\n') && !suffix.startsWith('\n')) {
+                insertion = `${insertion}\n`;
+            }
+
+            nextContent = `${prefix}${insertion}${suffix}`;
+            cursorIndex = prefix.length + insertion.length;
+        } else {
+            const base = currentContent.trimEnd();
+            nextContent = base ? `${base}\n\n${imported}` : imported;
+            cursorIndex = nextContent.length;
+        }
+
+        this.editorInstance.setMarkdown(nextContent, false);
+        requestAnimationFrame(() => {
+            const cursorAt = this.markdownIndexToEditorPosition(nextContent, cursorIndex);
+            this.editorInstance.setSelection?.(cursorAt, cursorAt);
+            this.editorInstance.focus?.();
+        });
+        return true;
+    }
+
+    async applyImportedMetadata(metadata = {}) {
+        if (!window.frontMatterUtils) return false;
+
+        const {
+            title = '',
+            date = '',
+            tags = [],
+            cover = '',
+        } = metadata;
+
+        this.setMetaFieldValue(this.metaTitleInput, title || this.metaTitleInput?.value || '');
+        if (window.frontMatterUtils.metaDateInput) {
+            this.setMetaFieldValue(window.frontMatterUtils.metaDateInput, date || window.frontMatterUtils.metaDateInput.value || '');
+        }
+        if (window.frontMatterUtils.metaTagsInput) {
+            const tagValue = Array.isArray(tags) ? tags.join(', ') : String(tags || '').trim();
+            this.setMetaFieldValue(window.frontMatterUtils.metaTagsInput, tagValue || window.frontMatterUtils.metaTagsInput.value || '');
+        }
+        if (window.frontMatterUtils.metaCoverInput) {
+            this.setMetaFieldValue(window.frontMatterUtils.metaCoverInput, cover || window.frontMatterUtils.metaCoverInput.value || '');
+        }
+
+        this.updateMetaPanelDirtyState();
+        await this.applyFrontMatter();
+        return true;
+    }
+
+    async importExternalContent({
+        markdown = '',
+        mode = 'append',
+        syncFrontMatter = false,
+        metadata = {},
+    } = {}) {
+        const wasEditorVisible = this.isEditorVisible();
+        const editorReady = wasEditorVisible || await this.openEditor();
+        if (!editorReady) return false;
+
+        const effectiveMode = mode === 'cursor' && !wasEditorVisible ? 'append' : mode;
+        const inserted = this.applyImportedMarkdown(markdown, effectiveMode);
+        if (!inserted) {
+            window.uiUtils?.showToast?.('没有可插入的正文内容', 'warning');
+            return false;
+        }
+
+        if (syncFrontMatter) {
+            const applied = await this.applyImportedMetadata(metadata);
+            if (!applied) {
+                window.uiUtils?.showToast?.('正文已插入，但头部信息未能同步', 'warning');
+            }
+        }
+
+        return true;
+    }
+
     buildSizedImageMarkup(url, altText) {
         return new Promise((resolve) => {
             const dialog = document.createElement('div');

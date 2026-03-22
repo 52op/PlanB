@@ -6,12 +6,15 @@ from flask_login import login_required, current_user
 from models import SystemSetting, Image, ShareLink, User, db
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from services import (
+    CrawlError,
     InvalidPathError,
     build_share_session_key,
     build_share_title,
     check_permission,
     clear_file_cache,
     delete_media_file,
+    extract_article_preview,
+    finalize_crawled_content,
     force_https_url,
     generate_share_token,
     get_all_images_with_status,
@@ -218,6 +221,87 @@ def get_raw_markdown():
         content = f.read()
         
     return jsonify({'content': content})
+
+
+@api_bp.route('/crawl/preview', methods=['POST'])
+@login_required
+def crawl_article_preview():
+    data = request.get_json() or {}
+    source_url = (data.get('url') or '').strip()
+    filename = (data.get('filename') or '').strip()
+
+    if not source_url:
+        return jsonify({'error': '请输入要抓取的文章链接'}), 400
+
+    normalized_filename = ''
+    if filename:
+        try:
+            _, normalized_filename, _ = resolve_docs_path(filename)
+        except InvalidPathError:
+            return jsonify({'error': '目标文档路径无效'}), 400
+
+        if not check_permission(current_user, normalized_filename, 'edit'):
+            return jsonify({'error': '没有该文档的编辑权限'}), 403
+
+    try:
+        preview = extract_article_preview(source_url)
+        return jsonify({
+            'success': True,
+            'filename': normalized_filename,
+            'source_url': preview.get('source_url') or source_url,
+            'title': preview.get('title') or '',
+            'date': preview.get('date') or '',
+            'tags': preview.get('tags') or [],
+            'cover': force_https_url(preview.get('cover') or ''),
+            'markdown': preview.get('markdown') or '',
+        })
+    except CrawlError as exc:
+        return jsonify({'error': str(exc)}), 400
+    except Exception as exc:
+        return jsonify({'error': f'抓取失败：{exc}'}), 500
+
+
+@api_bp.route('/crawl/finalize', methods=['POST'])
+@login_required
+def finalize_crawled_article():
+    data = request.get_json() or {}
+    filename = (data.get('filename') or '').strip()
+    markdown_text = data.get('markdown')
+    image_mode = (data.get('image_mode') or 'remote').strip().lower()
+    cover_url = (data.get('cover') or '').strip()
+
+    if markdown_text is None:
+        return jsonify({'error': '缺少要插入的正文内容'}), 400
+
+    if image_mode not in {'remote', 'download_local'}:
+        return jsonify({'error': '图片处理方式无效'}), 400
+
+    if filename:
+        try:
+            _, filename, _ = resolve_docs_path(filename)
+        except InvalidPathError:
+            return jsonify({'error': '目标文档路径无效'}), 400
+
+        if not check_permission(current_user, filename, 'edit'):
+            return jsonify({'error': '没有该文档的编辑权限'}), 403
+
+    try:
+        result = finalize_crawled_content(
+            markdown_text=str(markdown_text or ''),
+            image_mode=image_mode,
+            cover_url=cover_url,
+        )
+        update_all_image_references()
+        return jsonify({
+            'success': True,
+            'markdown': result.get('markdown') or '',
+            'cover': result.get('cover') or '',
+            'warnings': result.get('warnings') or [],
+        })
+    except CrawlError as exc:
+        return jsonify({'error': str(exc)}), 400
+    except Exception as exc:
+        return jsonify({'error': f'处理失败：{exc}'}), 500
 
 @api_bp.route('/save', methods=['POST'])
 @login_required

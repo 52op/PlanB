@@ -263,6 +263,9 @@
                 {% if current_user.is_authenticated %}
                 <div style="display: flex; gap: 8px;">
                     {% if current_file and can_edit %}
+                    <button id="crawlBtn" class="action-btn"><i data-lucide="scan-search" class="icon-inline"></i> 爬取</button>
+                    {% endif %}
+                    {% if current_file and can_edit %}
                     <button id="editBtn" class="action-btn"><i data-lucide="square-pen" class="icon-inline"></i> 编辑</button>
                     {% endif %}
                     {% if current_file and can_edit %}
@@ -531,6 +534,7 @@
     <script src="{{ url_for('static', filename='js/modules/upload-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/front-matter-utils.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/editor-manager.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/article-crawler.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/share-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modules/public-post-manager.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>

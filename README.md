@@ -223,6 +223,7 @@ debug: false
 database_path: ''
 secret_key: 'replace-with-your-own-secret'
 timezone: Asia/Shanghai
+cookie_secure: false
 force_https_for_external_urls: true
 ```
 
@@ -237,6 +238,21 @@ force_https_for_external_urls: true
   - 生产环境建议自行替换为稳定值
 - `timezone`
   - 默认 `Asia/Shanghai`
+- `cookie_secure`
+  - `false` 时，允许通过普通 `HTTP` 访问时正常携带登录会话 Cookie
+  - `true` 时，只会在 `HTTPS` 下发送登录会话 Cookie
+  - 如果你通过局域网地址如 `http://192.168.x.x` 访问，通常应设置为 `false`
+  - 如果你后续正式启用对外 `HTTPS/SSL`，建议改为 `true`
+
+局域网访问建议：
+
+- 本地或局域网 `HTTP` 访问：`cookie_secure: false`
+- 已部署 `HTTPS` 的正式环境：`cookie_secure: true`
+
+说明：
+
+- 当 `cookie_secure: true` 时，如果有人通过非 HTTPS 的局域网地址访问，程序控制台会打印提示，提醒你可能出现登录失败或 CSRF 校验失败
+- 当 `cookie_secure: false` 时，程序启动时也会提示你：如果后续切到正式 HTTPS/SSL 环境，应改为 `true`
 
 ---
 
@@ -484,4 +500,3 @@ build_onefile.bat
 - 自动备份 `data/` 目录
 - 日志输出与轮转
 - 数据库从 SQLite 迁移到 MySQL/PostgreSQL 的可选方案
-

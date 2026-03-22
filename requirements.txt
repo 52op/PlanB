@@ -12,3 +12,5 @@ tinycss2
 waitress
 pypinyin
 redis
+beautifulsoup4
+markdownify
