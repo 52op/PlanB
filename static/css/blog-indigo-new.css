@@ -89,6 +89,21 @@ img {
     z-index: 100;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
     transition: transform var(--transition);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(103, 116, 170, 0.32) transparent;
+}
+
+.blog-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.blog-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.blog-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(103, 116, 170, 0.32);
+    border-radius: 999px;
 }
 
 /* Sidebar collapsed state */
