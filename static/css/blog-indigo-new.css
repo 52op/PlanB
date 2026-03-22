@@ -510,6 +510,21 @@ body.sidebar-collapsed .header-toggle .icon-close {
     height: fit-content;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(103, 116, 170, 0.32) transparent;
+}
+
+.article-toc::-webkit-scrollbar {
+    width: 4px;
+}
+
+.article-toc::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.article-toc::-webkit-scrollbar-thumb {
+    background: rgba(103, 116, 170, 0.32);
+    border-radius: 999px;
 }
 
 .page-header.scrolled ~ .blog-main .article-toc {
