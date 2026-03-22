@@ -17,7 +17,7 @@
     --border-color: #ecf0f1;
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
-    --sidebar-width: 280px;
+    --sidebar-width: 264px;
     --header-height: 64px;
     --header-height-small: 56px;
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
