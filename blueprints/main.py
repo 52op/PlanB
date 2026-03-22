@@ -41,6 +41,7 @@ from services import (
     resolve_shared_path,
     get_safe_redirect_target,
     has_valid_global_access_cookie,
+    normalize_local_media_url,
     paginate_posts,
     resolve_fallback_cover,
     search_posts,
@@ -315,7 +316,7 @@ def _get_site_settings():
     site_mode = (SystemSetting.get('site_mode', 'blog') or 'blog').strip() or 'blog'
     blog_enabled = (SystemSetting.get('blog_enabled', 'true') or 'true').strip().lower() != 'false'
     show_docs_entry_in_blog = (SystemSetting.get('show_docs_entry_in_blog', 'true') or 'true').strip().lower() != 'false'
-    site_logo = SystemSetting.get('site_logo', '') or ''
+    site_logo = normalize_local_media_url(SystemSetting.get('site_logo', '') or '')
     cover_settings = get_cover_fallback_settings()
 
     return {

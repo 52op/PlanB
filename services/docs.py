@@ -19,6 +19,7 @@ from pypinyin import Style, lazy_pinyin
 from models import DirectoryConfig, DocumentViewStat
 from .paths import InvalidPathError, get_docs_root, normalize_relative_path, resolve_docs_path
 from .permissions import check_permission, has_explicit_permission
+from .urls import normalize_local_media_references_in_text, normalize_local_media_url
 
 
 # 文件缓存：缓存文件的修改时间和解析结果
@@ -361,7 +362,7 @@ def _normalize_metadata(filename, raw_metadata, raw_content):
         'title': title,
         'summary': summary,
         'tags': _normalize_tags(raw_metadata.get('tags')),
-        'cover': str(raw_metadata.get('cover') or '').strip(),
+        'cover': normalize_local_media_url(str(raw_metadata.get('cover') or '').strip()),
         'template': _normalize_template(raw_metadata.get('template')),
         'public': _normalize_bool(raw_metadata.get('public'), default=False),
         'draft': _normalize_bool(raw_metadata.get('draft'), default=False),
@@ -452,6 +453,7 @@ def _parse_markdown_file(filename):
         full_content = file_obj.read()
 
     raw_metadata, raw_content = _split_front_matter(full_content)
+    raw_content = normalize_local_media_references_in_text(raw_content)
     metadata = _normalize_metadata(normalized_filename, raw_metadata, raw_content)
     html, toc_html = _render_markdown(raw_content)
 
@@ -519,10 +521,10 @@ def _build_front_matter(raw_metadata, body_content, filename):
             metadata['cover'] = '__NONE__'
         else:
             # 用户设置了具体的封面 URL
-            metadata['cover'] = str(raw_metadata.get('cover')).strip()
+            metadata['cover'] = normalize_local_media_url(str(raw_metadata.get('cover')).strip())
     else:
         # cover 字段不存在，尝试自动提取
-        metadata['cover'] = str(_extract_first_image(body_content) or '').strip()
+        metadata['cover'] = normalize_local_media_url(str(_extract_first_image(body_content) or '').strip())
     
     metadata['slug'] = _slugify(raw_metadata.get('slug') or file_slug)
     metadata['updated'] = datetime.now().strftime('%Y-%m-%d')

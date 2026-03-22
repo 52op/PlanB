@@ -1,6 +1,40 @@
+import re
 from urllib.parse import urljoin, urlparse
 
 from flask import request, url_for
+
+
+_ABSOLUTE_URL_RE = re.compile(r'https?://[^\s"\'<>()]+', re.IGNORECASE)
+
+
+def normalize_local_media_url(url):
+    raw_value = str(url or '').strip()
+    if not raw_value:
+        return ''
+
+    parsed = urlparse(raw_value)
+    if parsed.scheme and parsed.netloc:
+        if (parsed.path or '').startswith('/media/'):
+            normalized = parsed.path or ''
+            if parsed.query:
+                normalized += f'?{parsed.query}'
+            return normalized
+        return raw_value
+
+    if raw_value.startswith('media/'):
+        return f'/{raw_value}'
+    return raw_value
+
+
+def normalize_local_media_references_in_text(text):
+    raw_text = str(text or '')
+    if not raw_text:
+        return ''
+
+    return _ABSOLUTE_URL_RE.sub(
+        lambda match: normalize_local_media_url(match.group(0)),
+        raw_text,
+    )
 
 
 def force_https_url(url):

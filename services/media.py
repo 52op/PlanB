@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 from models import Image, SystemSetting, db
 from runtime_paths import get_data_subdir
 from .paths import get_docs_root
+from .urls import normalize_local_media_url
 
 
 def _normalize_upload_subdir(value):
@@ -41,7 +42,7 @@ def _upload_to_local(file_storage, target_subdir=''):
     file_storage.save(save_path)
 
     relative_path = f'{relative_dir}/{unique_filename}'.replace('\\', '/')
-    url = url_for('main.media_file', filename=relative_path, _external=True)
+    url = normalize_local_media_url(url_for('main.media_file', filename=relative_path))
     return {
         'filename': filename,
         'unique_filename': unique_filename,
@@ -121,6 +122,8 @@ def upload_media_file(file_storage, target_subdir=''):
         if storage_type == 's3'
         else _upload_to_local(file_storage, target_subdir=target_subdir)
     )
+    if upload_result['storage_type'] == 'local':
+        upload_result['url'] = normalize_local_media_url(upload_result['url'])
 
     new_image = Image()
     new_image.filename = upload_result['filename']
@@ -327,12 +330,17 @@ def get_all_images_with_status():
     for unique_filename, data in storage_images.items():
         if unique_filename in db_images:
             image = db_images.pop(unique_filename)
+            display_url = (
+                normalize_local_media_url(f"/media/{str(image.path or '').lstrip('/')}")
+                if image.storage_type == 'local' and image.path
+                else image.url
+            )
             usage_items = _build_image_usage_items(image, site_logo, document_usage_map)
             combined_images.append({
                 'filename': image.filename,
                 'unique_filename': image.unique_filename,
                 'display_name': image.unique_filename,
-                'url': image.url,
+                'url': display_url,
                 'is_referenced': image.is_referenced,
                 'usage_items': usage_items,
                 'usage_labels': [item.get('label') for item in usage_items],
@@ -385,7 +393,7 @@ def get_local_images():
             unique_filename = os.path.basename(filename)
             date_folder = os.path.relpath(root, upload_folder).replace('\\', '/')
             file_path = os.path.join(root, filename)
-            url = url_for('main.media_file', filename=f'{date_folder}/{unique_filename}', _external=True)
+            url = normalize_local_media_url(url_for('main.media_file', filename=f'{date_folder}/{unique_filename}'))
             images[unique_filename] = {
                 'filename': filename,
                 'url': url,

@@ -57,7 +57,7 @@ from .rate_limit import (
     record_verification_success,
 )
 from .share_links import build_share_session_key, build_share_title, generate_share_token, get_share_link_by_token, is_share_expired, resolve_shared_path
-from .urls import force_https_url, get_safe_redirect_target
+from .urls import force_https_url, get_safe_redirect_target, normalize_local_media_references_in_text, normalize_local_media_url
 
 __all__ = [
     'InvalidPathError',
@@ -115,6 +115,8 @@ __all__ = [
     'has_explicit_permission',
     'issue_global_access_cookie',
     'mailer_is_configured',
+    'normalize_local_media_references_in_text',
+    'normalize_local_media_url',
     'notification_allowed',
     'normalize_relative_path',
     'read_markdown_file',

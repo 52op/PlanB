@@ -23,6 +23,8 @@ from services import (
     get_share_link_by_token,
     is_share_expired,
     get_local_images,
+    normalize_local_media_references_in_text,
+    normalize_local_media_url,
     normalize_relative_path,
     resolve_shared_path,
     resolve_docs_path,
@@ -222,7 +224,7 @@ def get_raw_markdown():
         return jsonify({'error': 'Permission denied'}), 403
         
     with open(filepath, 'r', encoding='utf-8') as f:
-        content = f.read()
+        content = normalize_local_media_references_in_text(f.read())
         
     return jsonify({'content': content})
 
@@ -583,7 +585,7 @@ def update_site_logo_setting():
     if current_user.role != 'admin':
         return jsonify({'error': 'Permission denied'}), 403
 
-    site_logo = (request.form.get('site_logo') or '').strip()
+    site_logo = normalize_local_media_url((request.form.get('site_logo') or '').strip())
     SystemSetting.set('site_logo', site_logo)
     update_all_image_references()
     return jsonify({
