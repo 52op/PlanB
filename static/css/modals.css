@@ -349,9 +349,25 @@
     background: #e2e8f0;
 }
 
-.article-crawler-body-field {
+.article-crawler-cover-tip {
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #b45309;
+}
+
+.article-crawler-body-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
     margin-top: 16px;
     margin-bottom: 20px;
+    align-items: start;
+}
+
+.article-crawler-body-field {
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 .article-crawler-body-field textarea {
@@ -359,6 +375,38 @@
     resize: vertical;
     font-family: Consolas, "Courier New", monospace;
     line-height: 1.7;
+}
+
+.article-crawler-render-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.article-crawler-render-field > span {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.article-crawler-render-box {
+    min-height: 320px;
+    max-height: 560px;
+    overflow: auto;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    padding: 14px 16px;
+}
+
+.article-crawler-render-view {
+    min-height: 288px;
+}
+
+.article-crawler-render-empty {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 13px;
 }
 
 .article-crawler-actions {
@@ -405,7 +453,8 @@
 
     .article-crawler-url-row,
     .article-crawler-options,
-    .article-crawler-preview-grid {
+    .article-crawler-preview-grid,
+    .article-crawler-body-layout {
         grid-template-columns: 1fr;
     }
 
@@ -422,6 +471,11 @@
 
     .article-crawler-body-field textarea {
         min-height: 240px;
+    }
+
+    .article-crawler-render-box {
+        min-height: 220px;
+        max-height: none;
     }
 }
 

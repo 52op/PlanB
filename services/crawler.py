@@ -466,7 +466,7 @@ def _guess_extension(url, headers):
 
 
 def _download_remote_image(url):
-    fetched_url, content, headers = _fetch_bytes(url, max_bytes=MAX_IMAGE_BYTES, accept_html=False)
+    fetched_url, content, headers = fetch_remote_image(url)
     content_type = (headers.get_content_type() or '').lower()
     if not content_type.startswith('image/'):
         raise CrawlError('目标资源不是图片')
@@ -477,6 +477,14 @@ def _download_remote_image(url):
     storage = FileStorage(stream=file_obj, filename=filename, content_type=content_type)
     uploaded_url = upload_media_file(storage)
     return force_https_url(uploaded_url)
+
+
+def fetch_remote_image(url):
+    fetched_url, content, headers = _fetch_bytes(url, max_bytes=MAX_IMAGE_BYTES, accept_html=False)
+    content_type = (headers.get_content_type() or '').lower()
+    if not content_type.startswith('image/'):
+        raise CrawlError('目标资源不是图片')
+    return fetched_url, content, headers
 
 
 def _unique_urls(urls):

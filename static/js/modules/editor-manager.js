@@ -95,6 +95,7 @@ class EditorManager {
         this.captureMetaPanelSnapshot();
         const hasExplicitSlug = !!String(this.loadedFrontMatterMetadata?.slug || '').trim();
         this.slugManuallyEdited = hasExplicitSlug;
+        this.syncAutoSlugInput();
         await this.validateSlugAvailability({
             silent: true,
             autoSuggest: !hasExplicitSlug,
@@ -163,8 +164,8 @@ class EditorManager {
         if (this.slugManuallyEdited) {
             return this.metaSlugInput?.value.trim() || '';
         }
-        return this.metaSlugInput?.value.trim()
-            || this.metaTitleInput?.value.trim()
+        return this.metaTitleInput?.value.trim()
+            || this.metaSlugInput?.value.trim()
             || fileBaseName;
     }
 
@@ -192,6 +193,16 @@ class EditorManager {
         this.slugValidationTimer = window.setTimeout(() => {
             this.validateSlugAvailability(options).catch(() => {});
         }, options.immediate ? 0 : 260);
+    }
+
+    syncAutoSlugInput() {
+        if (this.slugManuallyEdited || !this.metaSlugInput) {
+            return;
+        }
+
+        const fileBaseName = (String(this.currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
+        const nextValue = this.metaTitleInput?.value.trim() || this.metaSlugInput.value.trim() || fileBaseName;
+        this.metaSlugInput.value = nextValue;
     }
 
     applySuggestedSlug(suggestedSlug, options = {}) {
@@ -326,6 +337,7 @@ class EditorManager {
         }
 
         if (target === this.metaTitleInput) {
+            this.syncAutoSlugInput();
             this.scheduleSlugValidation({ silent: true, autoSuggest: !this.slugManuallyEdited });
             return;
         }

@@ -4,6 +4,9 @@ class ArticleCrawler {
         this.currentFilePath = '';
         this.bound = false;
         this.previewData = null;
+        this.previewRenderTimer = null;
+        this.markdownViewer = null;
+        this.handleBodyInput = this.handleBodyInput.bind(this);
         this.initializeElements();
         this.ensureModal();
     }
@@ -99,13 +102,24 @@ class ArticleCrawler {
                             <strong>首图预览</strong>
                             <span id="articleCrawlerSourceUrl"></span>
                         </div>
-                        <img id="articleCrawlerCoverPreview" alt="抓取首图预览">
+                        <img id="articleCrawlerCoverPreview" alt="抓取首图预览" referrerpolicy="no-referrer" loading="lazy">
+                        <div class="article-crawler-cover-tip" id="articleCrawlerCoverTip" hidden>
+                            当前站点可能限制直接展示封面图，你仍然可以保留这个地址，或手动替换成别的图片。
+                        </div>
                     </div>
 
-                    <label class="article-crawler-body-field">
-                        <span>正文预览（可微调后再插入）</span>
-                        <textarea id="articleCrawlerBodyInput" class="form-control" spellcheck="false"></textarea>
-                    </label>
+                    <div class="article-crawler-body-layout">
+                        <label class="article-crawler-body-field">
+                            <span>Markdown 源码（可直接微调）</span>
+                            <textarea id="articleCrawlerBodyInput" class="form-control" spellcheck="false"></textarea>
+                        </label>
+                        <div class="article-crawler-render-field">
+                            <span>渲染预览</span>
+                            <div class="article-crawler-render-box">
+                                <div id="articleCrawlerBodyPreview" class="toastui-editor-contents article-crawler-render-view"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-actions article-crawler-actions">
@@ -134,8 +148,10 @@ class ArticleCrawler {
         this.coverInput = document.getElementById('articleCrawlerCoverInput');
         this.coverBox = document.getElementById('articleCrawlerCoverBox');
         this.coverPreview = document.getElementById('articleCrawlerCoverPreview');
+        this.coverTip = document.getElementById('articleCrawlerCoverTip');
         this.sourceUrlNode = document.getElementById('articleCrawlerSourceUrl');
         this.bodyInput = document.getElementById('articleCrawlerBodyInput');
+        this.bodyPreview = document.getElementById('articleCrawlerBodyPreview');
         this.imageModeSelect = document.getElementById('articleCrawlerImageMode');
         this.insertModeSelect = document.getElementById('articleCrawlerInsertMode');
         this.syncMetaCheckbox = document.getElementById('articleCrawlerSyncMeta');
@@ -151,6 +167,13 @@ class ArticleCrawler {
         this.fetchBtn?.addEventListener('click', () => this.fetchPreview());
         this.insertBtn?.addEventListener('click', () => this.insertIntoDocument());
         this.coverInput?.addEventListener('input', () => this.updateCoverPreview());
+        this.coverPreview?.addEventListener('load', () => {
+            if (this.coverTip) this.coverTip.hidden = true;
+        });
+        this.coverPreview?.addEventListener('error', () => {
+            if (this.coverTip) this.coverTip.hidden = false;
+        });
+        this.bodyInput?.addEventListener('input', this.handleBodyInput);
         this.urlInput?.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -220,6 +243,7 @@ class ArticleCrawler {
         if (!data) {
             if (this.previewNode) this.previewNode.hidden = true;
             if (this.insertBtn) this.insertBtn.disabled = true;
+            this.renderMarkdownPreview('');
             return;
         }
 
@@ -231,7 +255,19 @@ class ArticleCrawler {
         this.bodyInput.value = data.markdown || '';
         this.sourceUrlNode.textContent = data.source_url || '';
         this.updateCoverPreview();
+        this.renderMarkdownPreview(data.markdown || '');
         this.insertBtn.disabled = false;
+    }
+
+    buildCoverPreviewUrl(rawUrl) {
+        const normalized = String(rawUrl || '').trim();
+        if (!normalized) return '';
+        if (!/^https?:\/\//i.test(normalized)) {
+            return normalized;
+        }
+
+        const params = new URLSearchParams({ url: normalized });
+        return `/api/crawl/image-proxy?${params.toString()}`;
     }
 
     updateCoverPreview() {
@@ -239,15 +275,56 @@ class ArticleCrawler {
         if (!coverValue) {
             if (this.coverBox) this.coverBox.hidden = true;
             if (this.coverPreview) this.coverPreview.removeAttribute('src');
+            if (this.coverTip) this.coverTip.hidden = true;
             return;
         }
 
         if (this.coverPreview) {
-            this.coverPreview.src = coverValue;
+            this.coverPreview.src = this.buildCoverPreviewUrl(coverValue);
         }
         if (this.coverBox) {
             this.coverBox.hidden = false;
         }
+        if (this.coverTip) {
+            this.coverTip.hidden = true;
+        }
+    }
+
+    handleBodyInput() {
+        window.clearTimeout(this.previewRenderTimer);
+        this.previewRenderTimer = window.setTimeout(() => {
+            this.renderMarkdownPreview(this.bodyInput?.value || '');
+        }, 180);
+    }
+
+    renderMarkdownPreview(markdown) {
+        if (!this.bodyPreview) return;
+
+        const content = String(markdown || '');
+        if (!content.trim()) {
+            this.bodyPreview.innerHTML = '<p class="article-crawler-render-empty">这里会显示正文的渲染效果，方便你边改边看。</p>';
+            return;
+        }
+
+        if (window.toastui?.Editor?.factory) {
+            if (!this.markdownViewer) {
+                this.bodyPreview.innerHTML = '';
+                this.markdownViewer = window.toastui.Editor.factory({
+                    el: this.bodyPreview,
+                    viewer: true,
+                    initialValue: content,
+                    usageStatistics: false,
+                });
+                return;
+            }
+
+            if (typeof this.markdownViewer.setMarkdown === 'function') {
+                this.markdownViewer.setMarkdown(content);
+                return;
+            }
+        }
+
+        this.bodyPreview.textContent = content;
     }
 
     async fetchPreview() {

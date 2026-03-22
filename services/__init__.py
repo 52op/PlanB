@@ -15,7 +15,7 @@ from .comments import (
     validate_registration_input,
     verify_email_code,
 )
-from .crawler import CrawlError, extract_article_preview, finalize_crawled_content
+from .crawler import CrawlError, extract_article_preview, fetch_remote_image, finalize_crawled_content
 from .covers import get_cover_fallback_settings, get_local_cover_base_dir, preview_cover_source, resolve_fallback_cover, resolve_pexels_query
 from .docs import (
     clear_file_cache,
@@ -76,6 +76,7 @@ __all__ = [
     'comments_require_approval',
     'CrawlError',
     'extract_article_preview',
+    'fetch_remote_image',
     'finalize_crawled_content',
     'get_cover_fallback_settings',
     'create_comment',

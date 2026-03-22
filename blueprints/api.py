@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, request, jsonify, session, url_for, current_app
+from flask import Blueprint, request, jsonify, session, url_for, current_app, Response
 from flask_login import login_required, current_user
 from models import SystemSetting, Image, ShareLink, User, db
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -14,6 +14,7 @@ from services import (
     clear_file_cache,
     delete_media_file,
     extract_article_preview,
+    fetch_remote_image,
     finalize_crawled_content,
     force_https_url,
     generate_share_token,
@@ -302,6 +303,25 @@ def finalize_crawled_article():
         return jsonify({'error': str(exc)}), 400
     except Exception as exc:
         return jsonify({'error': f'处理失败：{exc}'}), 500
+
+
+@api_bp.route('/crawl/image-proxy', methods=['GET'])
+@login_required
+def crawl_image_proxy():
+    source_url = (request.args.get('url') or '').strip()
+    if not source_url:
+        return jsonify({'error': '缺少图片地址'}), 400
+
+    try:
+        _, content, headers = fetch_remote_image(source_url)
+        content_type = headers.get_content_type() or 'image/jpeg'
+        response = Response(content, mimetype=content_type)
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+        return response
+    except CrawlError as exc:
+        return jsonify({'error': str(exc)}), 400
+    except Exception as exc:
+        return jsonify({'error': f'图片预览失败：{exc}'}), 500
 
 @api_bp.route('/save', methods=['POST'])
 @login_required

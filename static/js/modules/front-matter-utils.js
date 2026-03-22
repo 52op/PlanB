@@ -163,10 +163,11 @@ class FrontMatterUtils {
         const hints = this.extractFrontMatterHints(bodyContent);
         const fileBaseName = (String(currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
         const existingSlug = this.unwrapFrontMatterValue(metadata.slug);
-        const slugFallback = existingSlug || hints.title || fileBaseName;
+        const titleValue = this.unwrapFrontMatterValue(metadata.title) || hints.title || '';
+        const slugFallback = existingSlug || titleValue || fileBaseName;
 
         if (this.metaTitleInput) {
-            this.metaTitleInput.value = this.unwrapFrontMatterValue(metadata.title) || hints.title || '';
+            this.metaTitleInput.value = titleValue;
         }
         if (this.metaSlugInput) {
             this.metaSlugInput.value = slugFallback;
