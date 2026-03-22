@@ -283,6 +283,8 @@ def _absolute_url(path_or_url):
     if not value:
         return request.url_root.rstrip('/')
     if value.startswith('http://') or value.startswith('https://'):
+        if request.is_secure and value.startswith(f'http://{request.host}'):
+            return f'https://{request.host}{value[len(f"http://{request.host}") :]}'
         return value
     return f"{request.url_root.rstrip('/')}/{value.lstrip('/')}"
 

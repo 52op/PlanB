@@ -5,6 +5,7 @@ import yaml
 from flask import Flask, request
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 from models import db, init_db, User
 from runtime_paths import (
     get_config_path,
@@ -84,6 +85,7 @@ def load_config():
 
 def create_app():
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)  # type: ignore[assignment]
 
     config = load_config()
     data_dir = get_data_dir()
