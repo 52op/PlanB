@@ -1,4 +1,6 @@
 class FrontMatterUtils {
+    static SLUG_BASE_MAX_LENGTH = 60;
+
     constructor() {
         this.initializeElements();
     }
@@ -105,6 +107,33 @@ class FrontMatterUtils {
         return ['__NONE__', '__none__'].includes(text) ? 'none' : text;
     }
 
+    truncateSlug(value, maxLength = FrontMatterUtils.SLUG_BASE_MAX_LENGTH) {
+        const normalized = String(value || '').replace(/-{2,}/g, '-').replace(/^[-_]+|[-_]+$/g, '');
+        if (!normalized) return 'post';
+        if (!maxLength || normalized.length <= maxLength) return normalized;
+
+        const parts = normalized.split('-').filter(Boolean);
+        if (!parts.length) {
+            return normalized.slice(0, maxLength).replace(/^[-_]+|[-_]+$/g, '') || 'post';
+        }
+
+        const collected = [];
+        let currentLength = 0;
+        for (const part of parts) {
+            const separatorLength = collected.length ? 1 : 0;
+            const nextLength = currentLength + separatorLength + part.length;
+            if (nextLength > maxLength) break;
+            collected.push(part);
+            currentLength = nextLength;
+        }
+
+        if (collected.length) {
+            return collected.join('-');
+        }
+
+        return normalized.slice(0, maxLength).replace(/^[-_]+|[-_]+$/g, '') || 'post';
+    }
+
     slugifyValue(value) {
         const text = String(value || '').trim().toLowerCase();
         if (!text) return 'post';
@@ -116,7 +145,7 @@ class FrontMatterUtils {
             .replace(/-{2,}/g, '-')
             .replace(/^[-_]+|[-_]+$/g, '');
 
-        return slug || 'post';
+        return this.truncateSlug(slug);
     }
 
     escapeYamlValue(value) {

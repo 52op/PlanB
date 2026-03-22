@@ -45,6 +45,8 @@ ALLOWED_PROTOCOLS = set(bleach.sanitizer.ALLOWED_PROTOCOLS).union({'data'})
 CSS_SANITIZER = CSSSanitizer(allowed_css_properties=['width', 'height', 'max-width'])
 FRONT_MATTER_BOUNDARY = '---'
 WORD_RE = re.compile(r'\w+', re.UNICODE)
+SLUG_BASE_MAX_LENGTH = 60
+SLUG_MAX_LENGTH = 64
 
 
 def _sanitize_html(html):
@@ -213,7 +215,7 @@ def _format_category_name(category_path):
     return name.replace('-', ' ').replace('_', ' ').strip()
 
 
-def _slugify(value):
+def _normalize_slug_source(value):
     text = str(value or '').strip().lower()
     normalized = unicodedata.normalize('NFKD', text)
     slug_source = ''.join(char for char in normalized if not unicodedata.combining(char))
@@ -226,8 +228,47 @@ def _slugify(value):
         ) if str(token or '').strip()
     )
     slug = re.sub(r'[^\w\u4e00-\u9fff-]+', '-', slug_source, flags=re.UNICODE)
-    slug = re.sub(r'-{2,}', '-', slug).strip('-_')
+    return re.sub(r'-{2,}', '-', slug).strip('-_')
+
+
+def _truncate_slug(slug, max_length=SLUG_BASE_MAX_LENGTH):
+    normalized_slug = re.sub(r'-{2,}', '-', str(slug or '').strip('-_'))
+    if not normalized_slug:
+        return 'post'
+    if max_length is None or max_length <= 0 or len(normalized_slug) <= max_length:
+        return normalized_slug
+
+    parts = [part for part in normalized_slug.split('-') if part]
+    if not parts:
+        return (normalized_slug[:max_length] or 'post').strip('-_') or 'post'
+
+    truncated_parts = []
+    current_length = 0
+    for part in parts:
+        separator_length = 1 if truncated_parts else 0
+        next_length = current_length + separator_length + len(part)
+        if next_length > max_length:
+            break
+        truncated_parts.append(part)
+        current_length = next_length
+
+    if truncated_parts:
+        return '-'.join(truncated_parts)
+
+    return (normalized_slug[:max_length] or 'post').strip('-_') or 'post'
+
+
+def _slugify(value, max_length=SLUG_BASE_MAX_LENGTH):
+    slug = _normalize_slug_source(value)
+    slug = _truncate_slug(slug, max_length=max_length)
     return slug or 'post'
+
+
+def _append_slug_suffix(base_slug, suffix, max_length=SLUG_MAX_LENGTH):
+    suffix_text = f'-{suffix}'
+    base_limit = max(1, max_length - len(suffix_text))
+    limited_base = _truncate_slug(base_slug, max_length=base_limit) or 'post'
+    return f'{limited_base}{suffix_text}'
 
 
 def _build_markdown_url(filename):
@@ -287,7 +328,7 @@ def _suggest_unique_post_slug(slug, exclude_filename=''):
 
     suffix = 1
     while True:
-        candidate = f'{base_slug}-{suffix}'
+        candidate = _append_slug_suffix(base_slug, suffix)
         if not _find_post_slug_conflicts(candidate, exclude_filename=exclude_filename):
             return candidate
         suffix += 1

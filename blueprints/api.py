@@ -31,10 +31,13 @@ from services import (
     upload_media_file,
 )
 from services.docs import (
+    SLUG_BASE_MAX_LENGTH,
+    SLUG_MAX_LENGTH,
     _build_front_matter,
     _can_access_document_metadata,
     _find_post_slug_conflicts,
     _has_front_matter_block,
+    _normalize_slug_source,
     _parse_markdown_file,
     _slugify,
     _split_front_matter,
@@ -371,7 +374,9 @@ def check_front_matter_slug():
         if not check_permission(current_user, normalized_filename, 'edit'):
             return jsonify({'error': '没有该文档的编辑权限'}), 403
 
+    raw_normalized_slug = _normalize_slug_source(raw_slug)
     normalized_slug = _slugify(raw_slug)
+    was_truncated = bool(raw_normalized_slug and normalized_slug != raw_normalized_slug)
     if template != 'post':
         return jsonify({
             'success': True,
@@ -379,6 +384,9 @@ def check_front_matter_slug():
             'available': True,
             'conflicts': [],
             'suggested_slug': normalized_slug,
+            'was_truncated': was_truncated,
+            'slug_base_max_length': SLUG_BASE_MAX_LENGTH,
+            'slug_max_length': SLUG_MAX_LENGTH,
             'message': '当前模板不是文章，slug 暂不参与博客路由唯一性校验',
         })
 
@@ -390,6 +398,9 @@ def check_front_matter_slug():
         'available': len(conflicts) == 0,
         'conflicts': conflicts,
         'suggested_slug': suggested_slug,
+        'was_truncated': was_truncated,
+        'slug_base_max_length': SLUG_BASE_MAX_LENGTH,
+        'slug_max_length': SLUG_MAX_LENGTH,
         'message': '' if not conflicts else '当前 slug 已被其他博客文章占用',
     })
 

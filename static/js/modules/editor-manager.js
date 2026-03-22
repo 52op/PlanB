@@ -159,6 +159,42 @@ class EditorManager {
         }
     }
 
+    buildSlugAvailabilityHint(result, isAutoMode, rawSource) {
+        const normalizedSlug = String(result?.slug || '').trim();
+        const suggestedSlug = String(result?.suggested_slug || '').trim();
+        const sourceValue = String(rawSource || '').trim();
+
+        if (result?.was_truncated && isAutoMode && normalizedSlug) {
+            return {
+                message: `slug 过长，已自动压缩为更适合链接展示的形式：${normalizedSlug}`,
+                tone: 'is-warning',
+                suggestedSlug: '',
+            };
+        }
+
+        if (!isAutoMode && normalizedSlug && normalizedSlug !== sourceValue) {
+            return {
+                message: '当前输入会在保存时规范为',
+                tone: 'is-warning',
+                suggestedSlug: normalizedSlug,
+            };
+        }
+
+        if (result?.was_truncated && suggestedSlug && suggestedSlug !== normalizedSlug) {
+            return {
+                message: 'slug 过长，建议使用压缩后的唯一值',
+                tone: 'is-warning',
+                suggestedSlug,
+            };
+        }
+
+        return {
+            message: '当前 slug 可用。',
+            tone: 'is-success',
+            suggestedSlug: '',
+        };
+    }
+
     getSlugValidationSource() {
         const fileBaseName = (String(this.currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
         if (this.slugManuallyEdited) {
@@ -269,7 +305,12 @@ class EditorManager {
                 if (isAutoMode) {
                     this.metaSlugInput.value = result.slug || String(slugSource || '').trim();
                 }
-                this.setSlugHint('当前 slug 可用。', 'is-success');
+                const hint = this.buildSlugAvailabilityHint(result, isAutoMode, slugSource);
+                if (hint.suggestedSlug) {
+                    this.setSlugHintWithSuggestion(hint.message, hint.tone, hint.suggestedSlug);
+                } else {
+                    this.setSlugHint(hint.message, hint.tone);
+                }
                 return true;
             }
 
