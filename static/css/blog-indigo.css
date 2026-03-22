@@ -1133,6 +1133,35 @@ img {
     color: var(--primary-deep);
 }
 
+.article-toc {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(70, 99, 215, 0.18) transparent;
+    scrollbar-gutter: stable;
+}
+
+.article-toc:hover,
+.article-toc:focus-within {
+    scrollbar-color: rgba(70, 99, 215, 0.34) transparent;
+}
+
+.article-toc::-webkit-scrollbar {
+    width: 6px;
+}
+
+.article-toc::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.article-toc::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(70, 99, 215, 0.18);
+}
+
+.article-toc:hover::-webkit-scrollbar-thumb,
+.article-toc:focus-within::-webkit-scrollbar-thumb {
+    background: rgba(70, 99, 215, 0.34);
+}
+
 @media (max-width: 1180px) {
     .post-grid,
     .hero-grid,

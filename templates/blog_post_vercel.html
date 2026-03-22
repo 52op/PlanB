@@ -57,8 +57,11 @@
 
 {% block sidebar %}
 {% if toc %}
-<section class="widget-card">
-    <div class="widget-title"><i data-lucide="list"></i><h3>目录</h3></div>
+<section class="widget-card toc-widget">
+    <div class="widget-title">
+        <div class="toc-widget-title-main"><i data-lucide="list"></i><h3>目录</h3></div>
+        <button type="button" class="toc-expand-btn" id="postTocExpandBtn" aria-expanded="false">展开全部</button>
+    </div>
     <nav class="toc-nav" id="postToc">
         {{ toc|safe }}
     </nav>
@@ -280,4 +283,201 @@ function toggleReplyForm(id) {
 <script src="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.js') }}" defer></script>
 <script src="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/modules/image-utils.js') }}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const article = document.querySelector('.article-content');
+    const tocWidget = document.querySelector('.toc-widget');
+    const tocNav = document.getElementById('postToc');
+    const tocExpandBtn = document.getElementById('postTocExpandBtn');
+    if (!article || !tocWidget || !tocNav) {
+        return;
+    }
+
+    const headings = Array.from(article.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter((heading) => heading.id);
+    const tocLinks = Array.from(tocNav.querySelectorAll('a[href^="#"]'));
+    if (!headings.length || !tocLinks.length) {
+        return;
+    }
+
+    const headingLevelMap = new Map(
+        headings.map((heading) => [heading.id, Number.parseInt(heading.tagName.replace('H', ''), 10)])
+    );
+    const tocLists = Array.from(tocNav.querySelectorAll('ul, ol'));
+    tocLists.forEach((list, index) => {
+        list.classList.add('toc-list');
+        if (index > 0) {
+            list.classList.add('toc-sublist');
+        }
+    });
+
+    const tocItems = Array.from(tocNav.querySelectorAll('li')).filter((item) => item.querySelector(':scope > a[href^="#"]'));
+    tocItems.forEach((item) => {
+        const link = item.querySelector(':scope > a[href^="#"]');
+        const targetId = decodeURIComponent(link.getAttribute('href') || '').slice(1);
+        const fallbackLevel = item.parentElement?.closest('li')?.dataset.level
+            ? Number.parseInt(item.parentElement.closest('li').dataset.level, 10) + 1
+            : 1;
+        const level = headingLevelMap.get(targetId) || fallbackLevel;
+        const childList = item.querySelector(':scope > ul, :scope > ol');
+
+        item.classList.add('toc-item', `toc-level-${level}`);
+        item.dataset.level = String(level);
+
+        if (childList) {
+            item.classList.add('has-children');
+            childList.classList.add('toc-sublist');
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'toc-branch-toggle';
+            toggle.setAttribute('aria-label', '展开或收起子目录');
+            toggle.innerHTML = '<span></span>';
+            toggle.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                const manualState = item.dataset.manualState || '';
+                const isExpanded = item.classList.contains('is-expanded') || item.classList.contains('is-active-branch');
+                item.dataset.manualState = manualState === 'expanded' || isExpanded ? 'collapsed' : 'expanded';
+                refreshTreeState();
+            });
+            item.insertBefore(toggle, link);
+        }
+    });
+
+    let currentActiveId = '';
+    let expandAll = false;
+
+    function refreshExpandButton() {
+        if (!tocExpandBtn) {
+            return;
+        }
+        tocExpandBtn.textContent = expandAll ? '收起层级' : '展开全部';
+        tocExpandBtn.setAttribute('aria-expanded', expandAll ? 'true' : 'false');
+    }
+
+    function updateToggleState(item) {
+        const toggle = item.querySelector(':scope > .toc-branch-toggle');
+        if (!toggle) {
+            return;
+        }
+        const isExpanded = item.classList.contains('is-expanded') || item.classList.contains('is-active-branch');
+        toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
+
+    function refreshTreeState() {
+        tocItems.forEach((item) => {
+            const level = Number.parseInt(item.dataset.level || '1', 10);
+            const manualState = item.dataset.manualState || '';
+            const shouldExpandByDefault = level < 2;
+            const isExpanded = expandAll
+                || manualState === 'expanded'
+                || (manualState !== 'collapsed' && shouldExpandByDefault);
+            item.classList.toggle('is-expanded', isExpanded);
+            updateToggleState(item);
+        });
+        refreshExpandButton();
+    }
+
+    function markActiveBranch(activeLink) {
+        tocItems.forEach((item) => {
+            item.classList.remove('is-active-branch', 'is-active-item');
+        });
+
+        if (!activeLink) {
+            return;
+        }
+
+        let currentItem = activeLink.closest('li');
+        let isFirst = true;
+        while (currentItem && tocNav.contains(currentItem)) {
+            currentItem.classList.add('is-active-branch');
+            if (isFirst) {
+                currentItem.classList.add('is-active-item');
+                isFirst = false;
+            }
+            updateToggleState(currentItem);
+            currentItem = currentItem.parentElement?.closest('li') || null;
+        }
+    }
+
+    function ensureActiveLinkVisible(activeLink) {
+        const navRect = tocNav.getBoundingClientRect();
+        const linkRect = activeLink.getBoundingClientRect();
+        const currentScrollTop = tocNav.scrollTop;
+        const padding = 16;
+        const linkTop = linkRect.top - navRect.top + currentScrollTop;
+        const linkBottom = linkTop + linkRect.height;
+        const visibleTop = currentScrollTop + padding;
+        const visibleBottom = currentScrollTop + tocNav.clientHeight - padding;
+
+        if (linkTop < visibleTop) {
+            activeLink.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+            return;
+        }
+
+        if (linkBottom > visibleBottom) {
+            activeLink.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    function setActiveLink(activeId) {
+        if (!activeId || activeId === currentActiveId) {
+            return;
+        }
+
+        currentActiveId = activeId;
+        let activeLink = null;
+        tocLinks.forEach((link) => {
+            const isActive = decodeURIComponent(link.getAttribute('href') || '').slice(1) === activeId;
+            link.classList.toggle('active', isActive);
+            if (isActive) {
+                activeLink = link;
+            }
+        });
+
+        if (activeLink) {
+            markActiveBranch(activeLink);
+            requestAnimationFrame(() => ensureActiveLinkVisible(activeLink));
+        }
+    }
+
+    function updateActiveHeading() {
+        const offset = 140;
+        let current = headings[0];
+        headings.forEach((heading) => {
+            if (heading.getBoundingClientRect().top - offset <= 0) {
+                current = heading;
+            }
+        });
+        if (current) {
+            setActiveLink(current.id);
+        }
+    }
+
+    tocLinks.forEach((link) => {
+        link.addEventListener('click', function () {
+            const targetId = decodeURIComponent(link.getAttribute('href') || '').slice(1);
+            const target = targetId ? document.getElementById(targetId) : null;
+            if (!target) {
+                return;
+            }
+            requestAnimationFrame(() => setActiveLink(target.id));
+        });
+    });
+
+    if (tocExpandBtn) {
+        tocExpandBtn.addEventListener('click', function () {
+            expandAll = !expandAll;
+            refreshTreeState();
+            if (!expandAll) {
+                markActiveBranch(document.querySelector('.toc-widget a.active'));
+            }
+        });
+    }
+
+    refreshTreeState();
+    updateActiveHeading();
+    window.addEventListener('scroll', updateActiveHeading, { passive: true });
+});
+</script>
 {% endblock %}
