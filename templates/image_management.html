@@ -34,6 +34,15 @@
                         <option value="db_only">仅数据库记录</option>
                     </select>
                 </label>
+                <label class="image-manager-field">
+                    <span>排序方式</span>
+                    <select id="imageSortBy" class="form-control">
+                        <option value="created_desc" selected>上传时间 · 最新在前</option>
+                        <option value="created_asc">上传时间 · 最早在前</option>
+                        <option value="filename_asc">文件名 · A-Z</option>
+                        <option value="filename_desc">文件名 · Z-A</option>
+                    </select>
+                </label>
                 <label class="image-manager-field image-manager-page-size-field">
                     <span>每页显示</span>
                     <select id="imagePageSize" class="form-control">
@@ -90,31 +99,31 @@
 
 .image-manager-body {
     display: grid;
-    gap: 18px;
+    gap: 14px;
 }
 
 .image-manager-toolbar {
     display: grid;
-    gap: 14px;
-    padding: 16px;
+    gap: 10px;
+    padding: 12px;
     border: 1px solid #e2e8f0;
-    border-radius: 18px;
+    border-radius: 16px;
     background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
 .image-manager-stats {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
 }
 
 .image-stat-card {
-    min-width: 104px;
-    padding: 10px 12px;
-    border-radius: 14px;
+    min-width: 96px;
+    padding: 8px 10px;
+    border-radius: 12px;
     border: 1px solid #dbe4f0;
     background: #ffffff;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
 }
 
 .image-stat-label {
@@ -126,8 +135,8 @@
 }
 
 .image-stat-value {
-    margin-top: 4px;
-    font-size: 22px;
+    margin-top: 3px;
+    font-size: 19px;
     font-weight: 800;
     line-height: 1;
     color: #0f172a;
@@ -135,8 +144,8 @@
 
 .image-manager-controls {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(180px, 0.9fr) minmax(120px, 0.45fr);
-    gap: 12px;
+    grid-template-columns: minmax(0, 1.5fr) minmax(160px, 0.8fr) minmax(190px, 1fr) minmax(118px, 0.42fr);
+    gap: 10px;
 }
 
 .image-manager-field {
@@ -146,7 +155,7 @@
 }
 
 .image-manager-field > span {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: #334155;
 }
@@ -155,12 +164,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding-top: 2px;
+    gap: 10px;
+    padding-top: 0;
 }
 
 .image-selection-summary {
-    font-size: 13px;
+    font-size: 12px;
     color: #475569;
 }
 
@@ -168,13 +177,13 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
 }
 
 .image-gallery {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 12px;
 }
 
 .image-card {
@@ -182,10 +191,10 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-radius: 18px;
+    border-radius: 16px;
     border: 1px solid #dbe4f0;
     background: #ffffff;
-    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
@@ -202,11 +211,11 @@
 
 .image-card-check {
     position: absolute;
-    top: 12px;
-    left: 12px;
+    top: 10px;
+    left: 10px;
     z-index: 2;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     accent-color: #2563eb;
 }
 
@@ -215,8 +224,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 192px;
-    padding: 22px;
+    min-height: 164px;
+    padding: 16px;
     background:
         linear-gradient(135deg, rgba(241, 245, 249, 0.92), rgba(226, 232, 240, 0.75)),
         radial-gradient(circle at top right, rgba(147, 197, 253, 0.18), transparent 42%);
@@ -239,11 +248,11 @@
     z-index: 1;
     display: block;
     max-width: 100%;
-    max-height: 148px;
+    max-height: 132px;
     width: auto;
     height: auto;
     object-fit: contain;
-    border-radius: 10px;
+    border-radius: 8px;
 }
 
 .image-card-link.is-missing {
@@ -255,13 +264,13 @@
 
 .image-info {
     display: grid;
-    gap: 10px;
-    padding: 14px 14px 16px;
+    gap: 8px;
+    padding: 10px 10px 11px;
     border-top: 1px solid #eef2f7;
 }
 
 .image-filename {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     color: #0f172a;
     white-space: nowrap;
@@ -273,15 +282,15 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
 }
 
 .status-text {
     display: inline-flex;
     align-items: center;
-    padding: 4px 9px;
+    padding: 3px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.02em;
 }
@@ -309,28 +318,45 @@
 .usage-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    min-height: 24px;
+    gap: 5px;
+    min-height: 0;
+    flex: 1 1 auto;
+    justify-content: flex-start;
 }
 
-.usage-tag {
+.usage-tag,
+.usage-tag-link {
     display: inline-flex;
     align-items: center;
-    padding: 3px 8px;
+    padding: 2px 7px;
     border-radius: 999px;
     background: #eef2ff;
     color: #4338ca;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
+}
+
+.usage-tag-link {
+    text-decoration: none;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.usage-tag-link:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
 }
 
 .image-card-actions {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
+    gap: 8px;
 }
 
 .image-card-actions .btn {
-    min-width: 72px;
+    min-width: 58px;
+    padding: 5px 9px;
+    font-size: 12px;
 }
 
 .image-empty-state {
@@ -358,13 +384,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
+    gap: 10px;
     flex-wrap: wrap;
-    padding-top: 4px;
+    padding-top: 2px;
 }
 
 .image-pagination-summary {
-    font-size: 13px;
+    font-size: 12px;
     color: #475569;
 }
 
@@ -512,17 +538,17 @@
     }
 
     .image-gallery {
-        grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+        gap: 10px;
     }
 
     .image-card-link {
-        min-height: 152px;
-        padding: 18px;
+        min-height: 142px;
+        padding: 14px;
     }
 
     .image-card-link img {
-        max-height: 118px;
+        max-height: 108px;
     }
 
     .lg-custom-toolbar {
@@ -558,6 +584,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationNode = document.getElementById('imagePagination');
     const searchInput = document.getElementById('imageSearchInput');
     const statusFilter = document.getElementById('imageStatusFilter');
+    const sortBySelect = document.getElementById('imageSortBy');
     const pageSizeSelect = document.getElementById('imagePageSize');
     const selectionSummary = document.getElementById('imageSelectionSummary');
     const selectPageBtn = document.getElementById('imageSelectPageBtn');
@@ -572,6 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
         pageSize: Number(pageSizeSelect.value) || 36,
         search: '',
         filter: 'all',
+        sortBy: sortBySelect.value || 'created_desc',
         selected: new Set(),
         lightGalleryInstance: null,
         galleryEventsBound: false
@@ -599,10 +627,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function sortImages(images) {
         const order = { in_use: 0, not_in_use: 1, orphan: 2, db_only: 3 };
+        const byName = (left, right, direction = 'asc') => {
+            const factor = direction === 'desc' ? -1 : 1;
+            return factor * String(left.display_name || left.unique_filename || left.filename || '')
+                .localeCompare(String(right.display_name || right.unique_filename || right.filename || ''), 'zh-CN');
+        };
+        const byCreatedAt = (left, right, direction = 'desc') => {
+            const leftTime = left.created_at ? Date.parse(left.created_at) : 0;
+            const rightTime = right.created_at ? Date.parse(right.created_at) : 0;
+            const factor = direction === 'asc' ? 1 : -1;
+            if (leftTime !== rightTime) {
+                return factor * (leftTime - rightTime);
+            }
+            return byName(left, right, 'asc');
+        };
         return [...images].sort((left, right) => {
             const statusDiff = (order[getEffectiveStatus(left)] ?? 99) - (order[getEffectiveStatus(right)] ?? 99);
             if (statusDiff !== 0) return statusDiff;
-            return String(left.filename || '').localeCompare(String(right.filename || ''), 'zh-CN');
+            if (state.sortBy === 'filename_asc') return byName(left, right, 'asc');
+            if (state.sortBy === 'filename_desc') return byName(left, right, 'desc');
+            if (state.sortBy === 'created_asc') return byCreatedAt(left, right, 'asc');
+            return byCreatedAt(left, right, 'desc');
         });
     }
 
@@ -816,7 +861,7 @@ document.addEventListener('DOMContentLoaded', function() {
             previewNode.dataset.galleryable = 'true';
             const img = document.createElement('img');
             img.src = image.url;
-            img.alt = image.filename;
+            img.alt = image.display_name || image.unique_filename || image.filename;
             img.loading = 'lazy';
             previewNode.appendChild(img);
         } else {
@@ -829,8 +874,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const filename = document.createElement('div');
         filename.className = 'image-filename';
-        filename.title = image.filename;
-        filename.textContent = image.filename;
+        const displayName = image.display_name || image.unique_filename || image.filename;
+        filename.title = displayName;
+        filename.textContent = displayName;
 
         const metaRow = document.createElement('div');
         metaRow.className = 'image-meta-row';
@@ -838,19 +884,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const status = document.createElement('span');
         status.className = `status-text ${statusMeta.className}`;
         status.textContent = statusMeta.label;
-        metaRow.appendChild(status);
 
         const usageTags = document.createElement('div');
         usageTags.className = 'usage-tags';
-        const labels = Array.isArray(image.usage_labels) ? image.usage_labels : [];
-        if (labels.length) {
-            labels.forEach((label) => {
-                const tag = document.createElement('span');
-                tag.className = 'usage-tag';
-                tag.textContent = label;
+        const usageItems = Array.isArray(image.usage_items) ? image.usage_items : [];
+        if (usageItems.length) {
+            usageItems.forEach((item) => {
+                const label = String(item?.label || '').trim();
+                const targetUrl = String(item?.url || '').trim();
+                const title = String(item?.title || '').trim();
+                const tag = document.createElement(targetUrl ? 'a' : 'span');
+                tag.className = targetUrl ? 'usage-tag-link' : 'usage-tag';
+                tag.textContent = label || '用途';
+                if (targetUrl) {
+                    tag.href = targetUrl;
+                    tag.target = '_blank';
+                    tag.rel = 'noopener noreferrer';
+                }
+                if (title) {
+                    tag.title = title;
+                }
                 usageTags.appendChild(tag);
             });
+            metaRow.appendChild(usageTags);
         }
+        metaRow.appendChild(status);
 
         const actions = document.createElement('div');
         actions.className = 'image-card-actions';
@@ -862,7 +920,7 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteBtn.addEventListener('click', async (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!confirm(`确定要删除这张图片吗？\n${image.filename}`)) {
+            if (!confirm(`确定要删除这张图片吗？\n${image.display_name || image.unique_filename || image.filename}`)) {
                 return;
             }
             await deleteSingleImage(image.unique_filename, image.status, false);
@@ -871,7 +929,6 @@ document.addEventListener('DOMContentLoaded', function() {
         actions.appendChild(deleteBtn);
         info.appendChild(filename);
         info.appendChild(metaRow);
-        info.appendChild(usageTags);
         info.appendChild(actions);
         card.appendChild(checkbox);
         card.appendChild(previewNode);
@@ -993,30 +1050,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function deleteSingleImage(uniqueFilename, rawStatus, fromPreview) {
+        const currentIndex = fromPreview && state.lightGalleryInstance
+            ? state.lightGalleryInstance.index
+            : -1;
         try {
             await requestJson(`/api/images/delete/${encodeURIComponent(uniqueFilename)}?status=${encodeURIComponent(rawStatus)}`, {
                 method: 'DELETE',
                 headers: { 'X-CSRFToken': csrfToken }
             });
-            state.selected.delete(uniqueFilename);
-            state.allImages = state.allImages.filter((image) => image.unique_filename !== uniqueFilename);
-            rerender();
+            const finalizeDelete = () => {
+                state.selected.delete(uniqueFilename);
+                state.allImages = state.allImages.filter((image) => image.unique_filename !== uniqueFilename);
+                rerender();
 
-            if (fromPreview && state.lightGalleryInstance && document.querySelector('.lg-outer')) {
-                const visibleAnchors = gallery.querySelectorAll('a[data-galleryable="true"]');
-                if (visibleAnchors.length) {
-                    const currentIndex = Math.min(state.lightGalleryInstance.index, visibleAnchors.length - 1);
-                    state.lightGalleryInstance.destroy();
-                    reinitializeLightGallery();
-                    setTimeout(() => {
-                        if (state.lightGalleryInstance) {
-                            state.lightGalleryInstance.openGallery(currentIndex);
-                        }
-                    }, 80);
-                } else if (state.lightGalleryInstance) {
-                    state.lightGalleryInstance.closeGallery();
+                if (fromPreview && currentIndex >= 0) {
+                    const visibleAnchors = gallery.querySelectorAll('a[data-galleryable="true"]');
+                    if (visibleAnchors.length && state.lightGalleryInstance) {
+                        const nextIndex = Math.min(currentIndex, visibleAnchors.length - 1);
+                        window.setTimeout(() => {
+                            if (state.lightGalleryInstance) {
+                                state.lightGalleryInstance.openGallery(nextIndex);
+                            }
+                        }, 60);
+                    }
                 }
+            };
+
+            if (fromPreview && state.lightGalleryInstance) {
+                const destroyDelay = state.lightGalleryInstance.destroy() || 0;
+                state.lightGalleryInstance = null;
+                window.setTimeout(finalizeDelete, destroyDelay + 30);
+                return;
             }
+
+            finalizeDelete();
         } catch (error) {
             alert(`删除失败：${error.message || '未知错误'}`);
         }
@@ -1088,6 +1155,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     statusFilter.addEventListener('change', () => {
         state.filter = statusFilter.value;
+        state.currentPage = 1;
+        rerender();
+    });
+
+    sortBySelect.addEventListener('change', () => {
+        state.sortBy = sortBySelect.value || 'created_desc';
         state.currentPage = 1;
         rerender();
     });

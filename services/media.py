@@ -212,12 +212,72 @@ def _image_reference_candidates(image_or_data):
     return candidates
 
 
-def _build_image_usage_labels(image_or_data, site_logo):
-    usage_labels = []
+def _extract_image_references(content):
+    references = []
+    markdown_urls = re.findall(r'!\[.*?\]\((.*?)\)', content or '')
+    html_urls = re.findall(r'<img[^>]+src=[\"\']([^\"\']+)[\"\'][^>]*>', content or '', re.IGNORECASE)
+    for raw_value in markdown_urls + html_urls:
+        normalized = _normalize_reference_value(raw_value)
+        if normalized and normalized not in references:
+            references.append(normalized)
+    return references
+
+
+def _build_document_usage_map():
+    usage_map = {}
+    docs_root = get_docs_root()
+    if not os.path.exists(docs_root):
+        return usage_map
+
+    from .docs import _parse_markdown_file
+
+    for root, _, files in os.walk(docs_root):
+        for filename in files:
+            if not filename.endswith('.md'):
+                continue
+
+            full_path = os.path.join(root, filename)
+            relative_path = os.path.relpath(full_path, docs_root).replace('\\', '/')
+            payload = _parse_markdown_file(relative_path)
+            if not payload:
+                continue
+
+            metadata = payload.get('metadata') or {}
+            raw_content = payload.get('raw_content') or ''
+            document_url = str(metadata.get('url') or url_for('main.docs_doc', filename=relative_path)).strip()
+            document_title = str(metadata.get('title') or os.path.splitext(filename)[0]).strip()
+            usage_entry = {
+                'label': '文章插图',
+                'url': document_url,
+                'title': document_title,
+            }
+
+            for reference in _extract_image_references(raw_content):
+                usage_map.setdefault(reference, [])
+                if not any(item.get('url') == usage_entry['url'] for item in usage_map[reference]):
+                    usage_map[reference].append(dict(usage_entry))
+
+    return usage_map
+
+
+def _build_image_usage_items(image_or_data, site_logo, document_usage_map):
+    usage_items = []
     normalized_site_logo = _normalize_reference_value(site_logo)
-    if normalized_site_logo and normalized_site_logo in _image_reference_candidates(image_or_data):
-        usage_labels.append('Logo')
-    return usage_labels
+    candidates = _image_reference_candidates(image_or_data)
+
+    if normalized_site_logo and normalized_site_logo in candidates:
+        usage_items.append({'label': 'Logo 图片'})
+
+    for candidate in candidates:
+        for item in document_usage_map.get(candidate, []):
+            if not any(
+                existing.get('label') == item.get('label')
+                and existing.get('url') == item.get('url')
+                for existing in usage_items
+            ):
+                usage_items.append(dict(item))
+
+    return usage_items
 
 
 def update_all_image_references():
@@ -236,19 +296,13 @@ def update_all_image_references():
         except OSError:
             continue
         
-        # 匹配 Markdown 语法: ![...](url)
-        markdown_urls = re.findall(r'!\[.*?\]\((.*?)\)', content)
-        all_referenced_urls.update(markdown_urls)
-        
-        # 匹配 HTML img 标签: <img src="url" ...>
-        html_urls = re.findall(r'<img[^>]+src=[\"\']([^\"\']+)[\"\'][^>]*>', content)
-        all_referenced_urls.update(html_urls)
+        all_referenced_urls.update(_extract_image_references(content))
 
     site_logo = str(SystemSetting.get('site_logo', '') or '').strip()
     if site_logo:
-        all_referenced_urls.add(site_logo)
+        all_referenced_urls.add(_normalize_reference_value(site_logo))
 
-    normalized_refs = {_normalize_reference_value(url) for url in all_referenced_urls if str(url or '').strip()}
+    normalized_refs = {url for url in all_referenced_urls if str(url or '').strip()}
     
     for image in Image.query.all():
         local_media_path = f"/media/{str(image.path or '').lstrip('/')}" if image.path else ''
@@ -268,39 +322,49 @@ def get_all_images_with_status():
     storage_images = _get_all_storage_images()
     combined_images = []
     site_logo = str(SystemSetting.get('site_logo', '') or '').strip()
+    document_usage_map = _build_document_usage_map()
 
     for unique_filename, data in storage_images.items():
         if unique_filename in db_images:
             image = db_images.pop(unique_filename)
-            usage_labels = _build_image_usage_labels(image, site_logo)
+            usage_items = _build_image_usage_items(image, site_logo, document_usage_map)
             combined_images.append({
                 'filename': image.filename,
                 'unique_filename': image.unique_filename,
+                'display_name': image.unique_filename,
                 'url': image.url,
                 'is_referenced': image.is_referenced,
-                'usage_labels': usage_labels,
+                'usage_items': usage_items,
+                'usage_labels': [item.get('label') for item in usage_items],
                 'status': 'synced',
+                'created_at': _serialize_image_datetime(image.created_at) or data.get('created_at'),
             })
         else:
-            usage_labels = _build_image_usage_labels(data, site_logo)
+            usage_items = _build_image_usage_items(data, site_logo, document_usage_map)
             combined_images.append({
                 'filename': data['filename'],
                 'unique_filename': unique_filename,
+                'display_name': unique_filename,
                 'url': data['url'],
-                'is_referenced': bool(usage_labels),
-                'usage_labels': usage_labels,
+                'is_referenced': bool(usage_items),
+                'usage_items': usage_items,
+                'usage_labels': [item.get('label') for item in usage_items],
                 'status': 'orphan',
+                'created_at': data.get('created_at'),
             })
 
     for unique_filename, image in db_images.items():
-        usage_labels = _build_image_usage_labels(image, site_logo)
+        usage_items = _build_image_usage_items(image, site_logo, document_usage_map)
         combined_images.append({
             'filename': image.filename,
             'unique_filename': unique_filename,
+            'display_name': unique_filename,
             'url': '#',
             'is_referenced': image.is_referenced,
-            'usage_labels': usage_labels,
+            'usage_items': usage_items,
+            'usage_labels': [item.get('label') for item in usage_items],
             'status': 'db_only',
+            'created_at': _serialize_image_datetime(image.created_at),
         })
 
     return combined_images
@@ -320,11 +384,13 @@ def get_local_images():
         for filename in files:
             unique_filename = os.path.basename(filename)
             date_folder = os.path.relpath(root, upload_folder).replace('\\', '/')
+            file_path = os.path.join(root, filename)
             url = url_for('main.media_file', filename=f'{date_folder}/{unique_filename}', _external=True)
             images[unique_filename] = {
                 'filename': filename,
                 'url': url,
                 'path': os.path.join(date_folder, unique_filename).replace('\\', '/'),
+                'created_at': _serialize_timestamp(os.path.getmtime(file_path)),
             }
     return images
 
@@ -348,5 +414,21 @@ def _get_s3_images():
             images[unique_filename] = {
                 'filename': unique_filename,
                 'url': s3_client.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': key}, ExpiresIn=3600),
+                'created_at': _serialize_image_datetime(obj.get('LastModified')),
             }
     return images
+
+
+def _serialize_image_datetime(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return None
+
+
+def _serialize_timestamp(timestamp):
+    try:
+        return datetime.fromtimestamp(timestamp).isoformat()
+    except (TypeError, ValueError, OSError):
+        return None
