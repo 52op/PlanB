@@ -157,6 +157,17 @@ class ArticleCrawler {
         this.syncMetaCheckbox = document.getElementById('articleCrawlerSyncMeta');
     }
 
+    resetMarkdownViewer() {
+        if (this.markdownViewer && typeof this.markdownViewer.destroy === 'function') {
+            try {
+                this.markdownViewer.destroy();
+            } catch (error) {
+                // ignore viewer destroy errors
+            }
+        }
+        this.markdownViewer = null;
+    }
+
     bindEvents() {
         if (!this.crawlBtn) return;
         if (this.bound) return;
@@ -302,8 +313,13 @@ class ArticleCrawler {
 
         const content = String(markdown || '');
         if (!content.trim()) {
+            this.resetMarkdownViewer();
             this.bodyPreview.innerHTML = '<p class="article-crawler-render-empty">这里会显示正文的渲染效果，方便你边改边看。</p>';
             return;
+        }
+
+        if (this.markdownViewer && this.bodyPreview.childElementCount === 0) {
+            this.resetMarkdownViewer();
         }
 
         if (window.toastui?.Editor?.factory) {
