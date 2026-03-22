@@ -8,89 +8,315 @@
 {% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">图片管理</div>
-    <div class="card-body">
-        <div id="image-gallery" class="image-gallery">
-            <!-- Images will be loaded here by JavaScript -->
+<div class="card image-manager-shell">
+    <div class="card-header image-manager-header">
+        <div>
+            <div class="image-manager-title">图片管理</div>
+            <div class="image-manager-subtitle">支持搜索、状态筛选、多选批量删除和分页浏览，方便处理大批量图片。</div>
         </div>
+        <button type="button" id="imageRefreshBtn" class="btn btn-secondary">刷新列表</button>
+    </div>
+    <div class="card-body image-manager-body">
+        <div class="image-manager-toolbar">
+            <div id="imageStats" class="image-manager-stats"></div>
+            <div class="image-manager-controls">
+                <label class="image-manager-field image-manager-search-field">
+                    <span>搜索文件名</span>
+                    <input type="search" id="imageSearchInput" class="form-control" placeholder="输入文件名或唯一名">
+                </label>
+                <label class="image-manager-field">
+                    <span>状态筛选</span>
+                    <select id="imageStatusFilter" class="form-control">
+                        <option value="all">全部图片</option>
+                        <option value="in_use">使用中</option>
+                        <option value="not_in_use">未使用</option>
+                        <option value="orphan">孤立图片</option>
+                        <option value="db_only">仅数据库记录</option>
+                    </select>
+                </label>
+                <label class="image-manager-field image-manager-page-size-field">
+                    <span>每页显示</span>
+                    <select id="imagePageSize" class="form-control">
+                        <option value="24">24</option>
+                        <option value="36" selected>36</option>
+                        <option value="48">48</option>
+                        <option value="72">72</option>
+                    </select>
+                </label>
+            </div>
+            <div class="image-manager-bulkbar">
+                <div id="imageSelectionSummary" class="image-selection-summary">未选择图片</div>
+                <div class="image-manager-actions">
+                    <button type="button" id="imageSelectPageBtn" class="btn btn-secondary">选择本页</button>
+                    <button type="button" id="imageClearSelectionBtn" class="btn btn-secondary">清空选择</button>
+                    <button type="button" id="imageBulkDeleteBtn" class="btn btn-danger" disabled>批量删除</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="imageGallery" class="image-gallery"></div>
+        <div id="imageEmptyState" class="image-empty-state" hidden>
+            <div class="image-empty-title">没有找到匹配的图片</div>
+            <div class="image-empty-text">可以尝试切换筛选条件、清空搜索词，或者刷新图片列表。</div>
+        </div>
+        <div id="imagePagination" class="image-pagination" hidden></div>
     </div>
 </div>
 
 <style>
-.image-gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 20px;
-}
-.image-card {
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+.image-manager-shell {
     overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.image-manager-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.image-manager-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.image-manager-subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #64748b;
+}
+
+.image-manager-body {
+    display: grid;
+    gap: 18px;
+}
+
+.image-manager-toolbar {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.image-manager-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.image-stat-card {
+    min-width: 104px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid #dbe4f0;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.image-stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.image-stat-value {
+    margin-top: 4px;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+    color: #0f172a;
+}
+
+.image-manager-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(180px, 0.9fr) minmax(120px, 0.45fr);
+    gap: 12px;
+}
+
+.image-manager-field {
     display: flex;
     flex-direction: column;
+    gap: 6px;
 }
-.image-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+
+.image-manager-field > span {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
 }
-.image-card a {
-    display: block;
+
+.image-manager-bulkbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 2px;
+}
+
+.image-selection-summary {
+    font-size: 13px;
+    color: #475569;
+}
+
+.image-manager-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.image-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 16px;
+}
+
+.image-card {
     position: relative;
-    width: 100%;
-    padding-top: 100%; /* 1:1 Aspect Ratio */
-    background-color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 18px;
+    border: 1px solid #dbe4f0;
+    background: #ffffff;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.image-card:hover {
+    transform: translateY(-2px);
+    border-color: #c7d7eb;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.10);
+}
+
+.image-card.is-selected {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12), 0 18px 42px rgba(15, 23, 42, 0.10);
+}
+
+.image-card-check {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    width: 18px;
+    height: 18px;
+    accent-color: #2563eb;
+}
+
+.image-card-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 192px;
+    padding: 22px;
+    background:
+        linear-gradient(135deg, rgba(241, 245, 249, 0.92), rgba(226, 232, 240, 0.75)),
+        radial-gradient(circle at top right, rgba(147, 197, 253, 0.18), transparent 42%);
+    text-decoration: none;
     overflow: hidden;
 }
-.image-card img {
+
+.image-card-link::after {
+    content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    inset: auto 16px 12px;
+    height: 28px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.04);
+    filter: blur(12px);
 }
-.image-info {
-    padding: 12px;
-    border-top: 1px solid #eee;
+
+.image-card-link img {
+    position: relative;
+    z-index: 1;
+    display: block;
+    max-width: 100%;
+    max-height: 148px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 10px;
 }
-.image-info .filename {
+
+.image-card-link.is-missing {
+    color: #94a3b8;
     font-size: 13px;
-    color: #333;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.image-info {
+    display: grid;
+    gap: 10px;
+    padding: 14px 14px 16px;
+    border-top: 1px solid #eef2f7;
+}
+
+.image-filename {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: block;
-    margin-bottom: 8px;
 }
-.status-bar {
+
+.image-meta-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 10px;
 }
+
 .status-text {
-    font-size: 12px;
-    font-weight: bold;
-    padding: 3px 6px;
-    border-radius: 4px;
-    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
 }
-.status-in-use { background-color: #2ecc71; } /* Green */
-.status-not-in-use { background-color: #e74c3c; } /* Red */
-.status-orphan { background-color: #3498db; } /* Blue */
+
+.status-in-use {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-not-in-use {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.status-orphan {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-db-only {
+    background: #fef3c7;
+    color: #b45309;
+}
+
 .usage-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 8px;
+    min-height: 24px;
 }
+
 .usage-tag {
     display: inline-flex;
     align-items: center;
-    padding: 2px 8px;
+    padding: 3px 8px;
     border-radius: 999px;
     background: #eef2ff;
     color: #4338ca;
@@ -98,10 +324,66 @@
     font-weight: 700;
 }
 
-/* LightGallery Customizations */
+.image-card-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.image-card-actions .btn {
+    min-width: 72px;
+}
+
+.image-empty-state {
+    padding: 42px 20px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 18px;
+    background: #f8fafc;
+    text-align: center;
+}
+
+.image-empty-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.image-empty-text {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #64748b;
+}
+
+.image-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+}
+
+.image-pagination-summary {
+    font-size: 13px;
+    color: #475569;
+}
+
+.image-pagination-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.image-pagination-buttons .btn.is-active {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+
 .lg-counter {
     display: none !important;
 }
+
 .lg-custom-toolbar {
     position: absolute;
     top: 18px;
@@ -112,6 +394,7 @@
     z-index: 1100;
     pointer-events: auto;
 }
+
 .lg-custom-pill {
     display: inline-flex;
     align-items: center;
@@ -128,14 +411,17 @@
     line-height: 1;
     color: #e2e8f0;
 }
+
 .lg-custom-count {
     min-width: 84px;
     justify-content: center;
     letter-spacing: 0.04em;
 }
+
 .lg-custom-watermark {
     color: #e2e8f0;
 }
+
 .lg-custom-watermark::before {
     content: '';
     width: 9px;
@@ -144,18 +430,23 @@
     background: currentColor;
     box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.07);
 }
+
 .lg-status-in-use {
     color: #4ade80;
 }
+
 .lg-status-not-in-use {
     color: #f87171;
 }
+
 .lg-status-orphan {
     color: #60a5fa;
 }
+
 .lg-status-db-only {
     color: #fbbf24;
 }
+
 .lg-custom-delete {
     display: inline-flex;
     align-items: center;
@@ -173,38 +464,80 @@
     letter-spacing: 0.02em;
     transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
+
 .lg-custom-delete:hover {
     transform: translateY(-1px);
     background: rgba(153, 27, 27, 0.24);
     border-color: rgba(252, 165, 165, 0.68);
     color: #fff;
 }
-.lg-custom-delete:active {
-    transform: translateY(0);
-}
+
 .lg-custom-delete svg {
     width: 15px;
     height: 15px;
     flex: 0 0 auto;
 }
+
 .lg-custom-delete-label {
     white-space: nowrap;
 }
+
+@media (max-width: 980px) {
+    .image-manager-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .image-manager-bulkbar,
+    .image-pagination {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .image-manager-actions,
+    .image-pagination-buttons {
+        justify-content: stretch;
+    }
+
+    .image-manager-actions .btn,
+    .image-pagination-buttons .btn,
+    .image-manager-header .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 @media (max-width: 768px) {
+    .image-manager-header {
+        flex-direction: column;
+    }
+
+    .image-gallery {
+        grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+        gap: 12px;
+    }
+
+    .image-card-link {
+        min-height: 152px;
+        padding: 18px;
+    }
+
+    .image-card-link img {
+        max-height: 118px;
+    }
+
     .lg-custom-toolbar {
         top: 14px;
         left: 14px;
+        gap: 8px;
+        flex-wrap: wrap;
+        max-width: calc(100vw - 92px);
     }
+
     .lg-custom-pill,
     .lg-custom-delete {
         height: 38px;
         padding: 0 13px 0 12px;
         font-size: 12px;
-    }
-    .lg-custom-toolbar {
-        gap: 8px;
-        flex-wrap: wrap;
-        max-width: calc(100vw - 92px);
     }
 }
 </style>
@@ -218,166 +551,158 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const gallery = document.getElementById('image-gallery');
     const csrfToken = "{{ csrf_token() }}";
-    let lightGalleryInstance = null;
+    const gallery = document.getElementById('imageGallery');
+    const emptyState = document.getElementById('imageEmptyState');
+    const statsNode = document.getElementById('imageStats');
+    const paginationNode = document.getElementById('imagePagination');
+    const searchInput = document.getElementById('imageSearchInput');
+    const statusFilter = document.getElementById('imageStatusFilter');
+    const pageSizeSelect = document.getElementById('imagePageSize');
+    const selectionSummary = document.getElementById('imageSelectionSummary');
+    const selectPageBtn = document.getElementById('imageSelectPageBtn');
+    const clearSelectionBtn = document.getElementById('imageClearSelectionBtn');
+    const bulkDeleteBtn = document.getElementById('imageBulkDeleteBtn');
+    const refreshBtn = document.getElementById('imageRefreshBtn');
 
-    function deleteImage(unique_filename, status, options = {}) {
-        const fromPreview = Boolean(options.fromPreview);
-        fetch(`/api/images/delete/${encodeURIComponent(unique_filename)}?status=${encodeURIComponent(status)}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': csrfToken
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (fromPreview && lightGalleryInstance && document.querySelector('.lg-outer')) {
-                        const currentIndex = lightGalleryInstance.index;
-                        
-                        const deletedCard = gallery.querySelector(`a[data-unique-filename="${unique_filename}"]`)?.closest('.image-card');
-                        if (deletedCard) {
-                            deletedCard.remove();
-                        }
-                        
-                        const remainingImages = gallery.querySelectorAll('a');
-                        if (remainingImages.length > 0) {
-                            lightGalleryInstance.destroy();
+    const state = {
+        allImages: [],
+        filteredImages: [],
+        currentPage: 1,
+        pageSize: Number(pageSizeSelect.value) || 36,
+        search: '',
+        filter: 'all',
+        selected: new Set(),
+        lightGalleryInstance: null,
+        galleryEventsBound: false
+    };
 
-                            lightGalleryInstance = lightGallery(gallery, {
-                                licenseKey: 'GPLv3',
-                                plugins: [lgZoom, lgRotate, lgThumbnail],
-                                speed: 500,
-                                selector: 'a',
-                                download: false,
-                                mobileSettings: { showCloseButton: true }
-                            });
-
-                            bindGalleryEvents();
-
-                            let newIndex = currentIndex;
-                            if (currentIndex >= remainingImages.length) {
-                                newIndex = remainingImages.length - 1;
-                            }
-
-                            setTimeout(() => {
-                                lightGalleryInstance.openGallery(newIndex);
-                            }, 100);
-                        } else {
-                            lightGalleryInstance.closeGallery();
-                            window.location.reload();
-                        }
-                    } else {
-                        const deletedCard = gallery.querySelector(`a[data-unique-filename="${unique_filename}"]`)?.closest('.image-card');
-                        if (deletedCard) {
-                            deletedCard.remove();
-                        }
-                    }
-                } else {
-                    alert('删除失败：' + data.error);
-                }
-            })
-            .catch(error => console.error('Error deleting image:', error));
+    function getEffectiveStatus(image) {
+        if (image.status === 'orphan') return 'orphan';
+        if (image.status === 'db_only') return 'db_only';
+        return image.is_referenced ? 'in_use' : 'not_in_use';
     }
 
-    function createImageCard(image) {
-        const card = document.createElement('div');
-        card.className = 'image-card';
-
-        let statusText = '未使用';
-        let statusClass = 'status-not-in-use';
-        if (image.status === 'orphan') {
-            statusText = '孤立文件';
-            statusClass = 'status-orphan';
-        } else if (image.is_referenced) {
-            statusText = '使用中';
-            statusClass = 'status-in-use';
+    function getStatusMeta(image) {
+        const effectiveStatus = getEffectiveStatus(image);
+        if (effectiveStatus === 'orphan') {
+            return { key: effectiveStatus, label: '孤立图片', className: 'status-orphan', lgClassName: 'lg-status-orphan' };
         }
-
-        const link = document.createElement('a');
-        link.href = image.url;
-        link.dataset.lgId = image.unique_filename;
-        link.dataset.status = statusText;
-        link.dataset.uniqueFilename = image.unique_filename;
-        link.dataset.rawStatus = image.status;
-
-        const img = document.createElement('img');
-        img.src = image.url;
-        img.alt = image.filename;
-        link.appendChild(img);
-
-        const info = document.createElement('div');
-        info.className = 'image-info';
-
-        const filename = document.createElement('span');
-        filename.className = 'filename';
-        filename.title = image.filename;
-        filename.textContent = image.filename;
-
-        const usageTags = document.createElement('div');
-        usageTags.className = 'usage-tags';
-        const labels = Array.isArray(image.usage_labels) ? image.usage_labels : [];
-        labels.forEach((label) => {
-            const tag = document.createElement('span');
-            tag.className = 'usage-tag';
-            tag.textContent = label;
-            usageTags.appendChild(tag);
-        });
-
-        const statusBar = document.createElement('div');
-        statusBar.className = 'status-bar';
-
-        const status = document.createElement('span');
-        status.className = `status-text ${statusClass}`;
-        status.textContent = statusText;
-
-        const button = document.createElement('button');
-        button.className = 'btn btn-sm btn-danger';
-        button.type = 'button';
-        button.textContent = '删除';
-        button.addEventListener('click', function () {
-            deleteImage(image.unique_filename, image.status, { fromPreview: false });
-        });
-
-        statusBar.appendChild(status);
-        statusBar.appendChild(button);
-        info.appendChild(filename);
-        if (labels.length) {
-            info.appendChild(usageTags);
+        if (effectiveStatus === 'db_only') {
+            return { key: effectiveStatus, label: '仅数据库记录', className: 'status-db-only', lgClassName: 'lg-status-db-only' };
         }
-        info.appendChild(statusBar);
-        card.appendChild(link);
-        card.appendChild(info);
-        return card;
+        if (effectiveStatus === 'in_use') {
+            return { key: effectiveStatus, label: '使用中', className: 'status-in-use', lgClassName: 'lg-status-in-use' };
+        }
+        return { key: effectiveStatus, label: '未使用', className: 'status-not-in-use', lgClassName: 'lg-status-not-in-use' };
     }
 
-    function getStatusMeta(rawStatus, statusText) {
-        if (rawStatus === 'orphan') {
-            return { className: 'lg-status-orphan', label: statusText || '孤立文件' };
+    function sortImages(images) {
+        const order = { in_use: 0, not_in_use: 1, orphan: 2, db_only: 3 };
+        return [...images].sort((left, right) => {
+            const statusDiff = (order[getEffectiveStatus(left)] ?? 99) - (order[getEffectiveStatus(right)] ?? 99);
+            if (statusDiff !== 0) return statusDiff;
+            return String(left.filename || '').localeCompare(String(right.filename || ''), 'zh-CN');
+        });
+    }
+
+    function filterImages() {
+        const keyword = state.search.trim().toLowerCase();
+        let nextImages = sortImages(state.allImages);
+
+        if (state.filter !== 'all') {
+            nextImages = nextImages.filter((image) => getEffectiveStatus(image) === state.filter);
         }
-        if (rawStatus === 'db_only') {
-            return { className: 'lg-status-db-only', label: statusText || '仅数据库记录' };
+
+        if (keyword) {
+            nextImages = nextImages.filter((image) => {
+                const filename = String(image.filename || '').toLowerCase();
+                const uniqueFilename = String(image.unique_filename || '').toLowerCase();
+                return filename.includes(keyword) || uniqueFilename.includes(keyword);
+            });
         }
-        if (statusText === '使用中') {
-            return { className: 'lg-status-in-use', label: statusText };
+
+        state.filteredImages = nextImages;
+        const totalPages = Math.max(1, Math.ceil(nextImages.length / state.pageSize));
+        if (state.currentPage > totalPages) {
+            state.currentPage = totalPages;
         }
-        return { className: 'lg-status-not-in-use', label: statusText || '未使用' };
+    }
+
+    function getCurrentPageImages() {
+        const start = (state.currentPage - 1) * state.pageSize;
+        return state.filteredImages.slice(start, start + state.pageSize);
+    }
+
+    function updateSelectionSummary() {
+        const selectedCount = state.selected.size;
+        if (!selectedCount) {
+            selectionSummary.textContent = `共 ${state.filteredImages.length} 项结果，未选择图片`;
+        } else {
+            selectionSummary.textContent = `已选择 ${selectedCount} 张图片，可批量删除`;
+        }
+        clearSelectionBtn.disabled = selectedCount === 0;
+        bulkDeleteBtn.disabled = selectedCount === 0;
+
+        const currentPageImages = getCurrentPageImages();
+        const currentPageIds = currentPageImages.map((image) => image.unique_filename);
+        const allSelectedOnPage = currentPageIds.length > 0 && currentPageIds.every((id) => state.selected.has(id));
+        selectPageBtn.textContent = allSelectedOnPage ? '取消本页' : '选择本页';
+        selectPageBtn.disabled = currentPageIds.length === 0;
+    }
+
+    function renderStats() {
+        const counts = {
+            total: state.allImages.length,
+            in_use: 0,
+            not_in_use: 0,
+            orphan: 0,
+            db_only: 0
+        };
+
+        state.allImages.forEach((image) => {
+            counts[getEffectiveStatus(image)] += 1;
+        });
+
+        const items = [
+            { label: '全部', value: counts.total },
+            { label: '使用中', value: counts.in_use },
+            { label: '未使用', value: counts.not_in_use },
+            { label: '孤立图片', value: counts.orphan },
+            { label: '仅数据库', value: counts.db_only }
+        ];
+
+        statsNode.innerHTML = '';
+        items.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'image-stat-card';
+
+            const label = document.createElement('div');
+            label.className = 'image-stat-label';
+            label.textContent = item.label;
+
+            const value = document.createElement('div');
+            value.className = 'image-stat-value';
+            value.textContent = item.value;
+
+            card.appendChild(label);
+            card.appendChild(value);
+            statsNode.appendChild(card);
+        });
     }
 
     function mountPreviewDecorations(currentItem) {
-        document.querySelectorAll('.lg-custom-toolbar').forEach(el => el.remove());
-
+        document.querySelectorAll('.lg-custom-toolbar').forEach((el) => el.remove());
         if (!currentItem) return;
 
-        const statusText = currentItem.dataset.status || '未使用';
+        const currentItems = gallery.querySelectorAll('a[data-galleryable="true"]');
+        const currentIndex = Array.from(currentItems).indexOf(currentItem);
+        const statusMeta = getStatusMeta({
+            status: currentItem.dataset.rawStatus,
+            is_referenced: currentItem.dataset.isReferenced === 'true'
+        });
         const uniqueFilename = currentItem.dataset.uniqueFilename;
-        const rawStatus = currentItem.dataset.rawStatus || '';
-        const statusMeta = getStatusMeta(rawStatus, statusText);
         const outer = document.querySelector('.lg-outer');
-        const galleryItems = gallery.querySelectorAll('a');
-        const currentIndex = Array.from(galleryItems).indexOf(currentItem);
-
         if (!outer || !uniqueFilename) return;
 
         const customToolbar = document.createElement('div');
@@ -385,10 +710,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const countPill = document.createElement('div');
         countPill.className = 'lg-custom-pill lg-custom-count';
-        countPill.textContent = `${currentIndex + 1} / ${galleryItems.length}`;
+        countPill.textContent = `${currentIndex + 1} / ${currentItems.length}`;
 
         const watermark = document.createElement('div');
-        watermark.className = `lg-custom-pill lg-custom-watermark ${statusMeta.className}`;
+        watermark.className = `lg-custom-pill lg-custom-watermark ${statusMeta.lgClassName}`;
         watermark.textContent = statusMeta.label;
 
         const deleteBtn = document.createElement('button');
@@ -402,10 +727,11 @@ document.addEventListener('DOMContentLoaded', function() {
             </svg>
             <span class="lg-custom-delete-label">删除图片</span>
         `;
-        deleteBtn.onclick = () => {
-            if (confirm(`确定要删除这张图片吗？ (${uniqueFilename})`)) {
-                deleteImage(uniqueFilename, rawStatus, { fromPreview: true });
+        deleteBtn.onclick = async () => {
+            if (!confirm(`确定要删除这张图片吗？\n${uniqueFilename}`)) {
+                return;
             }
+            await deleteSingleImage(uniqueFilename, currentItem.dataset.rawStatus, true);
         };
 
         customToolbar.appendChild(countPill);
@@ -415,54 +741,385 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function bindGalleryEvents() {
+        if (state.galleryEventsBound) return;
+
         gallery.addEventListener('lgAfterSlide', (event) => {
-            const { index } = event.detail;
-            const galleryItems = gallery.querySelectorAll('a');
-            const currentItem = galleryItems[index];
-            mountPreviewDecorations(currentItem);
+            const index = event.detail.index;
+            const currentItems = gallery.querySelectorAll('a[data-galleryable="true"]');
+            mountPreviewDecorations(currentItems[index]);
         });
 
         gallery.addEventListener('lgAfterOpen', () => {
-            const firstItem = gallery.querySelector('a');
+            const firstItem = gallery.querySelector('a[data-galleryable="true"]');
             mountPreviewDecorations(firstItem);
         });
 
         gallery.addEventListener('lgBeforeClose', () => {
-            document.querySelectorAll('.lg-custom-toolbar').forEach(el => el.remove());
+            document.querySelectorAll('.lg-custom-toolbar').forEach((el) => el.remove());
         });
+
+        state.galleryEventsBound = true;
     }
 
-    function renderGallery(images) {
-        gallery.innerHTML = '';
-        images.forEach(image => {
-            gallery.appendChild(createImageCard(image));
-        });
-
-        // Destroy previous instance if it exists
-        if (lightGalleryInstance) {
-            lightGalleryInstance.destroy();
+    function reinitializeLightGallery() {
+        if (state.lightGalleryInstance) {
+            state.lightGalleryInstance.destroy();
+            state.lightGalleryInstance = null;
         }
 
-        lightGalleryInstance = lightGallery(gallery, {
+        if (!gallery.querySelector('a[data-galleryable="true"]')) {
+            return;
+        }
+
+        state.lightGalleryInstance = lightGallery(gallery, {
             licenseKey: 'GPLv3',
             plugins: [lgZoom, lgRotate, lgThumbnail],
             speed: 500,
-            selector: 'a',
+            selector: 'a[data-galleryable="true"]',
             download: false,
             mobileSettings: { showCloseButton: true }
         });
-
-        bindGalleryEvents();
     }
 
-    function fetchAndRenderImages() {
-        fetch('/api/images/all')
-            .then(response => response.json())
-            .then(data => renderGallery(data.images))
-            .catch(error => console.error('Error fetching images:', error));
+    function createImageCard(image) {
+        const statusMeta = getStatusMeta(image);
+        const card = document.createElement('div');
+        card.className = 'image-card';
+        if (state.selected.has(image.unique_filename)) {
+            card.classList.add('is-selected');
+        }
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'image-card-check';
+        checkbox.checked = state.selected.has(image.unique_filename);
+        checkbox.addEventListener('click', (event) => event.stopPropagation());
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                state.selected.add(image.unique_filename);
+                card.classList.add('is-selected');
+            } else {
+                state.selected.delete(image.unique_filename);
+                card.classList.remove('is-selected');
+            }
+            updateSelectionSummary();
+        });
+
+        const previewNode = document.createElement(image.url && image.url !== '#' ? 'a' : 'div');
+        previewNode.className = 'image-card-link';
+        previewNode.dataset.uniqueFilename = image.unique_filename;
+        previewNode.dataset.rawStatus = image.status;
+        previewNode.dataset.isReferenced = image.is_referenced ? 'true' : 'false';
+
+        if (image.url && image.url !== '#') {
+            previewNode.href = image.url;
+            previewNode.dataset.galleryable = 'true';
+            const img = document.createElement('img');
+            img.src = image.url;
+            img.alt = image.filename;
+            img.loading = 'lazy';
+            previewNode.appendChild(img);
+        } else {
+            previewNode.classList.add('is-missing');
+            previewNode.textContent = '文件已不存在';
+        }
+
+        const info = document.createElement('div');
+        info.className = 'image-info';
+
+        const filename = document.createElement('div');
+        filename.className = 'image-filename';
+        filename.title = image.filename;
+        filename.textContent = image.filename;
+
+        const metaRow = document.createElement('div');
+        metaRow.className = 'image-meta-row';
+
+        const status = document.createElement('span');
+        status.className = `status-text ${statusMeta.className}`;
+        status.textContent = statusMeta.label;
+        metaRow.appendChild(status);
+
+        const usageTags = document.createElement('div');
+        usageTags.className = 'usage-tags';
+        const labels = Array.isArray(image.usage_labels) ? image.usage_labels : [];
+        if (labels.length) {
+            labels.forEach((label) => {
+                const tag = document.createElement('span');
+                tag.className = 'usage-tag';
+                tag.textContent = label;
+                usageTags.appendChild(tag);
+            });
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'image-card-actions';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn btn-sm btn-danger';
+        deleteBtn.textContent = '删除';
+        deleteBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!confirm(`确定要删除这张图片吗？\n${image.filename}`)) {
+                return;
+            }
+            await deleteSingleImage(image.unique_filename, image.status, false);
+        });
+
+        actions.appendChild(deleteBtn);
+        info.appendChild(filename);
+        info.appendChild(metaRow);
+        info.appendChild(usageTags);
+        info.appendChild(actions);
+        card.appendChild(checkbox);
+        card.appendChild(previewNode);
+        card.appendChild(info);
+        return card;
     }
 
-    fetchAndRenderImages();
+    function renderEmptyState() {
+        const hasResults = state.filteredImages.length > 0;
+        emptyState.hidden = hasResults;
+        gallery.hidden = !hasResults;
+    }
+
+    function renderGallery() {
+        gallery.innerHTML = '';
+        const currentPageImages = getCurrentPageImages();
+        currentPageImages.forEach((image) => {
+            gallery.appendChild(createImageCard(image));
+        });
+        renderEmptyState();
+        reinitializeLightGallery();
+        updateSelectionSummary();
+    }
+
+    function createPageButton(label, disabled, onClick, isActive = false) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `btn btn-secondary${isActive ? ' is-active' : ''}`;
+        button.textContent = label;
+        button.disabled = disabled;
+        button.addEventListener('click', onClick);
+        return button;
+    }
+
+    function renderPagination() {
+        paginationNode.innerHTML = '';
+        const total = state.filteredImages.length;
+        const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+        paginationNode.hidden = total <= state.pageSize;
+
+        if (paginationNode.hidden) {
+            return;
+        }
+
+        const start = total === 0 ? 0 : (state.currentPage - 1) * state.pageSize + 1;
+        const end = Math.min(state.currentPage * state.pageSize, total);
+
+        const summary = document.createElement('div');
+        summary.className = 'image-pagination-summary';
+        summary.textContent = `显示 ${start}-${end} / ${total} 项`;
+
+        const buttons = document.createElement('div');
+        buttons.className = 'image-pagination-buttons';
+
+        buttons.appendChild(createPageButton('上一页', state.currentPage === 1, () => {
+            state.currentPage -= 1;
+            rerender();
+        }));
+
+        const pageStart = Math.max(1, state.currentPage - 2);
+        const pageEnd = Math.min(totalPages, pageStart + 4);
+        const normalizedPageStart = Math.max(1, pageEnd - 4);
+        for (let page = normalizedPageStart; page <= pageEnd; page += 1) {
+            buttons.appendChild(createPageButton(String(page), false, () => {
+                state.currentPage = page;
+                rerender();
+            }, page === state.currentPage));
+        }
+
+        buttons.appendChild(createPageButton('下一页', state.currentPage === totalPages, () => {
+            state.currentPage += 1;
+            rerender();
+        }));
+
+        paginationNode.appendChild(summary);
+        paginationNode.appendChild(buttons);
+    }
+
+    function rerender() {
+        filterImages();
+        renderStats();
+        renderGallery();
+        renderPagination();
+    }
+
+    function pruneSelection() {
+        const validIds = new Set(state.allImages.map((image) => image.unique_filename));
+        Array.from(state.selected).forEach((uniqueFilename) => {
+            if (!validIds.has(uniqueFilename)) {
+                state.selected.delete(uniqueFilename);
+            }
+        });
+    }
+
+    async function requestJson(url, options = {}) {
+        const response = await fetch(url, options);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || '请求失败');
+        }
+        return data;
+    }
+
+    async function fetchImages() {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = '刷新中...';
+        try {
+            const result = await requestJson('/api/images/all');
+            state.allImages = Array.isArray(result.images) ? result.images : [];
+            pruneSelection();
+            rerender();
+        } catch (error) {
+            console.error('Error fetching images:', error);
+            alert(error.message || '加载图片失败');
+        } finally {
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = '刷新列表';
+        }
+    }
+
+    async function deleteSingleImage(uniqueFilename, rawStatus, fromPreview) {
+        try {
+            await requestJson(`/api/images/delete/${encodeURIComponent(uniqueFilename)}?status=${encodeURIComponent(rawStatus)}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+            state.selected.delete(uniqueFilename);
+            state.allImages = state.allImages.filter((image) => image.unique_filename !== uniqueFilename);
+            rerender();
+
+            if (fromPreview && state.lightGalleryInstance && document.querySelector('.lg-outer')) {
+                const visibleAnchors = gallery.querySelectorAll('a[data-galleryable="true"]');
+                if (visibleAnchors.length) {
+                    const currentIndex = Math.min(state.lightGalleryInstance.index, visibleAnchors.length - 1);
+                    state.lightGalleryInstance.destroy();
+                    reinitializeLightGallery();
+                    setTimeout(() => {
+                        if (state.lightGalleryInstance) {
+                            state.lightGalleryInstance.openGallery(currentIndex);
+                        }
+                    }, 80);
+                } else if (state.lightGalleryInstance) {
+                    state.lightGalleryInstance.closeGallery();
+                }
+            }
+        } catch (error) {
+            alert(`删除失败：${error.message || '未知错误'}`);
+        }
+    }
+
+    async function deleteSelectedImages() {
+        const items = state.allImages
+            .filter((image) => state.selected.has(image.unique_filename))
+            .map((image) => ({
+                unique_filename: image.unique_filename,
+                status: image.status
+            }));
+
+        if (!items.length) {
+            alert('请先选择要删除的图片');
+            return;
+        }
+
+        if (!confirm(`确定要批量删除已选择的 ${items.length} 张图片吗？`)) {
+            return;
+        }
+
+        bulkDeleteBtn.disabled = true;
+        bulkDeleteBtn.textContent = '删除中...';
+
+        try {
+            const result = await requestJson('/api/images/bulk-delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ items })
+            });
+
+            const failed = Array.isArray(result.results) ? result.results.filter((item) => !item.success) : [];
+            const succeededIds = new Set(
+                Array.isArray(result.results)
+                    ? result.results.filter((item) => item.success).map((item) => item.unique_filename)
+                    : []
+            );
+
+            if (succeededIds.size) {
+                state.allImages = state.allImages.filter((image) => !succeededIds.has(image.unique_filename));
+                succeededIds.forEach((uniqueFilename) => state.selected.delete(uniqueFilename));
+            }
+
+            rerender();
+
+            if (failed.length) {
+                const detail = failed.slice(0, 5).map((item) => `${item.unique_filename}: ${item.error || '删除失败'}`).join('\n');
+                alert(`已删除 ${result.success_count} 张，失败 ${result.failure_count} 张。\n\n${detail}`);
+            } else {
+                alert(`批量删除完成，共删除 ${result.success_count} 张图片。`);
+            }
+        } catch (error) {
+            alert(`批量删除失败：${error.message || '未知错误'}`);
+        } finally {
+            bulkDeleteBtn.disabled = false;
+            bulkDeleteBtn.textContent = '批量删除';
+        }
+    }
+
+    searchInput.addEventListener('input', () => {
+        state.search = searchInput.value || '';
+        state.currentPage = 1;
+        rerender();
+    });
+
+    statusFilter.addEventListener('change', () => {
+        state.filter = statusFilter.value;
+        state.currentPage = 1;
+        rerender();
+    });
+
+    pageSizeSelect.addEventListener('change', () => {
+        state.pageSize = Number(pageSizeSelect.value) || 36;
+        state.currentPage = 1;
+        rerender();
+    });
+
+    refreshBtn.addEventListener('click', fetchImages);
+
+    selectPageBtn.addEventListener('click', () => {
+        const currentPageIds = getCurrentPageImages().map((image) => image.unique_filename);
+        const allSelectedOnPage = currentPageIds.length > 0 && currentPageIds.every((id) => state.selected.has(id));
+        if (allSelectedOnPage) {
+            currentPageIds.forEach((id) => state.selected.delete(id));
+        } else {
+            currentPageIds.forEach((id) => state.selected.add(id));
+        }
+        renderGallery();
+    });
+
+    clearSelectionBtn.addEventListener('click', () => {
+        state.selected.clear();
+        renderGallery();
+    });
+
+    bulkDeleteBtn.addEventListener('click', deleteSelectedImages);
+
+    bindGalleryEvents();
+    fetchImages();
 });
 </script>
 {% endblock %}

@@ -1044,6 +1044,48 @@ def get_all_images():
         image['url'] = force_https_url(image['url'])
     return jsonify({'images': images})
 
+
+def _delete_image_by_unique_filename(unique_filename, status_hint=''):
+    normalized_status = (status_hint or '').strip()
+    image = Image.query.filter_by(unique_filename=unique_filename).first()
+
+    if normalized_status == 'orphan':
+        storage_type = SystemSetting.get('media_storage_type', 'local')
+        image_path = None
+        if storage_type == 'local':
+            all_local_images = get_local_images()
+            if unique_filename in all_local_images:
+                image_path = all_local_images[unique_filename]['path']
+            else:
+                return False, 'Orphan file not found in local storage.'
+        else:
+            image_path = unique_filename
+
+        image_to_delete = Image()
+        image_to_delete.storage_type = storage_type
+        image_to_delete.path = image_path
+        if not delete_media_file(image_to_delete):
+            return False, 'Failed to delete orphan file from storage.'
+        return True, None
+
+    if not image:
+        return False, 'Image not found.'
+
+    if image.is_referenced:
+        return False, 'Image is in use and cannot be deleted.'
+
+    if normalized_status == 'db_only' or str(image.url or '').strip() == '#':
+        db.session.delete(image)
+        db.session.commit()
+        return True, None
+
+    if not delete_media_file(image):
+        return False, 'Failed to delete file from storage.'
+
+    db.session.delete(image)
+    db.session.commit()
+    return True, None
+
 @api_bp.route('/images/<int:image_id>', methods=['DELETE'])
 @login_required
 def delete_image(image_id):
@@ -1070,40 +1112,57 @@ def delete_image_by_filename(unique_filename):
         return jsonify({'error': 'Permission denied'}), 403
 
     status = request.args.get('status')
-    image = Image.query.filter_by(unique_filename=unique_filename).first()
-
-    if status == 'orphan':
-        storage_type = SystemSetting.get('media_storage_type', 'local')
-        image_path = None
-        if storage_type == 'local':
-            all_local_images = get_local_images()
-            if unique_filename in all_local_images:
-                image_path = all_local_images[unique_filename]['path']
-            else:
-                return jsonify({'error': 'Orphan file not found in local storage.'}), 404
-        else: # s3
-            image_path = unique_filename
-
-        image_to_delete = Image()
-        image_to_delete.storage_type = storage_type
-        image_to_delete.path = image_path
-        if not delete_media_file(image_to_delete):
-            return jsonify({'error': 'Failed to delete orphan file from storage.'}), 500
-    
-    elif image:
-        if image.is_referenced:
-            return jsonify({'error': 'Image is in use and cannot be deleted.'}), 400
-        
-        if not delete_media_file(image):
-            return jsonify({'error': 'Failed to delete file from storage.'}), 500
-        
-        db.session.delete(image)
-        db.session.commit()
-
-    else:
-        return jsonify({'error': 'Image not found.'}), 404
+    success, error = _delete_image_by_unique_filename(unique_filename, status)
+    if not success:
+        status_code = 404 if error == 'Image not found.' or error == 'Orphan file not found in local storage.' else 400
+        return jsonify({'error': error}), status_code
 
     return jsonify({'success': True})
+
+
+@api_bp.route('/images/bulk-delete', methods=['POST'])
+@login_required
+def bulk_delete_images():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Permission denied'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    raw_items = payload.get('items')
+    if not isinstance(raw_items, list) or not raw_items:
+        return jsonify({'error': 'No images selected.'}), 400
+
+    results = []
+    success_count = 0
+    failure_count = 0
+
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        unique_filename = str(item.get('unique_filename') or '').strip()
+        status = str(item.get('status') or '').strip()
+        if not unique_filename:
+            continue
+
+        success, error = _delete_image_by_unique_filename(unique_filename, status)
+        if success:
+            success_count += 1
+        else:
+            failure_count += 1
+        results.append({
+            'unique_filename': unique_filename,
+            'success': success,
+            'error': error,
+        })
+
+    if not results:
+        return jsonify({'error': 'No valid images selected.'}), 400
+
+    return jsonify({
+        'success': failure_count == 0,
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'results': results,
+    })
 
 
 @api_bp.route('/search-docs', methods=['GET'])
