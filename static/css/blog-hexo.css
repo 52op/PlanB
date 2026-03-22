@@ -1096,6 +1096,16 @@ img {
     padding-left: 16px;
 }
 
+.toc-widget nav {
+    max-height: min(58vh, calc(100vh - var(--header-height) - 180px));
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.toc-widget nav a {
+    pointer-events: auto;
+}
+
 .toc-widget li {
     margin: 8px 0;
 }
@@ -1108,6 +1118,10 @@ img {
 .toc-widget a:hover,
 .toc-widget a.active {
     color: var(--primary);
+}
+
+.toc-widget a.active {
+    font-weight: 600;
 }
 
 /* Archive Page */
@@ -1181,6 +1195,12 @@ img {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 20px;
+    }
+
+    .toc-widget nav {
+        max-height: none;
+        overflow: visible;
+        pointer-events: auto;
     }
 
     .widget {

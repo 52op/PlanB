@@ -298,4 +298,89 @@ function toggleReplyForm(id) {
 <script src="{{ url_for('static', filename='vendor/lightgallery/lg-rotate.min.js') }}" defer></script>
 <script src="{{ url_for('static', filename='vendor/lightgallery/lg-thumbnail.min.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/modules/image-utils.js') }}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const article = document.querySelector('.article-content');
+    const tocWidget = document.querySelector('.toc-widget');
+    const tocNav = document.getElementById('postToc');
+    if (!article || !tocWidget || !tocNav) {
+        return;
+    }
+
+    const headings = Array.from(article.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter((heading) => heading.id);
+    const tocLinks = Array.from(tocNav.querySelectorAll('a[href^="#"]'));
+    if (!headings.length || !tocLinks.length) {
+        return;
+    }
+
+    let currentActiveId = '';
+
+    function ensureActiveLinkVisible(activeLink) {
+        const navRect = tocNav.getBoundingClientRect();
+        const linkRect = activeLink.getBoundingClientRect();
+        const currentScrollTop = tocNav.scrollTop;
+        const padding = 16;
+        const linkTop = linkRect.top - navRect.top + currentScrollTop;
+        const linkBottom = linkTop + linkRect.height;
+        const visibleTop = currentScrollTop + padding;
+        const visibleBottom = currentScrollTop + tocNav.clientHeight - padding;
+
+        if (linkTop < visibleTop) {
+            tocNav.scrollTo({ top: Math.max(linkTop - padding, 0), behavior: 'smooth' });
+            return;
+        }
+
+        if (linkBottom > visibleBottom) {
+            tocNav.scrollTo({ top: Math.max(linkBottom - tocNav.clientHeight + padding, 0), behavior: 'smooth' });
+        }
+    }
+
+    function setActiveLink(activeId) {
+        if (!activeId || activeId === currentActiveId) {
+            return;
+        }
+
+        currentActiveId = activeId;
+        let activeLink = null;
+        tocLinks.forEach((link) => {
+            const isActive = decodeURIComponent(link.getAttribute('href') || '').slice(1) === activeId;
+            link.classList.toggle('active', isActive);
+            if (isActive) {
+                activeLink = link;
+            }
+        });
+
+        if (activeLink) {
+            ensureActiveLinkVisible(activeLink);
+        }
+    }
+
+    function updateActiveHeading() {
+        const offset = 140;
+        let current = headings[0];
+        headings.forEach((heading) => {
+            if (heading.getBoundingClientRect().top - offset <= 0) {
+                current = heading;
+            }
+        });
+        if (current) {
+            setActiveLink(current.id);
+        }
+    }
+
+    tocLinks.forEach((link) => {
+        link.addEventListener('click', function () {
+            const targetId = decodeURIComponent(link.getAttribute('href') || '').slice(1);
+            const target = targetId ? document.getElementById(targetId) : null;
+            if (!target) {
+                return;
+            }
+            requestAnimationFrame(() => setActiveLink(target.id));
+        });
+    });
+
+    updateActiveHeading();
+    window.addEventListener('scroll', updateActiveHeading, { passive: true });
+});
+</script>
 {% endblock %}
