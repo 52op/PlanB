@@ -36,12 +36,15 @@ class ArticleCrawler {
         modal.innerHTML = `
             <div class="article-crawler-dialog" role="dialog" aria-modal="true" aria-labelledby="articleCrawlerTitle">
                 <div class="article-crawler-header">
-                    <div>
+                    <div class="article-crawler-header-main">
                         <div class="article-crawler-kicker">内容导入</div>
                         <h3 id="articleCrawlerTitle">爬取文章</h3>
                         <p>输入文章链接后先抓取预览，确认满意再插入到当前文档。首次预览不会下载图片。</p>
                     </div>
-                    <button type="button" class="article-crawler-close btn btn-secondary" id="articleCrawlerCloseBtn">关闭</button>
+                    <div class="article-crawler-header-side">
+                        <div class="article-crawler-status" id="articleCrawlerStatus">请输入文章链接，然后点击“开始爬取”。</div>
+                        <button type="button" class="article-crawler-close btn btn-secondary" id="articleCrawlerCloseBtn">关闭</button>
+                    </div>
                 </div>
 
                 <div class="article-crawler-toolbar">
@@ -75,8 +78,6 @@ class ArticleCrawler {
                     </div>
                 </div>
 
-                <div class="article-crawler-status" id="articleCrawlerStatus">请输入文章链接，然后点击“开始爬取”。</div>
-
                 <div class="article-crawler-preview" id="articleCrawlerPreview" hidden>
                     <div class="article-crawler-preview-grid">
                         <label class="article-crawler-field">
@@ -97,14 +98,17 @@ class ArticleCrawler {
                         </label>
                     </div>
 
-                    <div class="article-crawler-cover-box" id="articleCrawlerCoverBox" hidden>
-                        <div class="article-crawler-cover-head">
-                            <strong>首图预览</strong>
+                    <div class="article-crawler-cover-box" id="articleCrawlerCoverBox" hidden tabindex="0">
+                        <div class="article-crawler-cover-inline">
+                            <strong>首图</strong>
                             <span id="articleCrawlerSourceUrl"></span>
+                            <em>悬停查看</em>
                         </div>
-                        <img id="articleCrawlerCoverPreview" alt="抓取首图预览" referrerpolicy="no-referrer" loading="lazy">
-                        <div class="article-crawler-cover-tip" id="articleCrawlerCoverTip" hidden>
-                            当前站点可能限制直接展示封面图，你仍然可以保留这个地址，或手动替换成别的图片。
+                        <div class="article-crawler-cover-popover">
+                            <img id="articleCrawlerCoverPreview" alt="抓取首图预览" referrerpolicy="no-referrer" loading="lazy">
+                            <div class="article-crawler-cover-tip" id="articleCrawlerCoverTip" hidden>
+                                当前站点可能限制直接展示封面图，你仍然可以保留这个地址，或手动替换成别的图片。
+                            </div>
                         </div>
                     </div>
 
@@ -183,6 +187,14 @@ class ArticleCrawler {
         });
         this.coverPreview?.addEventListener('error', () => {
             if (this.coverTip) this.coverTip.hidden = false;
+        });
+        this.coverBox?.addEventListener('click', () => {
+            if (window.matchMedia?.('(hover: none)').matches) {
+                this.coverBox.classList.toggle('is-expanded');
+            }
+        });
+        this.coverBox?.addEventListener('mouseleave', () => {
+            this.coverBox.classList.remove('is-expanded');
         });
         this.bodyInput?.addEventListener('input', this.handleBodyInput);
         this.urlInput?.addEventListener('keydown', (event) => {
@@ -264,7 +276,6 @@ class ArticleCrawler {
         this.tagsInput.value = Array.isArray(data.tags) ? data.tags.join(', ') : '';
         this.coverInput.value = data.cover || '';
         this.bodyInput.value = data.markdown || '';
-        this.sourceUrlNode.textContent = data.source_url || '';
         this.updateCoverPreview();
         this.renderMarkdownPreview(data.markdown || '');
         this.insertBtn.disabled = false;
@@ -281,12 +292,31 @@ class ArticleCrawler {
         return `/api/crawl/image-proxy?${params.toString()}`;
     }
 
+    describeCoverValue(rawUrl) {
+        const normalized = String(rawUrl || '').trim();
+        if (!normalized) return '';
+        try {
+            if (/^https?:\/\//i.test(normalized)) {
+                const url = new URL(normalized);
+                return `${url.hostname}${url.pathname}`;
+            }
+        } catch (error) {
+            // use raw string fallback
+        }
+        return normalized;
+    }
+
     updateCoverPreview() {
         const coverValue = (this.coverInput?.value || '').trim();
         if (!coverValue) {
             if (this.coverBox) this.coverBox.hidden = true;
+            if (this.coverBox) this.coverBox.classList.remove('is-expanded');
             if (this.coverPreview) this.coverPreview.removeAttribute('src');
             if (this.coverTip) this.coverTip.hidden = true;
+            if (this.sourceUrlNode) {
+                this.sourceUrlNode.textContent = '';
+                this.sourceUrlNode.removeAttribute('title');
+            }
             return;
         }
 
@@ -295,9 +325,14 @@ class ArticleCrawler {
         }
         if (this.coverBox) {
             this.coverBox.hidden = false;
+            this.coverBox.classList.remove('is-expanded');
         }
         if (this.coverTip) {
             this.coverTip.hidden = true;
+        }
+        if (this.sourceUrlNode) {
+            this.sourceUrlNode.textContent = this.describeCoverValue(coverValue);
+            this.sourceUrlNode.title = coverValue;
         }
     }
 
