@@ -12,11 +12,15 @@
             </div>
             <div class="form-group">
                 <label>系统访问控制模式 (access_mode)</label>
-                <select name="access_mode">
+                <select name="access_mode" id="accessModeSelect">
                     <option value="open" {% if settings.access_mode == 'open' %}selected{% endif %}>完全开放模式 (任何人可阅)</option>
                     <option value="group_only" {% if settings.access_mode == 'group_only' %}selected{% endif %}>需登录访问模式 (仅注册用户)</option>
                     <option value="password_only" {% if settings.access_mode == 'password_only' %}selected{% endif %}>固定密码访问 (访客输入密码)</option>
                 </select>
+                <div id="accessModeHintBox" style="margin-top:10px; padding:12px 14px; border:1px solid #dbe2ea; border-radius:10px; background:#f8fafc; color:#475569; line-height:1.8;">
+                    <strong id="accessModeHintTitle" style="display:block; margin-bottom:4px; color:#1f2937;"></strong>
+                    <div id="accessModeHintText"></div>
+                </div>
             </div>
             <div class="form-group">
                 <label>固定访客密码 (global_password)</label>
@@ -418,6 +422,9 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const settingsForm = document.getElementById('adminBaseSettingsForm');
+    const accessModeSelect = document.getElementById('accessModeSelect');
+    const accessModeHintTitle = document.getElementById('accessModeHintTitle');
+    const accessModeHintText = document.getElementById('accessModeHintText');
     const sourceTypeSelect = document.getElementById('random_cover_source_type');
     const urlWrap = document.getElementById('random_cover_url_wrap');
     const localDirWrap = document.getElementById('random_cover_local_dir_wrap');
@@ -430,6 +437,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const coverPreviewMeta = document.getElementById('coverPreviewMeta');
     const coverPreviewGrid = document.getElementById('coverPreviewGrid');
     const coverPreviewChips = document.querySelectorAll('.cover-preview-chip');
+
+    function refreshAccessModeHint() {
+        if (!accessModeSelect || !accessModeHintTitle || !accessModeHintText) return;
+        const value = accessModeSelect.value;
+        if (value === 'open') {
+            accessModeHintTitle.textContent = '完全开放模式';
+            accessModeHintText.innerHTML = '所有访客都可以直接访问公开文档与内容入口，不需要登录或固定密码。';
+            return;
+        }
+        if (value === 'group_only') {
+            accessModeHintTitle.textContent = '需登录访问模式';
+            accessModeHintText.innerHTML = '访客需要先登录账号后才能访问受控内容，目录读写权限继续由“访问管理”中的用户目录权限规则决定。';
+            return;
+        }
+        accessModeHintTitle.textContent = '固定密码访问模式';
+        accessModeHintText.innerHTML = '访客需要先输入固定密码才能进入文档系统。固定密码只扩展读权限，具体哪些目录或文件可额外访问，请前往 <a href="{{ url_for("admin.admin_access") }}" style="color:#0056b3; font-weight:700; text-decoration:none;">访问管理</a> 配置“访问密码权限规则”。';
+    }
 
     function parseDefaultQueries(rawValue) {
         return String(rawValue || '')
@@ -626,6 +650,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (sourceTypeSelect) {
         sourceTypeSelect.addEventListener('change', refreshCoverSourceVisibility);
         refreshCoverSourceVisibility();
+    }
+
+    if (accessModeSelect) {
+        accessModeSelect.addEventListener('change', refreshAccessModeHint);
+        refreshAccessModeHint();
     }
 
     if (settingsForm) {

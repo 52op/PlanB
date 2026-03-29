@@ -1,4 +1,5 @@
 from models import PermissionRule
+from .access import has_password_rule_access
 
 
 def _normalize_target_path(target_path):
@@ -63,6 +64,9 @@ def has_explicit_permission(user, target_path, action):
 
 
 def check_permission(user, target_path, action):
+    if action == 'read' and has_password_rule_access(target_path):
+        return True
+
     if user is None or not getattr(user, "is_authenticated", False):
         return action == 'read'
 

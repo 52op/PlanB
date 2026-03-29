@@ -11,6 +11,15 @@ COOKIE_PURPOSE = 'global-access'
 COOKIE_MAX_AGE = 12 * 60 * 60
 
 
+def has_active_global_access_session():
+    if SystemSetting.get('access_mode', 'open') != 'password_only':
+        return False
+    global_pwd = SystemSetting.get('global_password', '')
+    if not global_pwd:
+        return False
+    return has_valid_global_access_cookie()
+
+
 def normalize_password_access_target(target_type, target_path):
     normalized_type = str(target_type or 'dir').strip().lower()
     if normalized_type not in {'dir', 'file'}:
@@ -65,16 +74,11 @@ def has_valid_global_access_cookie():
 def is_password_visitor_session():
     if getattr(current_user, 'is_authenticated', False):
         return False
-    if SystemSetting.get('access_mode', 'open') != 'password_only':
-        return False
-    global_pwd = SystemSetting.get('global_password', '')
-    if not global_pwd:
-        return False
-    return has_valid_global_access_cookie()
+    return has_active_global_access_session()
 
 
 def has_password_rule_access(target_path):
-    if not is_password_visitor_session():
+    if not has_active_global_access_session():
         return False
 
     try:
