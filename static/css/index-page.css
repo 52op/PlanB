@@ -485,6 +485,10 @@
             z-index: 10000;
         }
 
+        .theme-selector > .theme-toggle-btn {
+            display: none;
+        }
+
         .theme-toggle-btn {
             width: 100%;
             padding: 10px;
