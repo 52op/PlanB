@@ -10,6 +10,7 @@ from services import (
     build_verification_scope_key,
     check_rate_limit,
     check_verification_rate_limit,
+    clear_global_access_cookie,
     create_email_verification_code,
     format_wait_time,
     get_client_ip,
@@ -304,8 +305,15 @@ def login():
 @auth_bp.route('/logout')
 def logout():
     logout_user()
-    resp = redirect(url_for('main.index'))
-    resp.delete_cookie('global_access')
+    return redirect(url_for('main.index'))
+
+
+@auth_bp.route('/logout-global')
+def logout_global():
+    target = get_safe_redirect_target(request.args.get('next') or request.referrer or url_for('main.index'))
+    resp = redirect(target)
+    clear_global_access_cookie(resp)
+    flash('已退出全局访问密码登录')
     return resp
 
 

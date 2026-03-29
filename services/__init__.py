@@ -1,5 +1,7 @@
 from .access import (
     check_global_access,
+    clear_global_access_cookie,
+    has_active_global_access_session,
     has_password_rule_access,
     has_valid_global_access_cookie,
     is_password_visitor_session,
@@ -69,6 +71,8 @@ from .urls import force_https_url, get_safe_redirect_target, normalize_local_med
 __all__ = [
     'InvalidPathError',
     'check_global_access',
+    'clear_global_access_cookie',
+    'has_active_global_access_session',
     'has_password_rule_access',
     'check_permission',
     'get_matched_permission_rule',

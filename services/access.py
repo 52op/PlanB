@@ -20,6 +20,11 @@ def has_active_global_access_session():
     return has_valid_global_access_cookie()
 
 
+def clear_global_access_cookie(response):
+    response.delete_cookie(COOKIE_NAME)
+    return response
+
+
 def normalize_password_access_target(target_type, target_path):
     normalized_type = str(target_type or 'dir').strip().lower()
     if normalized_type not in {'dir', 'file'}:

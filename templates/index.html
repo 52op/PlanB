@@ -295,6 +295,23 @@
                 {% endif %}
             </div>
         </div>
+        {% if global_access_active %}
+        <div class="global-access-status">
+            <div class="global-access-status-main">
+                <span class="global-access-badge"><i data-lucide="shield-check" class="icon-inline"></i> 全局访问已验证</span>
+                <span class="global-access-text">
+                    {% if current_user.is_authenticated %}
+                    当前浏览器已保留全局访问密码状态。读权限会取“账号可读范围”和“全局访问白名单”的并集，写权限仍只按当前账号身份控制。
+                    {% else %}
+                    当前浏览器已通过全局访问密码验证，可继续浏览公开内容以及访问管理中配置的只读白名单目录或文档。
+                    {% endif %}
+                </span>
+            </div>
+            <a class="global-access-exit" href="{{ url_for('auth.logout_global', next=request.full_path if request.query_string else request.path) }}">
+                <i data-lucide="log-out" class="icon-inline"></i> 退出全局访问
+            </a>
+        </div>
+        {% endif %}
 
 {% if page_meta and page_meta.template == "post" %}
         <div class="post-intro">

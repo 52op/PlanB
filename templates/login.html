@@ -268,7 +268,7 @@
                 </div>
                 <div style="display:flex; gap:10px; margin-bottom:12px;">
                     <a class="btn" style="flex:1; background:#6c757d;" href="{{ back_url or url_for('main.index') }}">返回</a>
-                    <a class="btn" style="flex:1; background:#d9534f;" href="{{ url_for('auth.logout') }}">退出全局登录</a>
+                    <a class="btn" style="flex:1; background:#d9534f;" href="{{ url_for('auth.logout_global', next=back_url or url_for('main.index')) }}">退出全局登录</a>
                 </div>
                 {% else %}
                 <form method="POST" action="{{ url_for('auth.login') }}" onsubmit="return validateForm(this)">

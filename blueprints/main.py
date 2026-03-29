@@ -31,6 +31,7 @@ from services import (
     get_share_link_by_token,
     get_docs_root,
     get_flat_files_list,
+    has_active_global_access_session,
     is_share_expired,
     get_markdown_files,
     get_post_by_slug,
@@ -239,6 +240,7 @@ def inject_theme():
     return {
         'current_theme': _get_blog_theme(),
         'format_app_datetime': _format_app_datetime,
+        'global_access_active': has_active_global_access_session(),
         'recent_blog_comments': recent_blog_comments,
         'blog_site_structured_data': blog_site_structured_data,
     }

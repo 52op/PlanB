@@ -855,6 +855,66 @@
             background: var(--color-primary-dark);
         }
 
+        .global-access-status {
+            max-width: 1000px;
+            margin: 0 auto 20px auto;
+            padding: 14px 16px;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+            border-radius: 16px;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary-light) 92%, #ffffff), color-mix(in srgb, var(--color-surface) 86%, var(--color-primary-light)));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .global-access-status-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1 1 380px;
+            min-width: 0;
+        }
+        .global-access-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex: 0 0 auto;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--color-primary) 12%, #ffffff);
+            color: var(--color-primary-dark);
+            font-size: 12px;
+            font-weight: 800;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+        }
+        .global-access-text {
+            color: var(--color-text-muted);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        .global-access-exit {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex: 0 0 auto;
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+            background: var(--color-surface);
+            color: var(--color-text);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }
+        .global-access-exit:hover {
+            background: var(--color-primary-light);
+            color: var(--color-primary-dark);
+            border-color: var(--color-primary);
+        }
+
         .markdown-body {
             max-width: 800px;
             margin: 0 auto;
@@ -2858,6 +2918,23 @@
                 margin-bottom: 16px;
                 padding-bottom: 12px;
                 gap: 10px;
+            }
+
+            .global-access-status {
+                margin-bottom: 16px;
+                padding: 12px;
+                border-radius: 14px;
+            }
+
+            .global-access-status-main {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .global-access-exit {
+                width: 100%;
+                justify-content: center;
             }
 
             .header-left {
