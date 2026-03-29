@@ -45,9 +45,20 @@ from services.docs import (
     _split_front_matter,
     _suggest_unique_post_slug,
 )
-from werkzeug.utils import secure_filename
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+MANAGED_FRONT_MATTER_KEYS = (
+    'title',
+    'date',
+    'summary',
+    'tags',
+    'cover',
+    'template',
+    'public',
+    'draft',
+    'slug',
+)
 
 
 def _get_app_timezone():
@@ -100,6 +111,36 @@ def _ensure_directory_name(name):
         raise ValueError('目录名不能为空或只包含特殊字符')
     
     return safe_name
+
+
+def _normalize_managed_front_matter_value(key, value):
+    if key in {'public', 'draft'}:
+        return bool(value)
+    if key == 'tags':
+        if isinstance(value, (list, tuple, set)):
+            return [str(item).strip() for item in value if str(item).strip()]
+        text = str(value or '').strip()
+        return [text] if text else []
+    return str(value or '').strip()
+
+
+def _extract_managed_front_matter_state(content):
+    text = str(content or '')
+    metadata, _ = _split_front_matter(text)
+    managed_metadata = {}
+
+    for key in MANAGED_FRONT_MATTER_KEYS:
+        if key not in metadata:
+            continue
+        normalized_value = _normalize_managed_front_matter_value(key, metadata.get(key))
+        if normalized_value in ('', []):
+            continue
+        managed_metadata[key] = normalized_value
+
+    return {
+        'has_front_matter': _has_front_matter_block(text),
+        'metadata': managed_metadata,
+    }
 
 
 def _parse_share_expiry(raw_value):
@@ -346,8 +387,19 @@ def save_markdown():
         
     if not check_permission(current_user, filename, 'edit'):
         return jsonify({'error': 'Permission denied: no edit access for this directory'}), 403
+    if not os.path.isfile(filepath):
+        return jsonify({'error': 'File not found'}), 404
     
     try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            existing_content = f.read()
+
+        if not check_permission(current_user, filename, 'manage'):
+            existing_state = _extract_managed_front_matter_state(existing_content)
+            submitted_state = _extract_managed_front_matter_state(content)
+            if existing_state != submitted_state:
+                return jsonify({'error': 'Permission denied: no manage access for front matter changes'}), 403
+
         content = sync_front_matter(content, filename, ensure_front_matter=ensure_front_matter)
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
@@ -373,8 +425,11 @@ def check_front_matter_slug():
         except InvalidPathError:
             return jsonify({'error': '目标文档路径无效'}), 400
 
-        if not check_permission(current_user, normalized_filename, 'edit'):
-            return jsonify({'error': '没有该文档的编辑权限'}), 403
+        if not check_permission(current_user, normalized_filename, 'manage'):
+            return jsonify({'error': '没有该文档的管理权限'}), 403
+
+    if not normalized_filename and current_user.role != 'admin':
+        return jsonify({'error': '缺少目标文档，无法校验头部 slug'}), 400
 
     raw_normalized_slug = _normalize_slug_source(raw_slug)
     normalized_slug = _slugify(raw_slug)
@@ -410,7 +465,9 @@ def check_front_matter_slug():
 @api_bp.route('/public-posts', methods=['GET'])
 @login_required
 def list_public_posts():
-    items = get_public_post_documents()
+    items = [item for item in get_public_post_documents() if item.get('can_manage')]
+    if not items and current_user.role != 'admin':
+        return jsonify({'error': '没有博客文章管理权限'}), 403
     return jsonify({
         'success': True,
         'items': [
@@ -432,6 +489,7 @@ def list_public_posts():
                 'slug': item.get('slug') or '',
                 'view_count': int(item.get('view_count') or 0),
                 'can_edit': bool(item.get('can_edit')),
+                'can_manage': bool(item.get('can_manage')),
                 'public': bool(item.get('public')),
                 'template': item.get('template') or 'doc',
                 'is_blog_visible': bool(item.get('is_blog_visible')),
@@ -455,8 +513,8 @@ def toggle_public_post():
     except InvalidPathError:
         return jsonify({'error': '目标文档路径无效'}), 400
 
-    if not check_permission(current_user, filename, 'edit'):
-        return jsonify({'error': '没有该文档的编辑权限'}), 403
+    if not check_permission(current_user, filename, 'manage'):
+        return jsonify({'error': '没有该文档的管理权限'}), 403
 
     if not os.path.isfile(filepath):
         return jsonify({'error': '目标文档不存在'}), 404
@@ -512,8 +570,8 @@ def remove_public_post_front_matter():
     except InvalidPathError:
         return jsonify({'error': '目标文档路径无效'}), 400
 
-    if not check_permission(current_user, filename, 'edit'):
-        return jsonify({'error': '没有该文档的编辑权限'}), 403
+    if not check_permission(current_user, filename, 'manage'):
+        return jsonify({'error': '没有该文档的管理权限'}), 403
 
     if not os.path.isfile(filepath):
         return jsonify({'error': '目标文档不存在'}), 404
@@ -605,7 +663,7 @@ def upload_markdown():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
         
-    if not (file.filename or '').endswith('.md'):
+    if not (file.filename or '').lower().endswith('.md'):
         return jsonify({'error': 'Only .md files are allowed'}), 400
         
     # 获取目标文件夹路径
@@ -619,15 +677,31 @@ def upload_markdown():
     if not check_permission(current_user, target_dir, 'upload'):
         return jsonify({'error': 'Permission denied: no upload access for this directory'}), 403
 
-    safe_filename = secure_filename(file.filename or '')
-    if not safe_filename.endswith('.md'):
-        return jsonify({'error': 'Invalid filename'}), 400
+    try:
+        safe_filename = _ensure_markdown_filename(file.filename)
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
 
     save_path = os.path.join(abs_target_dir, safe_filename)
+    saved_path = safe_filename if not target_dir else f"{target_dir}/{safe_filename}"
     
     try:
-        file.save(save_path)
-        saved_path = safe_filename if not target_dir else f"{target_dir}/{safe_filename}"
+        if check_permission(current_user, saved_path, 'manage'):
+            file.save(save_path)
+        else:
+            raw_bytes = file.read()
+            try:
+                content = raw_bytes.decode('utf-8-sig')
+            except UnicodeDecodeError:
+                return jsonify({'error': 'Markdown 文件需使用 UTF-8 编码'}), 400
+
+            if _has_front_matter_block(content):
+                _, body_content = _split_front_matter(content)
+                content = body_content.lstrip('\n')
+
+            with open(save_path, 'w', encoding='utf-8') as file_obj:
+                file_obj.write(content)
+
         return jsonify({'success': True, 'path': saved_path})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

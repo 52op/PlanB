@@ -17,6 +17,8 @@ def _get_rule_flag(rule, action):
         return bool(rule.can_upload)
     if action == 'delete':
         return bool(rule.can_delete)
+    if action == 'manage':
+        return bool(getattr(rule, 'can_manage', False))
     return False
 
 

@@ -87,7 +87,7 @@
             </div>
             <div class="site-header-right">
                 <button class="header-action-btn" id="openSearchBtnDesktop" type="button" title="搜索 (Ctrl+K)"><i data-lucide="search" class="icon-inline"></i></button>
-                {% if current_user.is_authenticated %}
+                {% if current_user.is_authenticated and can_manage_posts %}
                 <button class="header-action-btn" id="publicPostsBtnDesktop" type="button" title="博客文章管理"><i data-lucide="list" class="icon-inline"></i></button>
                 {% endif %}
                 <button class="header-action-btn" id="themeToggleBtnDesktop" type="button"><i data-lucide="palette" class="icon-inline"></i> 主题</button>
@@ -133,7 +133,7 @@
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
                 <button class="menu-btn menu-btn-icon" id="openSearchBtnMobile" title="搜索"><i data-lucide="search"></i></button>
-                {% if current_user.is_authenticated %}
+                {% if current_user.is_authenticated and can_manage_posts %}
                 <button class="menu-btn menu-btn-icon" id="publicPostsBtnMobile" title="博客文章管理"><i data-lucide="list"></i></button>
                 {% endif %}
                 <button class="menu-btn menu-btn-icon" id="themeToggleBtnMobile" title="主题"><i data-lucide="palette"></i></button>
@@ -268,7 +268,7 @@
                     {% if current_file and can_edit %}
                     <button id="editBtn" class="action-btn"><i data-lucide="square-pen" class="icon-inline"></i> 编辑</button>
                     {% endif %}
-                    {% if current_file and can_edit %}
+                    {% if current_file and can_edit and can_manage_current %}
                     <button id="frontMatterBtn" class="action-btn"><i data-lucide="text-quote" class="icon-inline"></i> 头部</button>
                     {% endif %}
                     {% if (current_file or current_dir is not none) and can_upload %}

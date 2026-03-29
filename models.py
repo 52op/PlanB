@@ -63,6 +63,7 @@ class PermissionRule(db.Model):
     can_edit = db.Column(db.Boolean, default=False)
     can_upload = db.Column(db.Boolean, default=False)
     can_delete = db.Column(db.Boolean, default=False)
+    can_manage = db.Column(db.Boolean, default=False)
     
     user = db.relationship('User', backref=db.backref('permissions', lazy=True))
 
@@ -249,6 +250,7 @@ def init_db(app):
         _ensure_column(app, 'users', 'avatar_url', 'VARCHAR(255)')
         _ensure_column(app, 'users', 'can_comment', 'BOOLEAN NOT NULL DEFAULT 1')
         _ensure_column(app, 'comments', 'approval_token', 'VARCHAR(64)')
+        _ensure_column(app, 'permission_rules', 'can_manage', 'BOOLEAN NOT NULL DEFAULT 0')
         
         # 确保上传目录存在
         uploads_dir = app.config.get('UPLOADS_DIR') or get_data_subdir('uploads')

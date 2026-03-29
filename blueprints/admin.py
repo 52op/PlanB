@@ -212,6 +212,7 @@ def _save_user_permission_from_form():
     p.can_edit = 'can_edit' in request.form
     p.can_upload = 'can_upload' in request.form
     p.can_delete = 'can_delete' in request.form
+    p.can_manage = 'can_manage' in request.form
     db.session.commit()
 
 

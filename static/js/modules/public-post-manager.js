@@ -70,7 +70,7 @@ class PublicPostManager {
                     </label>
                     <label class="public-posts-filter">
                         <input type="checkbox" id="publicPostsEditableOnly">
-                        <span>仅显示我可编辑的文档</span>
+                        <span>仅显示我可管理的文档</span>
                     </label>
                 </div>
                 <div class="public-posts-summary" id="publicPostsSummary"></div>
@@ -191,7 +191,7 @@ class PublicPostManager {
         let items = [...this.items];
 
         if (this.editableOnly) {
-            items = items.filter((item) => item.can_edit);
+            items = items.filter((item) => item.can_manage);
         }
 
         if (this.searchQuery) {
@@ -244,7 +244,7 @@ class PublicPostManager {
     renderSummary(items) {
         if (!this.summaryNode) return;
 
-        const editableCount = items.filter((item) => item.can_edit).length;
+        const editableCount = items.filter((item) => item.can_manage).length;
         const blogVisibleCount = items.filter((item) => item.is_blog_visible).length;
         const publicCount = items.filter((item) => item.public).length;
         const currentItem = items.find((item) => item.path === this.currentFilePath);
@@ -312,19 +312,19 @@ class PublicPostManager {
             : (item.updated_display || item.date_display || item.timeline_display || '未设置日期');
         const publicToggleLabel = item.public ? '取消公开' : '设为公开';
         const publicToggleValue = item.public ? 'false' : 'true';
-        const publicToggleButton = item.can_edit
+        const publicToggleButton = item.can_manage
             ? `<button type="button" class="btn btn-secondary public-posts-toggle-btn" data-public-toggle="1" data-filename="${this.escapeHtml(item.path)}" data-public="${publicToggleValue}">
                     <i data-lucide="${item.public ? 'eye-off' : 'eye'}"></i>
                     ${publicToggleLabel}
                </button>`
             : `<span class="public-posts-readonly-badge">只读</span>`;
-        const blogToggleButton = item.can_edit
+        const blogToggleButton = item.can_manage
             ? `<button type="button" class="btn btn-secondary public-posts-toggle-btn" data-blog-toggle="1" data-filename="${this.escapeHtml(item.path)}" data-blog-visible="${item.is_blog_visible ? 'false' : 'true'}">
                     <i data-lucide="${item.is_blog_visible ? 'newspaper' : 'file-text'}"></i>
                     ${item.is_blog_visible ? '取消博客显示' : '显示到博客'}
                </button>`
             : '';
-        const removeFrontMatterButton = item.can_edit
+        const removeFrontMatterButton = item.can_manage
             ? `<button type="button" class="btn btn-secondary public-posts-toggle-btn" data-remove-front-matter="1" data-filename="${this.escapeHtml(item.path)}" data-title="${this.escapeHtml(item.title || '未命名文档')}">
                     <i data-lucide="eraser"></i>
                     移除头部

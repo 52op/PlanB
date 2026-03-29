@@ -121,11 +121,12 @@
                 <label><input type="checkbox" name="can_edit"> 允许编辑</label>
                 <label><input type="checkbox" name="can_upload"> 允许上传</label>
                 <label><input type="checkbox" name="can_delete"> 允许删除</label>
+                <label><input type="checkbox" name="can_manage"> 允许管理</label>
             </div>
             <button type="submit" class="btn">新增/覆盖规则</button>
         </form>
 
-        <div class="muted-text" style="margin-bottom:12px;">这里管理已登录非管理员用户的目录级权限。该规则不会影响固定密码访客。</div>
+        <div class="muted-text" style="margin-bottom:12px;">这里管理已登录非管理员用户的目录级权限。`允许管理` 用于控制头部信息、公开状态、博客文章管理等元数据层面的操作；没有它时，用户即使能编辑正文，也不能改这些管理项。该规则不会影响固定密码访客。</div>
 
         <table>
             <thead>
@@ -136,6 +137,7 @@
                     <th>写</th>
                     <th>传</th>
                     <th>删</th>
+                    <th>管</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -148,6 +150,7 @@
                     <td>{{ '✅' if p.can_edit else '❌' }}</td>
                     <td>{{ '✅' if p.can_upload else '❌' }}</td>
                     <td>{{ '✅' if p.can_delete else '❌' }}</td>
+                    <td>{{ '✅' if p.can_manage else '❌' }}</td>
                     <td>
                         <form method="POST" action="{{ url_for('admin.admin_access_delete_user_rule', rule_id=p.id) }}" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -156,7 +159,7 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="7" style="text-align:center; color:#6c757d;">暂无用户目录权限规则</td></tr>
+                <tr><td colspan="8" style="text-align:center; color:#6c757d;">暂无用户目录权限规则</td></tr>
                 {% endfor %}
             </tbody>
         </table>

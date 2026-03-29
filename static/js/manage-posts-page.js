@@ -169,7 +169,7 @@ class ManagePostsPage {
         let items = [...this.items];
 
         if (editableOnly) {
-            items = items.filter((item) => item.can_edit);
+            items = items.filter((item) => item.can_manage);
         }
 
         if (publicFilter === 'public') {
@@ -249,7 +249,7 @@ class ManagePostsPage {
         }
 
         if (editableOnly) {
-            chips.push('仅我可编辑');
+            chips.push('仅我可管理');
         }
 
         if (sortMode === 'date_desc') {
@@ -278,7 +278,7 @@ class ManagePostsPage {
     renderHeroStats() {
         const publicCount = this.items.filter((item) => item.public).length;
         const blogCount = this.items.filter((item) => item.is_blog_visible).length;
-        const editableCount = this.items.filter((item) => item.can_edit).length;
+        const editableCount = this.items.filter((item) => item.can_manage).length;
 
         if (this.heroTotalCount) this.heroTotalCount.textContent = String(this.items.length);
         if (this.heroPublicCount) this.heroPublicCount.textContent = String(publicCount);
@@ -358,7 +358,7 @@ class ManagePostsPage {
             ? `<a class="manage-posts-btn is-soft is-preview" href="${this.escapeHtml(item.post_url)}" target="_blank" rel="noopener">博客预览</a>`
             : '';
 
-        const actionButtons = item.can_edit
+        const actionButtons = item.can_manage
             ? `
                 <button class="manage-posts-btn is-soft ${item.public ? 'is-warn' : 'is-success'}" type="button" data-action="toggle-public" data-filename="${this.escapeHtml(item.path)}" data-public="${publicButtonValue}" data-title="${this.escapeHtml(item.title || '未命名文档')}">${publicButtonLabel}</button>
                 <button class="manage-posts-btn is-soft ${item.is_blog_visible ? 'is-doc-mode' : 'is-blog-mode'}" type="button" data-action="toggle-blog" data-filename="${this.escapeHtml(item.path)}" data-blog-visible="${blogButtonValue}" data-title="${this.escapeHtml(item.title || '未命名文档')}">${blogButtonLabel}</button>

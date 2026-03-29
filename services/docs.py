@@ -786,6 +786,7 @@ def get_public_post_documents():
         item['has_front_matter'] = True
         item['is_blog_visible'] = item.get('template') == 'post'
         item['can_edit'] = bool(check_permission(current_user, filename, 'edit'))
+        item['can_manage'] = bool(check_permission(current_user, filename, 'manage'))
         item['timeline_date'] = item.get('updated') or item.get('date') or ''
         item['timeline_display'] = item.get('updated_display') or item.get('date_display') or '未设置日期'
         items.append(item)
@@ -800,6 +801,31 @@ def get_public_post_documents():
                 target['view_count'] = int(stat.view_count or 0)
 
     return _sort_posts(items)
+
+
+def has_manageable_post_documents():
+    if not getattr(current_user, 'is_authenticated', False):
+        return False
+
+    if getattr(current_user, 'role', '') == 'admin':
+        return True
+
+    for filename in _iter_markdown_filenames():
+        if not _has_read_permission(filename):
+            continue
+
+        payload = _parse_markdown_file(filename)
+        if not payload or not payload.get('has_front_matter'):
+            continue
+
+        metadata = payload.get('metadata') or {}
+        if metadata.get('draft'):
+            continue
+
+        if check_permission(current_user, filename, 'manage'):
+            return True
+
+    return False
 
 
 def get_directory_articles(dirname='', include_private=False):

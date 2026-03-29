@@ -34,6 +34,7 @@ from services import (
     has_active_global_access_session,
     is_share_expired,
     get_markdown_files,
+    has_manageable_post_documents,
     get_post_by_slug,
     get_posts,
     get_public_post_tree,
@@ -912,6 +913,8 @@ def _render_document(filename, file_tree=None):
     current_dir = os.path.dirname(current_file).replace('\\', '/')
     can_edit = check_permission(current_user, current_dir, 'edit')
     can_upload = check_permission(current_user, current_dir, 'upload')
+    can_manage_current = bool(current_file and can_edit and check_permission(current_user, current_file, 'manage'))
+    can_manage_posts = has_manageable_post_documents()
     previous_post, next_post = get_adjacent_posts(current_file, include_private=bool(getattr(current_user, 'is_authenticated', False))) if page_meta.get('template') == 'post' else (None, None)
 
     if page_meta.get('template') == 'post':
@@ -940,6 +943,8 @@ def _render_document(filename, file_tree=None):
         toc=toc_html,
         can_edit=can_edit,
         can_upload=can_upload,
+        can_manage_current=can_manage_current,
+        can_manage_posts=can_manage_posts,
         previous_post=previous_post,
         next_post=next_post,
         comments=comment_pagination['items'] if comment_pagination else comments,
@@ -1430,6 +1435,8 @@ def search():
 @main_bp.route('/manage-posts')
 @login_required
 def manage_posts():
+    if not has_manageable_post_documents():
+        abort(403)
     site_settings = _get_site_settings()
     return render_template(
         'manage_posts.html',
@@ -1675,6 +1682,8 @@ def docs_dir(dirname):
         toc='',
         can_edit=False,
         can_upload=can_upload,
+        can_manage_current=False,
+        can_manage_posts=has_manageable_post_documents(),
         page_meta={'title': dirname or site_settings['site_name']},
         site_settings=site_settings,
     )
@@ -1919,6 +1928,8 @@ def docs_search():
         toc='',
         can_edit=False,
         can_upload=False,
+        can_manage_current=False,
+        can_manage_posts=has_manageable_post_documents(),
         page_meta={'title': f'搜索: {query}' if query else '搜索文档'},
         site_settings=site_settings,
     )
