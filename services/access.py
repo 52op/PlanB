@@ -2,12 +2,34 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from flask import current_app, redirect, request, url_for
 from flask_login import current_user
 
-from models import SystemSetting
+from models import PasswordAccessRule, SystemSetting
+from .paths import InvalidPathError, normalize_relative_path
 
 
 COOKIE_NAME = 'global_access'
 COOKIE_PURPOSE = 'global-access'
 COOKIE_MAX_AGE = 12 * 60 * 60
+
+
+def normalize_password_access_target(target_type, target_path):
+    normalized_type = str(target_type or 'dir').strip().lower()
+    if normalized_type not in {'dir', 'file'}:
+        raise ValueError('访问密码规则类型无效')
+
+    raw_path = str(target_path or '').strip().replace('\\', '/')
+    if normalized_type == 'dir':
+        if raw_path in {'', '/'}:
+            return normalized_type, ''
+        raw_path = raw_path.rstrip('/')
+    try:
+        normalized_path = normalize_relative_path(raw_path)
+    except InvalidPathError as exc:
+        raise ValueError('访问密码规则路径无效') from exc
+
+    if normalized_type == 'file' and not normalized_path.lower().endswith('.md'):
+        raise ValueError('访问密码规则文件必须是 Markdown 文档')
+
+    return normalized_type, normalized_path
 
 
 def _get_serializer():
@@ -38,6 +60,40 @@ def has_valid_global_access_cookie():
         return False
 
     return data.get('purpose') == COOKIE_PURPOSE
+
+
+def is_password_visitor_session():
+    if getattr(current_user, 'is_authenticated', False):
+        return False
+    if SystemSetting.get('access_mode', 'open') != 'password_only':
+        return False
+    global_pwd = SystemSetting.get('global_password', '')
+    if not global_pwd:
+        return False
+    return has_valid_global_access_cookie()
+
+
+def has_password_rule_access(target_path):
+    if not is_password_visitor_session():
+        return False
+
+    try:
+        normalized_target = normalize_relative_path(target_path)
+    except InvalidPathError:
+        return False
+
+    for rule in PasswordAccessRule.query.order_by(PasswordAccessRule.target_type.asc(), PasswordAccessRule.target_path.asc()).all():
+        rule_path = str(rule.target_path or '').strip().replace('\\', '/').strip('/')
+        if rule.target_type == 'file':
+            if normalized_target == rule_path:
+                return True
+            continue
+
+        if not rule_path:
+            return True
+        if normalized_target == rule_path or normalized_target.startswith(f'{rule_path}/'):
+            return True
+    return False
 
 
 def check_global_access():

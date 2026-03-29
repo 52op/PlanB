@@ -17,6 +17,7 @@ from flask_login import current_user
 from pypinyin import Style, lazy_pinyin
 
 from models import DirectoryConfig, DocumentViewStat
+from .access import has_password_rule_access
 from .paths import InvalidPathError, get_docs_root, normalize_relative_path, resolve_docs_path
 from .permissions import check_permission, has_explicit_permission
 from .urls import normalize_local_media_references_in_text, normalize_local_media_url
@@ -69,7 +70,7 @@ def _has_read_permission(path_value):
     return check_permission(current_user, path_value, 'read')
 
 
-def _can_access_document_metadata(filename, metadata, user=None):
+def _can_access_document_metadata(filename, metadata, user=None, allow_password_access=False):
     active_user = user or current_user
     if _is_admin_user(active_user):
         return True
@@ -77,9 +78,13 @@ def _can_access_document_metadata(filename, metadata, user=None):
     if not check_permission(active_user, filename, 'read'):
         return False
 
+    password_rule_access = bool(allow_password_access and user is None and has_password_rule_access(filename))
+
     normalized_template = _normalize_template(metadata.get('template'))
     is_public = _normalize_bool(metadata.get('public'), default=False)
     if is_public:
+        return True
+    if password_rule_access:
         return True
 
     if normalized_template == 'post':
@@ -622,7 +627,7 @@ def get_markdown_files():
                 payload = _parse_markdown_file(item_rel_path)
                 if not payload:
                     continue
-                if not _can_access_document_metadata(item_rel_path, payload.get('metadata') or {}):
+                if not _can_access_document_metadata(item_rel_path, payload.get('metadata') or {}, allow_password_access=True):
                     continue
                 tree.append({
                     'type': 'file',
@@ -669,7 +674,7 @@ def get_default_file_for_dir(docs_root, relative_dir_path=''):
         payload = _parse_markdown_file(relative_filename)
         if not payload:
             continue
-        if not _can_access_document_metadata(relative_filename, payload.get('metadata') or {}):
+        if not _can_access_document_metadata(relative_filename, payload.get('metadata') or {}, allow_password_access=True):
             continue
         visible_md_files.append(filename)
     md_files = visible_md_files
@@ -701,7 +706,7 @@ def read_markdown_file(filename):
     return payload['html'], payload['toc']
 
 
-def get_document_payload(filename):
+def get_document_payload(filename, allow_password_access=False):
     try:
         normalized_filename = normalize_relative_path(filename)
     except InvalidPathError:
@@ -715,7 +720,11 @@ def get_document_payload(filename):
     payload = _parse_markdown_file(normalized_filename)
     if payload is None:
         return None
-    if not _can_access_document_metadata(normalized_filename, payload.get('metadata') or {}):
+    if not _can_access_document_metadata(
+        normalized_filename,
+        payload.get('metadata') or {},
+        allow_password_access=allow_password_access,
+    ):
         abort(403)
     return payload
 

@@ -1,8 +1,20 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
-from models import Comment, DocumentViewStat, NotificationLog, db, SystemSetting, User, PermissionRule
-from services import get_comment_stats, get_docs_root, get_posts, get_rate_limit_backend_status, get_user_stats, mailer_is_configured, preview_cover_source, send_logged_mail, update_all_image_references
+from models import Comment, DocumentViewStat, NotificationLog, PasswordAccessRule, db, SystemSetting, User, PermissionRule
+from services import (
+    get_comment_stats,
+    get_docs_root,
+    get_posts,
+    get_rate_limit_backend_status,
+    get_user_stats,
+    mailer_is_configured,
+    normalize_password_access_target,
+    preview_cover_source,
+    resolve_docs_path,
+    send_logged_mail,
+    update_all_image_references,
+)
 from sqlalchemy import func
 
 admin_bp = Blueprint('admin', __name__, template_folder='templates', url_prefix='/admin')
@@ -45,6 +57,46 @@ def _get_settings_map():
     return {s.key: s.value for s in SystemSetting.query.all()}
 
 
+def _get_access_mode_label(access_mode):
+    labels = {
+        'open': '完全开放模式',
+        'group_only': '需登录访问模式',
+        'password_only': '固定密码访问模式',
+    }
+    return labels.get(access_mode, access_mode or '未设置')
+
+
+def _list_doc_directories(include_root=False):
+    docs_dir = get_docs_root()
+    all_dirs = ['/'] if include_root else []
+    if os.path.exists(docs_dir):
+        for root, dirs, files in os.walk(docs_dir):
+            del files
+            rel_path = os.path.relpath(root, docs_dir).replace('\\', '/')
+            if rel_path != '.':
+                all_dirs.append(rel_path + '/')
+    all_dirs = sorted(dict.fromkeys(all_dirs))
+    return all_dirs
+
+
+def _list_doc_files():
+    docs_dir = get_docs_root()
+    all_files = []
+    if os.path.exists(docs_dir):
+        for root, dirs, files in os.walk(docs_dir):
+            dirs.sort()
+            files.sort()
+            rel_dir = os.path.relpath(root, docs_dir).replace('\\', '/')
+            if rel_dir == '.':
+                rel_dir = ''
+            for filename in files:
+                if not filename.lower().endswith('.md'):
+                    continue
+                relative_path = os.path.join(rel_dir, filename).replace('\\', '/') if rel_dir else filename
+                all_files.append(relative_path)
+    return sorted(dict.fromkeys(all_files))
+
+
 def _get_security_settings():
     settings = _get_settings_map()
     for key, default_value in SECURITY_SETTING_DEFAULTS.items():
@@ -74,8 +126,6 @@ def _get_admin_base_context():
     settings = _get_settings_map()
     for key, default_value in COVER_SETTING_DEFAULTS.items():
         settings.setdefault(key, default_value)
-    users = User.query.all()
-    permissions = PermissionRule.query.all()
 
     comment_filter = (request.args.get('comment_status') or 'all').strip()
     comment_keyword = (request.args.get('comment_q') or '').strip()
@@ -88,25 +138,113 @@ def _get_admin_base_context():
     comment_page = request.args.get('comment_page', 1, type=int)
     comment_pagination = comment_query.paginate(page=comment_page, per_page=20, error_out=False)
 
-    docs_dir = get_docs_root()
-    all_dirs = []
-    if os.path.exists(docs_dir):
-        for root, dirs, files in os.walk(docs_dir):
-            rel_path = os.path.relpath(root, docs_dir).replace('\\', '/')
-            if rel_path != '.':
-                all_dirs.append(rel_path + '/')
-    all_dirs.sort()
+    all_dirs = _list_doc_directories(include_root=False)
+    access_mode = settings.get('access_mode', 'open')
 
     return {
         'settings': settings,
-        'users': users,
-        'permissions': permissions,
         'all_dirs': all_dirs,
+        'access_mode_label': _get_access_mode_label(access_mode),
+        'has_global_password': bool(str(settings.get('global_password') or '').strip()),
+        'password_rule_count': PasswordAccessRule.query.count(),
+        'user_permission_count': PermissionRule.query.count(),
         'recent_comments': comment_pagination.items,
         'comment_pagination': comment_pagination,
         'comment_filter': comment_filter,
         'comment_keyword': comment_keyword,
     }
+
+
+def _get_admin_access_context():
+    settings = _get_settings_map()
+    access_mode = settings.get('access_mode', 'open')
+    users = (
+        User.query
+        .filter(User.role != 'admin')
+        .order_by(User.role.asc(), User.username.asc())
+        .all()
+    )
+    permissions = (
+        PermissionRule.query
+        .join(User, PermissionRule.user_id == User.id)
+        .order_by(User.username.asc(), PermissionRule.dir_path.asc())
+        .all()
+    )
+    password_rules = (
+        PasswordAccessRule.query
+        .order_by(PasswordAccessRule.target_type.asc(), PasswordAccessRule.target_path.asc(), PasswordAccessRule.id.asc())
+        .all()
+    )
+    return {
+        'settings': settings,
+        'access_mode': access_mode,
+        'access_mode_label': _get_access_mode_label(access_mode),
+        'has_global_password': bool(str(settings.get('global_password') or '').strip()),
+        'users': users,
+        'permissions': permissions,
+        'password_rules': password_rules,
+        'all_dirs': _list_doc_directories(include_root=True),
+        'all_files': _list_doc_files(),
+        'user_permission_count': len(permissions),
+        'password_rule_count': len(password_rules),
+    }
+
+
+def _save_user_permission_from_form():
+    user_id = (request.form.get('user_id') or '').strip()
+    dir_path = (request.form.get('dir_path') or '').strip()
+
+    if not user_id or not dir_path:
+        raise ValueError('规则参数不全')
+
+    target_user = User.query.get(int(user_id))
+    if not target_user or target_user.role == 'admin':
+        raise ValueError('只能为非管理员用户配置权限规则')
+
+    p = PermissionRule.query.filter_by(user_id=target_user.id, dir_path=dir_path).first()
+    if not p:
+        p = PermissionRule()
+        p.user_id = target_user.id
+        p.dir_path = dir_path
+        db.session.add(p)
+
+    p.can_read = 'can_read' in request.form
+    p.can_edit = 'can_edit' in request.form
+    p.can_upload = 'can_upload' in request.form
+    p.can_delete = 'can_delete' in request.form
+    db.session.commit()
+
+
+def _save_password_rule_from_form():
+    target_type = (request.form.get('target_type') or 'dir').strip().lower()
+    raw_target_path = ''
+    if target_type == 'file':
+        raw_target_path = request.form.get('file_path') or request.form.get('target_path') or ''
+    else:
+        raw_target_path = request.form.get('dir_path') or request.form.get('target_path') or ''
+
+    normalized_type, normalized_path = normalize_password_access_target(target_type, raw_target_path)
+    if normalized_type == 'dir':
+        _, _, absolute_path = resolve_docs_path(normalized_path, allow_directory=True)
+        if not os.path.isdir(absolute_path):
+            raise ValueError('目标目录不存在')
+    else:
+        _, _, absolute_path = resolve_docs_path(normalized_path)
+        if not os.path.isfile(absolute_path):
+            raise ValueError('目标文档不存在')
+
+    existing_rule = PasswordAccessRule.query.filter_by(
+        target_type=normalized_type,
+        target_path=normalized_path,
+    ).first()
+    if existing_rule:
+        raise ValueError('该访问密码规则已存在')
+
+    rule = PasswordAccessRule()
+    rule.target_type = normalized_type
+    rule.target_path = normalized_path
+    db.session.add(rule)
+    db.session.commit()
 
 @admin_bp.route('/images')
 @login_required
@@ -129,6 +267,14 @@ def admin_base():
     if current_user.role != 'admin':
         abort(403)
     return render_template('admin_base.html', **_get_admin_base_context())
+
+
+@admin_bp.route('/access')
+@login_required
+def admin_access():
+    if current_user.role != 'admin':
+        abort(403)
+    return render_template('admin_access.html', **_get_admin_access_context())
 
 
 @admin_bp.route('/cover-preview', methods=['POST'])
@@ -304,40 +450,82 @@ def admin_update_user(user_id):
 @admin_bp.route('/permission/add', methods=['POST'])
 @login_required
 def admin_add_permission():
-    if current_user.role != 'admin': abort(403)
-    user_id = request.form.get('user_id')
-    dir_path = request.form.get('dir_path')
-    
-    if not user_id or not dir_path:
+    if current_user.role != 'admin':
+        abort(403)
+    try:
+        _save_user_permission_from_form()
+        flash("权限规则已更新")
+    except (ValueError, TypeError):
         flash("规则参数不全")
-        return redirect(url_for('admin.admin_base'))
-    
-    # 查找是否已有同用户和同路径的规则则覆盖
-    p = PermissionRule.query.filter_by(user_id=user_id, dir_path=dir_path).first()
-    if not p:
-        p = PermissionRule()
-        p.user_id = user_id
-        p.dir_path = dir_path
-        db.session.add(p)
-        
-    p.can_read = 'can_read' in request.form
-    p.can_edit = 'can_edit' in request.form
-    p.can_upload = 'can_upload' in request.form
-    p.can_delete = 'can_delete' in request.form
-    db.session.commit()
-    flash("权限规则已更新")
-    return redirect(url_for('admin.admin_base'))
+    return redirect(url_for('admin.admin_access'))
 
 @admin_bp.route('/permission/delete/<int:rule_id>', methods=['POST'])
 @login_required
 def admin_delete_permission(rule_id):
-    if current_user.role != 'admin': abort(403)
+    if current_user.role != 'admin':
+        abort(403)
     p = PermissionRule.query.get(rule_id)
     if p:
         db.session.delete(p)
         db.session.commit()
         flash("权限规则已删除")
-    return redirect(url_for('admin.admin_base'))
+    return redirect(url_for('admin.admin_access'))
+
+
+@admin_bp.route('/access/user-rules', methods=['POST'])
+@login_required
+def admin_access_save_user_rule():
+    if current_user.role != 'admin':
+        abort(403)
+    try:
+        _save_user_permission_from_form()
+        flash('用户目录权限规则已更新')
+    except ValueError as exc:
+        flash(str(exc))
+    except (TypeError, OSError):
+        flash('用户目录权限规则保存失败')
+    return redirect(url_for('admin.admin_access'))
+
+
+@admin_bp.route('/access/user-rules/<int:rule_id>/delete', methods=['POST'])
+@login_required
+def admin_access_delete_user_rule(rule_id):
+    if current_user.role != 'admin':
+        abort(403)
+    rule = PermissionRule.query.get(rule_id)
+    if rule:
+        db.session.delete(rule)
+        db.session.commit()
+        flash('用户目录权限规则已删除')
+    return redirect(url_for('admin.admin_access'))
+
+
+@admin_bp.route('/access/password-rules', methods=['POST'])
+@login_required
+def admin_access_add_password_rule():
+    if current_user.role != 'admin':
+        abort(403)
+    try:
+        _save_password_rule_from_form()
+        flash('访问密码权限规则已添加')
+    except ValueError as exc:
+        flash(str(exc))
+    except (TypeError, OSError):
+        flash('访问密码权限规则保存失败')
+    return redirect(url_for('admin.admin_access'))
+
+
+@admin_bp.route('/access/password-rules/<int:rule_id>/delete', methods=['POST'])
+@login_required
+def admin_access_delete_password_rule(rule_id):
+    if current_user.role != 'admin':
+        abort(403)
+    rule = PasswordAccessRule.query.get(rule_id)
+    if rule:
+        db.session.delete(rule)
+        db.session.commit()
+        flash('访问密码权限规则已删除')
+    return redirect(url_for('admin.admin_access'))
 
 
 @admin_bp.route('/comment/approve/<int:comment_id>', methods=['POST'])

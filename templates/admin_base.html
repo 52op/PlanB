@@ -321,61 +321,34 @@
 </div>
 
 <div class="card">
-    <div class="card-header">目录权限规则 (基于指定用户)</div>
+    <div class="card-header">访问控制规则已迁移</div>
     <div class="card-body">
-        <form method="POST" action="{{ url_for('admin.admin_add_permission') }}" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <select name="user_id" class="form-control" style="width: 150px;">
-                {% for usr in users %}
-                    {% if usr.role == 'regular' %}
-                    <option value="{{ usr.id }}">{{ usr.username }} ({{ usr.role }})</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-            <select name="dir_path" required class="form-control" style="flex:1;">
-                <option value="*">所有目录 (*)</option>
-                {% for d in all_dirs %}
-                <option value="{{ d }}">{{ d }}</option>
-                {% endfor %}
-            </select>
-            <label style="display:inline-flex; align-items:center;"><input type="checkbox" name="can_read" checked> 允许读取</label>
-            <label style="display:inline-flex; align-items:center;"><input type="checkbox" name="can_edit"> 允许编辑</label>
-            <label style="display:inline-flex; align-items:center;"><input type="checkbox" name="can_upload"> 允许上传</label>
-            <label style="display:inline-flex; align-items:center;"><input type="checkbox" name="can_delete"> 允许删除</label>
-            <button type="submit" class="btn">新增/覆盖规则</button>
-        </form>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>分配给 (用户)</th>
-                    <th>目录路径</th>
-                    <th>读</th>
-                    <th>写(编辑)</th>
-                    <th>传(上传)</th>
-                    <th>删</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in permissions %}
-                <tr>
-                    <td>{{ p.user.username if p.user else '已删除的用户' }}</td>
-                    <td>{{ p.dir_path }}</td>
-                    <td>{{ '✅' if p.can_read else '❌' }}</td>
-                    <td>{{ '✅' if p.can_edit else '❌' }}</td>
-                    <td>{{ '✅' if p.can_upload else '❌' }}</td>
-                    <td>{{ '✅' if p.can_delete else '❌' }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('admin.admin_delete_permission', rule_id=p.id) }}" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="btn btn-sm btn-danger" type="submit">删除</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div style="display:grid; gap:12px;">
+            <div style="padding:14px 16px; border:1px solid #e5e7eb; border-radius:10px; background:#f8fafc; color:#475569; line-height:1.8;">
+                访问控制相关规则现在统一移动到了 <strong>访问管理</strong> 页面。基础设置页只保留访问模式和固定密码本身的维护入口。
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:180px; padding:14px 16px; border:1px solid #e5e7eb; border-radius:10px; background:#fff;">
+                    <div style="font-size:13px; color:#64748b;">当前访问模式</div>
+                    <div style="margin-top:6px; font-size:20px; font-weight:700; color:#1f2937;">{{ access_mode_label }}</div>
+                </div>
+                <div style="flex:1; min-width:180px; padding:14px 16px; border:1px solid #e5e7eb; border-radius:10px; background:#fff;">
+                    <div style="font-size:13px; color:#64748b;">固定密码状态</div>
+                    <div style="margin-top:6px; font-size:20px; font-weight:700; color:#1f2937;">{{ '已配置' if has_global_password else '未配置' }}</div>
+                </div>
+                <div style="flex:1; min-width:180px; padding:14px 16px; border:1px solid #e5e7eb; border-radius:10px; background:#fff;">
+                    <div style="font-size:13px; color:#64748b;">用户目录权限规则</div>
+                    <div style="margin-top:6px; font-size:20px; font-weight:700; color:#1f2937;">{{ user_permission_count }}</div>
+                </div>
+                <div style="flex:1; min-width:180px; padding:14px 16px; border:1px solid #e5e7eb; border-radius:10px; background:#fff;">
+                    <div style="font-size:13px; color:#64748b;">访问密码权限规则</div>
+                    <div style="margin-top:6px; font-size:20px; font-weight:700; color:#1f2937;">{{ password_rule_count }}</div>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.admin_access') }}" class="btn" style="text-decoration:none;">前往访问管理</a>
+            </div>
+        </div>
     </div>
 </div>
 

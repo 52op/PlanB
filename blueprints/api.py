@@ -1212,7 +1212,7 @@ def search_docs():
                 continue
             
             metadata = payload.get('metadata', {})
-            if not _can_access_document_metadata(filename, metadata):
+            if not _can_access_document_metadata(filename, metadata, allow_password_access=True):
                 continue
             raw_content = payload.get('raw_content', '')
             

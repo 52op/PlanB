@@ -66,6 +66,20 @@ class PermissionRule(db.Model):
     
     user = db.relationship('User', backref=db.backref('permissions', lazy=True))
 
+
+class PasswordAccessRule(db.Model):
+    __tablename__ = 'password_access_rules'
+    id = db.Column(db.Integer, primary_key=True)
+    target_type = db.Column(db.String(10), nullable=False, default='dir')  # dir / file
+    target_path = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.UniqueConstraint('target_type', 'target_path', name='uq_password_access_rule_target'),
+        db.Index('ix_password_access_rule_target', 'target_type', 'target_path'),
+    )
+
+
 class Image(db.Model):
     __tablename__ = 'images'
     id = db.Column(db.Integer, primary_key=True)

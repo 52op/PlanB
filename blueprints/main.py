@@ -40,7 +40,9 @@ from services import (
     get_local_cover_base_dir,
     resolve_shared_path,
     get_safe_redirect_target,
+    has_password_rule_access,
     has_valid_global_access_cookie,
+    is_password_visitor_session,
     normalize_local_media_url,
     paginate_posts,
     resolve_fallback_cover,
@@ -422,6 +424,33 @@ def _find_directory_nodes(tree_nodes, target_dir):
         if matched_children is not None:
             return matched_children
     return None
+
+
+def _tree_contains_directory(nodes, target_dir):
+    normalized_target = (target_dir or '').strip('/')
+    if not normalized_target:
+        return True
+
+    for node in nodes or []:
+        if node.get('type') != 'dir':
+            continue
+        node_path = (node.get('path') or '').strip('/')
+        if node_path == normalized_target:
+            return True
+        if _tree_contains_directory(node.get('children') or [], normalized_target):
+            return True
+    return False
+
+
+def _can_open_docs_directory(file_tree, dirname):
+    normalized_dir = (dirname or '').strip('/')
+    if not normalized_dir:
+        return True
+    if _tree_contains_directory(file_tree, normalized_dir):
+        return True
+    if has_password_rule_access(normalized_dir):
+        return True
+    return not is_password_visitor_session()
 
 
 def _count_tree_nodes(nodes):
@@ -870,7 +899,7 @@ def _render_document(filename, file_tree=None):
     if filename not in flat_files:
         abort(404)
 
-    payload = get_document_payload(filename)
+    payload = get_document_payload(filename, allow_password_access=True)
     if payload is None:
         abort(404)
 
@@ -1156,7 +1185,7 @@ def index():
             default_file = get_default_file_for_dir(docs_root, target_dir)
             if default_file:
                 return _render_document(default_file, file_tree=file_tree)
-            else:
+            elif _can_open_docs_directory(file_tree, target_dir):
                 # 如果目录中没有默认文件，显示该目录的列表
                 return redirect(url_for('main.docs_dir', dirname=target_dir))
         
@@ -1200,7 +1229,7 @@ def docs_home():
         default_file = get_default_file_for_dir(docs_root, target_dir)
         if default_file:
             return _render_document(default_file, file_tree=file_tree)
-        else:
+        elif _can_open_docs_directory(file_tree, target_dir):
             # 如果目录中没有默认文件，显示该目录的列表
             return redirect(url_for('main.docs_dir', dirname=target_dir))
     
@@ -1629,6 +1658,8 @@ def docs_dir(dirname):
 
     if not os.path.isdir(target_dir):
         abort(404)
+    if not _can_open_docs_directory(file_tree, dirname):
+        abort(403)
 
     can_upload = check_permission(current_user, dirname, 'upload')
     site_settings = _get_site_settings()
@@ -1798,7 +1829,7 @@ def docs_search():
                 continue
             
             metadata = payload.get('metadata', {})
-            if not _can_access_document_metadata(filename, metadata):
+            if not _can_access_document_metadata(filename, metadata, allow_password_access=True):
                 continue
             raw_content = payload.get('raw_content', '')
             

@@ -1,4 +1,11 @@
-from .access import check_global_access, has_valid_global_access_cookie, issue_global_access_cookie
+from .access import (
+    check_global_access,
+    has_password_rule_access,
+    has_valid_global_access_cookie,
+    is_password_visitor_session,
+    issue_global_access_cookie,
+    normalize_password_access_target,
+)
 from .comments import (
     comments_enabled,
     comments_require_approval,
@@ -62,6 +69,7 @@ from .urls import force_https_url, get_safe_redirect_target, normalize_local_med
 __all__ = [
     'InvalidPathError',
     'check_global_access',
+    'has_password_rule_access',
     'check_permission',
     'get_matched_permission_rule',
     'build_verification_send_scope_key',
@@ -111,12 +119,14 @@ __all__ = [
     'get_tag_posts',
     'get_user_stats',
     'get_safe_redirect_target',
+    'is_password_visitor_session',
     'has_valid_global_access_cookie',
     'has_explicit_permission',
     'issue_global_access_cookie',
     'mailer_is_configured',
     'normalize_local_media_references_in_text',
     'normalize_local_media_url',
+    'normalize_password_access_target',
     'notification_allowed',
     'normalize_relative_path',
     'read_markdown_file',

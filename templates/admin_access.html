@@ -1,0 +1,249 @@
+{% extends "admin.html" %}
+
+{% block head %}
+<style>
+.access-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+.access-summary-item {
+    padding: 14px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+}
+.access-summary-item strong {
+    display: block;
+    font-size: 20px;
+    color: #1f2937;
+    margin-top: 6px;
+}
+.access-note {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.7;
+    border: 1px solid #dbe2ea;
+    background: #f8fafc;
+    color: #475569;
+}
+.access-note.is-active {
+    background: #ecfeff;
+    border-color: #a5f3fc;
+    color: #155e75;
+}
+.inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.inline-actions .form-control {
+    min-width: 160px;
+}
+.permission-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+.permission-flags label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0;
+    font-weight: 500;
+}
+.muted-text {
+    color: #64748b;
+    font-size: 13px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">访问管理概览</div>
+    <div class="card-body">
+        <div class="access-summary-grid">
+            <div class="access-summary-item">
+                <span class="muted-text">当前访问模式</span>
+                <strong>{{ access_mode_label }}</strong>
+            </div>
+            <div class="access-summary-item">
+                <span class="muted-text">固定密码状态</span>
+                <strong>{{ '已配置' if has_global_password else '未配置' }}</strong>
+            </div>
+            <div class="access-summary-item">
+                <span class="muted-text">用户目录权限规则</span>
+                <strong>{{ user_permission_count }}</strong>
+            </div>
+            <div class="access-summary-item">
+                <span class="muted-text">访问密码权限规则</span>
+                <strong>{{ password_rule_count }}</strong>
+            </div>
+        </div>
+        <div class="access-note {% if access_mode == 'password_only' %}is-active{% endif %}">
+            {% if access_mode == 'password_only' %}
+            当前固定密码访问已启用。访客输入固定密码后，仍可访问公开内容，同时额外获得此页中“访问密码权限规则”白名单的只读访问能力。
+            {% else %}
+            当前不是固定密码访问模式。你仍然可以提前维护“访问密码权限规则”，切换到固定密码访问模式后这些规则会自动生效。
+            {% endif %}
+        </div>
+        <div class="inline-actions" style="margin-top:14px;">
+            <a class="btn" href="{{ url_for('admin.admin_base') }}">前往基础设置</a>
+            <span class="muted-text">`access_mode` 与固定密码本身仍在“基础设置”页面维护。</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">用户目录权限规则</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.admin_access_save_user_rule') }}" class="inline-actions" style="margin-bottom:16px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="user_id" class="form-control" required>
+                <option value="">选择用户</option>
+                {% for usr in users %}
+                <option value="{{ usr.id }}">{{ usr.username }} ({{ usr.role }})</option>
+                {% endfor %}
+            </select>
+            <select name="dir_path" class="form-control" required style="flex:1; min-width:220px;">
+                <option value="*">所有目录 (*)</option>
+                {% for d in all_dirs if d != '/' %}
+                <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+            </select>
+            <div class="permission-flags">
+                <label><input type="checkbox" name="can_read" checked> 允许读取</label>
+                <label><input type="checkbox" name="can_edit"> 允许编辑</label>
+                <label><input type="checkbox" name="can_upload"> 允许上传</label>
+                <label><input type="checkbox" name="can_delete"> 允许删除</label>
+            </div>
+            <button type="submit" class="btn">新增/覆盖规则</button>
+        </form>
+
+        <div class="muted-text" style="margin-bottom:12px;">这里管理已登录非管理员用户的目录级权限。该规则不会影响固定密码访客。</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>分配给</th>
+                    <th>目录路径</th>
+                    <th>读</th>
+                    <th>写</th>
+                    <th>传</th>
+                    <th>删</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in permissions %}
+                <tr>
+                    <td>{{ p.user.username if p.user else '已删除的用户' }}</td>
+                    <td>{{ p.dir_path }}</td>
+                    <td>{{ '✅' if p.can_read else '❌' }}</td>
+                    <td>{{ '✅' if p.can_edit else '❌' }}</td>
+                    <td>{{ '✅' if p.can_upload else '❌' }}</td>
+                    <td>{{ '✅' if p.can_delete else '❌' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.admin_access_delete_user_rule', rule_id=p.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-danger" type="submit">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="text-align:center; color:#6c757d;">暂无用户目录权限规则</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">访问密码权限规则</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.admin_access_add_password_rule') }}" id="passwordAccessRuleForm" class="inline-actions" style="margin-bottom:16px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="target_type" id="passwordRuleType" class="form-control" required>
+                <option value="dir">目录规则</option>
+                <option value="file">文件规则</option>
+            </select>
+            <select name="dir_path" id="passwordRuleDirPath" class="form-control" style="flex:1; min-width:220px;">
+                {% for d in all_dirs %}
+                <option value="{{ d }}">{{ '根目录 /' if d == '/' else d }}</option>
+                {% endfor %}
+            </select>
+            <select name="file_path" id="passwordRuleFilePath" class="form-control" style="display:none; flex:1; min-width:220px;">
+                {% for f in all_files %}
+                <option value="{{ f }}">{{ f }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn">添加密码规则</button>
+        </form>
+
+        <div class="muted-text" style="margin-bottom:12px;">这些规则只在“固定密码访问”模式下，为已通过固定密码验证的访客追加只读白名单能力，不放开编辑、上传、删除。</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>类型</th>
+                    <th>目标</th>
+                    <th>说明</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in password_rules %}
+                <tr>
+                    <td>{{ '目录' if rule.target_type == 'dir' else '文件' }}</td>
+                    <td>{{ rule.target_path or '/' }}</td>
+                    <td>
+                        {% if rule.target_type == 'dir' %}
+                        允许访问该目录及其子目录中的文档内容
+                        {% else %}
+                        仅允许访问该 Markdown 文件本身
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.admin_access_delete_password_rule', rule_id=rule.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-danger" type="submit">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="text-align:center; color:#6c757d;">暂无访问密码权限规则</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const typeSelect = document.getElementById('passwordRuleType');
+    const dirSelect = document.getElementById('passwordRuleDirPath');
+    const fileSelect = document.getElementById('passwordRuleFilePath');
+
+    function refreshPasswordRuleInputs() {
+        if (!typeSelect || !dirSelect || !fileSelect) return;
+        const isFile = typeSelect.value === 'file';
+        dirSelect.style.display = isFile ? 'none' : 'block';
+        fileSelect.style.display = isFile ? 'block' : 'none';
+        dirSelect.disabled = isFile;
+        fileSelect.disabled = !isFile;
+    }
+
+    if (typeSelect) {
+        typeSelect.addEventListener('change', refreshPasswordRuleInputs);
+        refreshPasswordRuleInputs();
+    }
+});
+</script>
+{% endblock %}
