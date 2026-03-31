@@ -60,6 +60,22 @@
     color: #64748b;
     font-size: 13px;
 }
+.permission-toggle-cell {
+    text-align: center;
+    vertical-align: middle;
+}
+.permission-toggle-cell label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    cursor: pointer;
+}
+.permission-toggle-cell input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
 </style>
 {% endblock %}
 
@@ -146,12 +162,37 @@
                 <tr>
                     <td>{{ p.user.username if p.user else '已删除的用户' }}</td>
                     <td>{{ p.dir_path }}</td>
-                    <td>{{ '✅' if p.can_read else '❌' }}</td>
-                    <td>{{ '✅' if p.can_edit else '❌' }}</td>
-                    <td>{{ '✅' if p.can_upload else '❌' }}</td>
-                    <td>{{ '✅' if p.can_delete else '❌' }}</td>
-                    <td>{{ '✅' if p.can_manage else '❌' }}</td>
+                    <td class="permission-toggle-cell">
+                        <label title="允许读取">
+                            <input type="checkbox" name="can_read" form="permission-rule-{{ p.id }}" {% if p.can_read %}checked{% endif %}>
+                        </label>
+                    </td>
+                    <td class="permission-toggle-cell">
+                        <label title="允许编辑">
+                            <input type="checkbox" name="can_edit" form="permission-rule-{{ p.id }}" {% if p.can_edit %}checked{% endif %}>
+                        </label>
+                    </td>
+                    <td class="permission-toggle-cell">
+                        <label title="允许上传">
+                            <input type="checkbox" name="can_upload" form="permission-rule-{{ p.id }}" {% if p.can_upload %}checked{% endif %}>
+                        </label>
+                    </td>
+                    <td class="permission-toggle-cell">
+                        <label title="允许删除">
+                            <input type="checkbox" name="can_delete" form="permission-rule-{{ p.id }}" {% if p.can_delete %}checked{% endif %}>
+                        </label>
+                    </td>
+                    <td class="permission-toggle-cell">
+                        <label title="允许管理">
+                            <input type="checkbox" name="can_manage" form="permission-rule-{{ p.id }}" {% if p.can_manage %}checked{% endif %}>
+                        </label>
+                    </td>
                     <td>
+                        <form method="POST" action="{{ url_for('admin.admin_access_save_user_rule') }}" id="permission-rule-{{ p.id }}" data-auto-submit-access-rule="1" style="display:none;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="user_id" value="{{ p.user_id }}">
+                            <input type="hidden" name="dir_path" value="{{ p.dir_path }}">
+                        </form>
                         <form method="POST" action="{{ url_for('admin.admin_access_delete_user_rule', rule_id=p.id) }}" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-sm btn-danger" type="submit">删除</button>
@@ -233,6 +274,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const typeSelect = document.getElementById('passwordRuleType');
     const dirSelect = document.getElementById('passwordRuleDirPath');
     const fileSelect = document.getElementById('passwordRuleFilePath');
+    const ruleForms = document.querySelectorAll('form[data-auto-submit-access-rule="1"]');
 
     function refreshPasswordRuleInputs() {
         if (!typeSelect || !dirSelect || !fileSelect) return;
@@ -242,6 +284,15 @@ document.addEventListener('DOMContentLoaded', function () {
         dirSelect.disabled = isFile;
         fileSelect.disabled = !isFile;
     }
+
+    ruleForms.forEach(function (form) {
+        const linkedInputs = document.querySelectorAll('input[form="' + form.id + '"]');
+        linkedInputs.forEach(function (input) {
+            input.addEventListener('change', function () {
+                form.submit();
+            });
+        });
+    });
 
     if (typeSelect) {
         typeSelect.addEventListener('change', refreshPasswordRuleInputs);
