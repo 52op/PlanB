@@ -8,8 +8,11 @@ blog/
 .codex-tmp/
 static/uploads/
 agents.md
+plan.md
 covers/
 data/
 media/
 build/
 dist/
+.*/
+*.bat
