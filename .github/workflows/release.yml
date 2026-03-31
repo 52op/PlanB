@@ -1,0 +1,48 @@
+name: Build and Release PlanB
+
+# 触发条件：当推送带有标签（tag）的代码时触发，例如 v1.0
+# git tag v1.0
+# git push origin v1.0
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: windows-latest  # 使用 Windows 环境，因为我们打包的是 .exe
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'  # 你可以根据需要修改 Python 版本
+
+      - name: Install PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+
+      - name: Build EXE
+        # 直接调用 PyInstaller，参数与你本地一致：清理缓存、不确认、使用 spec 文件
+        run: python -m PyInstaller --clean --noconfirm planning.spec
+
+      - name: Find EXE file
+        # 使用 PowerShell 查找打包好的文件，避免硬编码版本号
+        id: find-file
+        shell: pwsh
+        run: |
+          $filePath = Get-ChildItem -Path dist -Filter planning.exe -File -Recurse -ErrorAction SilentlyContinue
+          if ($filePath) {
+            echo "exe_path=$filePath" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.find-file.outputs.exe_path }}
+          tag_name: ${{ github.ref_name }} # 使用推送的标签作为版本名
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
