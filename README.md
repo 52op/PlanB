@@ -595,4 +595,4 @@ build_onefile.bat
 4. 默认站点名从 `Planning` 改成 `PlanB`
 5. Redis 默认前缀 `planning:rate-limit` 改成 `planb:rate-limit`
 
-这些都不是功能性必须修改，但它们会让项目在对外发布时更完整、更统一。
+这些都不是功能性必须修改，但它们会让项目在对外发布时更完整、更统一  。
