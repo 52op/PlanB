@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from models import Comment, DocumentViewStat, NotificationLog, PasswordAccessRule, db, SystemSetting, User, PermissionRule
 from services import (
+    comments_require_approval,
     get_comment_stats,
     get_docs_root,
     get_posts,
@@ -397,6 +398,22 @@ def _delete_comment_record(comment):
     db.session.commit()
     return comment
 
+
+def _restore_comment_record(comment):
+    if comment is None:
+        raise ValueError('评论不存在')
+
+    author = getattr(comment, 'user', None)
+    if getattr(author, 'role', '') == 'admin':
+        comment.status = 'approved'
+    elif comments_require_approval():
+        comment.status = 'pending'
+    else:
+        comment.status = 'approved'
+
+    db.session.commit()
+    return comment
+
 @admin_bp.route('/images')
 @login_required
 def image_management():
@@ -678,6 +695,17 @@ def admin_delete_comment(comment_id):
     return redirect(url_for('admin.admin_base'))
 
 
+@admin_bp.route('/comment/restore/<int:comment_id>', methods=['POST'])
+@login_required
+def admin_restore_comment(comment_id):
+    _require_admin_role()
+    comment = Comment.query.get(comment_id)
+    if comment:
+        _restore_comment_record(comment)
+        flash('评论已恢复')
+    return redirect(url_for('admin.admin_base'))
+
+
 @admin_bp.route('/user/verify/<int:user_id>', methods=['POST'])
 @login_required
 def admin_verify_user_email(user_id):
@@ -886,6 +914,19 @@ def admin_delete_comment_page(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     _delete_comment_record(comment)
     flash('评论已删除')
+    user_id = request.form.get('user_id')
+    if user_id:
+        return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
+    return redirect(url_for('admin.admin_base'))
+
+
+@admin_bp.route('/comments/<int:comment_id>/restore', methods=['POST'])
+@login_required
+def admin_restore_comment_page(comment_id):
+    _require_admin_role()
+    comment = Comment.query.get_or_404(comment_id)
+    _restore_comment_record(comment)
+    flash('评论已恢复')
     user_id = request.form.get('user_id')
     if user_id:
         return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))

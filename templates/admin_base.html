@@ -396,6 +396,12 @@
                             <button class="btn btn-sm" type="submit">通过</button>
                         </form>
                         {% endif %}
+                        {% if c.status == 'deleted' %}
+                        <form method="POST" action="{{ url_for('admin.admin_restore_comment', comment_id=c.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm" type="submit" style="background:#0f766e;">恢复</button>
+                        </form>
+                        {% endif %}
                         <form method="POST" action="{{ url_for('admin.admin_delete_comment', comment_id=c.id) }}" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-sm btn-danger" type="submit">删除</button>
