@@ -279,21 +279,21 @@ function handleCommentDeleteChoice(form) {
         return window.confirm('确定删除这条评论吗？');
     }
     deleteModeInput.value = 'single';
-    if (!replyCount || !canDeleteTree) {
+    if (!replyCount) {
         return window.confirm('确定删除这条评论吗？');
     }
     if (typeof window.openCommentDeleteDialog === 'function') {
         window.openCommentDeleteDialog({
             replyCount: replyCount,
-            allowTreeDelete: true,
+            allowTreeDelete: canDeleteTree,
             onSingle: function () {
                 deleteModeInput.value = 'single';
                 form.submit();
             },
-            onTree: function () {
+            onTree: canDeleteTree ? function () {
                 deleteModeInput.value = 'tree';
                 form.submit();
-            }
+            } : null
         });
         return false;
     }
