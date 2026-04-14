@@ -1594,9 +1594,9 @@ def remove_comment(comment_id):
     if not comment:
         abort(404)
     try:
-        delete_comment(comment)
+        delete_comment(comment, delete_mode=request.form.get('delete_mode'))
         flash('评论已删除')
-    except PermissionError as exc:
+    except (PermissionError, ValueError) as exc:
         flash(str(exc))
     return redirect(_comment_redirect_target(_get_docs_endpoint(filename=comment.filename)))
 

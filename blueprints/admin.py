@@ -3,7 +3,6 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from models import Comment, DocumentViewStat, NotificationLog, PasswordAccessRule, db, SystemSetting, User, PermissionRule
 from services import (
-    comments_require_approval,
     get_comment_stats,
     get_docs_root,
     get_posts,
@@ -149,7 +148,7 @@ def _get_admin_base_context():
         'has_global_password': bool(str(settings.get('global_password') or '').strip()),
         'password_rule_count': PasswordAccessRule.query.count(),
         'user_permission_count': PermissionRule.query.count(),
-        'recent_comments': comment_pagination.items,
+        'recent_comments': _annotate_comment_descendant_counts(comment_pagination.items),
         'comment_pagination': comment_pagination,
         'comment_filter': comment_filter,
         'comment_keyword': comment_keyword,
@@ -399,20 +398,63 @@ def _delete_comment_record(comment):
     return comment
 
 
-def _restore_comment_record(comment):
+def _delete_comment_tree_record(comment):
     if comment is None:
         raise ValueError('评论不存在')
 
-    author = getattr(comment, 'user', None)
-    if getattr(author, 'role', '') == 'admin':
-        comment.status = 'approved'
-    elif comments_require_approval():
-        comment.status = 'pending'
-    else:
-        comment.status = 'approved'
+    _send_comment_status_mail(comment, approved=False)
+    target_ids = _collect_comment_descendant_ids(comment.id)
+    target_ids.append(comment.id)
+    target_ids = list(dict.fromkeys(target_ids))
+    (
+        Comment.query
+        .filter(Comment.id.in_(target_ids))
+        .update({'status': 'deleted'}, synchronize_session=False)
+    )
+    db.session.commit()
+    return len(target_ids)
 
+
+def _restore_comment_record(comment):
+    if comment is None:
+        raise ValueError('评论不存在')
+    comment.status = 'approved'
     db.session.commit()
     return comment
+
+
+def _collect_comment_descendant_ids(comment_id):
+    descendant_ids = []
+    children = Comment.query.filter_by(parent_id=comment_id).all()
+    for child in children:
+        descendant_ids.extend(_collect_comment_descendant_ids(child.id))
+        descendant_ids.append(child.id)
+    return descendant_ids
+
+
+def _annotate_comment_descendant_counts(comments):
+    for comment in comments or []:
+        comment.descendant_count = len(_collect_comment_descendant_ids(comment.id))
+    return comments
+
+
+def _hard_delete_comment_record(comment):
+    if comment is None:
+        raise ValueError('评论不存在')
+    if comment.status != 'deleted':
+        raise ValueError('请先将评论标记为已删除，再执行彻底删除')
+
+    target_ids = _collect_comment_descendant_ids(comment.id)
+    target_ids.append(comment.id)
+    target_ids = list(dict.fromkeys(target_ids))
+
+    deleted_count = (
+        Comment.query
+        .filter(Comment.id.in_(target_ids))
+        .delete(synchronize_session=False)
+    )
+    db.session.commit()
+    return deleted_count
 
 @admin_bp.route('/images')
 @login_required
@@ -690,8 +732,13 @@ def admin_delete_comment(comment_id):
     _require_admin_role()
     comment = Comment.query.get(comment_id)
     if comment:
-        _delete_comment_record(comment)
-        flash('评论已删除')
+        delete_mode = (request.form.get('delete_mode') or 'single').strip().lower()
+        if delete_mode == 'tree':
+            deleted_count = _delete_comment_tree_record(comment)
+            flash(f'评论树已删除（共标记 {deleted_count} 条记录）')
+        else:
+            _delete_comment_record(comment)
+            flash('评论已删除')
     return redirect(url_for('admin.admin_base'))
 
 
@@ -703,6 +750,20 @@ def admin_restore_comment(comment_id):
     if comment:
         _restore_comment_record(comment)
         flash('评论已恢复')
+    return redirect(url_for('admin.admin_base'))
+
+
+@admin_bp.route('/comment/hard-delete/<int:comment_id>', methods=['POST'])
+@login_required
+def admin_hard_delete_comment(comment_id):
+    _require_admin_role()
+    comment = Comment.query.get(comment_id)
+    if comment:
+        try:
+            deleted_count = _hard_delete_comment_record(comment)
+            flash(f'评论已彻底删除（共移除 {deleted_count} 条记录）')
+        except ValueError as exc:
+            flash(str(exc))
     return redirect(url_for('admin.admin_base'))
 
 
@@ -833,6 +894,7 @@ def admin_user_detail_page(user_id):
     
     user = User.query.get_or_404(user_id)
     comments = Comment.query.filter_by(user_id=user.id).order_by(Comment.created_at.desc()).all()
+    _annotate_comment_descendant_counts(comments)
     
     return render_template('admin_user_detail_page.html', user=user, comments=comments)
 
@@ -912,8 +974,13 @@ def admin_approve_comment_page(comment_id):
 def admin_delete_comment_page(comment_id):
     _require_admin_role()
     comment = Comment.query.get_or_404(comment_id)
-    _delete_comment_record(comment)
-    flash('评论已删除')
+    delete_mode = (request.form.get('delete_mode') or 'single').strip().lower()
+    if delete_mode == 'tree':
+        deleted_count = _delete_comment_tree_record(comment)
+        flash(f'评论树已删除（共标记 {deleted_count} 条记录）')
+    else:
+        _delete_comment_record(comment)
+        flash('评论已删除')
     user_id = request.form.get('user_id')
     if user_id:
         return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
@@ -928,6 +995,22 @@ def admin_restore_comment_page(comment_id):
     _restore_comment_record(comment)
     flash('评论已恢复')
     user_id = request.form.get('user_id')
+    if user_id:
+        return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
+    return redirect(url_for('admin.admin_base'))
+
+
+@admin_bp.route('/comments/<int:comment_id>/hard-delete', methods=['POST'])
+@login_required
+def admin_hard_delete_comment_page(comment_id):
+    _require_admin_role()
+    comment = Comment.query.get_or_404(comment_id)
+    user_id = request.form.get('user_id')
+    try:
+        deleted_count = _hard_delete_comment_record(comment)
+        flash(f'评论已彻底删除（共移除 {deleted_count} 条记录）')
+    except ValueError as exc:
+        flash(str(exc))
     if user_id:
         return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
     return redirect(url_for('admin.admin_base'))

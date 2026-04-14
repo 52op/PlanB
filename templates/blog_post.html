@@ -56,8 +56,11 @@
 {% set comment_total = comment_pagination.total if comment_pagination else (comments|length if comments else 0) %}
 
 {% macro render_comment(comment, depth=0) %}
+{% set is_deleted_placeholder = comment.status == 'deleted' %}
 <div class="comment-item" style="margin-left: {{ depth * 20 }}px;">
-    {% if comment.user and comment.user.avatar_url %}
+    {% if is_deleted_placeholder %}
+    <div class="comment-avatar-fallback">删</div>
+    {% elif comment.user and comment.user.avatar_url %}
     <img src="{{ comment.user.avatar_url }}" alt="Avatar" class="comment-avatar">
     {% else %}
     <div class="comment-avatar-fallback">{{ (comment.user.nickname or comment.user.username)[:1]|upper if comment.user else '?' }}</div>
@@ -65,28 +68,33 @@
     <div class="comment-content-wrapper">
         <div class="comment-header">
             <span class="comment-author">
-                {{ comment.user.nickname or comment.user.username if comment.user else '匿名' }}
-                {% if comment.user and comment.user.role == 'admin' %}
+                {{ '已删除评论' if is_deleted_placeholder else (comment.user.nickname or comment.user.username if comment.user else '匿名') }}
+                {% if not is_deleted_placeholder and comment.user and comment.user.role == 'admin' %}
                 <span style="display: inline-block; padding: 2px 6px; background: var(--link-color); color: white; font-size: 11px; margin-left: 5px; border-radius: 3px;">管理员</span>
                 {% endif %}
             </span>
             <span class="comment-time">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '' }}</span>
         </div>
         <div class="comment-body">{{ comment.rendered_content|safe }}</div>
+        {% if is_deleted_placeholder and comment.visible_descendant_count %}
+        <div style="margin-top: 8px; color: var(--text-light); font-size: 12px;">下方仍保留 {{ comment.visible_descendant_count }} 条回复。</div>
+        {% endif %}
         <div style="margin-top: 10px;">
-            {% if current_user.is_authenticated and current_user.email_verified %}
+            {% if not is_deleted_placeholder and current_user.is_authenticated and current_user.email_verified %}
             <button type="button" onclick="toggleReplyForm('reply-{{ comment.id }}')" style="padding: 4px 10px; background: var(--bg-gray); border: 1px solid var(--border-color); cursor: pointer; font-size: 12px;">回复</button>
             {% endif %}
-            {% if can_delete_comment(comment, current_user) %}
-            <form method="POST" action="{{ url_for('main.remove_comment', comment_id=comment.id) }}" style="display: inline; margin-left: 10px;">
+            {% if not is_deleted_placeholder and can_delete_comment(comment, current_user) %}
+            <form method="POST" action="{{ url_for('main.remove_comment', comment_id=comment.id) }}" style="display: inline; margin-left: 10px;" onsubmit="return handleCommentDeleteChoice(this);" data-can-delete-tree="{{ 'true' if current_user.role == 'admin' else 'false' }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="return_to" value="{{ comment_return_to }}">
+                <input type="hidden" name="delete_mode" value="single">
+                <input type="hidden" name="reply_count" value="{{ comment.descendant_count or 0 }}">
                 <button type="submit" style="padding: 4px 10px; background: #fee; border: 1px solid #fcc; color: #c33; cursor: pointer; font-size: 12px;">删除</button>
             </form>
             {% endif %}
         </div>
         
-        {% if current_user.is_authenticated and current_user.email_verified %}
+        {% if not is_deleted_placeholder and current_user.is_authenticated and current_user.email_verified %}
         <form id="reply-{{ comment.id }}" style="display: none; margin-top: 15px;" method="POST" action="{{ url_for('main.post_comment', filename=current_file) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="parent_id" value="{{ comment.id }}">
@@ -218,6 +226,35 @@ function toggleReplyForm(id) {
     } else {
         form.style.display = 'none';
     }
+}
+
+function handleCommentDeleteChoice(form) {
+    const replyCount = parseInt(form.querySelector('input[name="reply_count"]')?.value || '0', 10);
+    const deleteModeInput = form.querySelector('input[name="delete_mode"]');
+    const canDeleteTree = form.dataset.canDeleteTree === 'true';
+    if (!deleteModeInput) {
+        return window.confirm('确定删除这条评论吗？');
+    }
+    deleteModeInput.value = 'single';
+    if (!replyCount || !canDeleteTree) {
+        return window.confirm('确定删除这条评论吗？');
+    }
+    if (typeof window.openCommentDeleteDialog === 'function') {
+        window.openCommentDeleteDialog({
+            replyCount: replyCount,
+            allowTreeDelete: true,
+            onSingle: function () {
+                deleteModeInput.value = 'single';
+                form.submit();
+            },
+            onTree: function () {
+                deleteModeInput.value = 'tree';
+                form.submit();
+            }
+        });
+        return false;
+    }
+    return false;
 }
 
 // TOC Generation and Management

@@ -342,11 +342,18 @@
                             <input type="hidden" name="user_id" value="{{ user.id }}">
                             <button type="submit" class="btn btn-sm" style="background: #0f766e;">恢复</button>
                         </form>
-                        {% endif %}
-                        {% if c.status != 'deleted' %}
-                        <form method="POST" action="{{ url_for('admin.admin_delete_comment_page', comment_id=c.id) }}" style="display: inline;">
+                        <form method="POST" action="{{ url_for('admin.admin_hard_delete_comment_page', comment_id=c.id) }}" style="display: inline;" onsubmit="return confirm('确定彻底删除这条评论吗？如果它有回复，回复也会一起删除，且无法恢复。');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <button type="submit" class="btn btn-sm btn-danger" style="background: #7f1d1d;">彻底删除</button>
+                        </form>
+                        {% endif %}
+                        {% if c.status != 'deleted' %}
+                        <form method="POST" action="{{ url_for('admin.admin_delete_comment_page', comment_id=c.id) }}" style="display: inline;" onsubmit="return handleAdminCommentDeleteChoice(this);" data-can-delete-tree="true">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <input type="hidden" name="delete_mode" value="single">
+                            <input type="hidden" name="reply_count" value="{{ c.descendant_count or 0 }}">
                             <button type="submit" class="btn btn-sm btn-danger">删除</button>
                         </form>
                         {% endif %}
@@ -363,6 +370,34 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    window.handleAdminCommentDeleteChoice = function(form) {
+        const replyCount = parseInt(form.querySelector('input[name="reply_count"]')?.value || '0', 10);
+        const deleteModeInput = form.querySelector('input[name="delete_mode"]');
+        if (!deleteModeInput) {
+            return window.confirm('确定删除这条评论吗？');
+        }
+        deleteModeInput.value = 'single';
+        if (!replyCount) {
+            return window.confirm('确定删除这条评论吗？');
+        }
+        if (typeof window.openCommentDeleteDialog === 'function') {
+            window.openCommentDeleteDialog({
+                replyCount: replyCount,
+                allowTreeDelete: true,
+                onSingle: function () {
+                    deleteModeInput.value = 'single';
+                    form.submit();
+                },
+                onTree: function () {
+                    deleteModeInput.value = 'tree';
+                    form.submit();
+                }
+            });
+            return false;
+        }
+        return false;
+    };
+
     // Tab 切换
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');

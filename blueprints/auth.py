@@ -58,6 +58,7 @@ def _can_send_verification_code(client_ip, email, purpose):
 
 def _build_account_comment_items(comments):
     from services.docs import _can_access_document_metadata, _parse_markdown_file
+    from services.comments import _collect_comment_descendant_ids
 
     status_labels = {
         'approved': '已通过',
@@ -88,6 +89,7 @@ def _build_account_comment_items(comments):
             'content': comment.content,
             'status': comment.status,
             'status_label': status_labels.get(comment.status, comment.status or '未知状态'),
+            'descendant_count': len(_collect_comment_descendant_ids(comment.id)),
             'created_at': comment.created_at,
             'created_at_display': comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '',
             'article_title': title,

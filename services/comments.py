@@ -62,25 +62,70 @@ def comments_require_approval():
     return (SystemSetting.get('comments_require_approval', 'true') or 'true').lower() == 'true'
 
 
+def _collect_comment_descendant_ids(comment_id):
+    descendant_ids = []
+    children = Comment.query.filter_by(parent_id=comment_id).all()
+    for child in children:
+        descendant_ids.extend(_collect_comment_descendant_ids(child.id))
+        descendant_ids.append(child.id)
+    return descendant_ids
+
+
 def get_comments_for_filename(filename, include_pending=False):
-    query = Comment.query.filter_by(filename=filename).order_by(Comment.created_at.asc())
-    if not include_pending:
-        query = query.filter_by(status='approved')
-    else:
-        query = query.filter(Comment.status != 'deleted')
-    if not include_pending:
-        query = query.filter(Comment.status != 'deleted')
-    comments = query.all()
-    top_level = []
+    comments = Comment.query.filter_by(filename=filename).order_by(Comment.created_at.asc()).all()
     comment_map = {comment.id: comment for comment in comments}
+
     for comment in comments:
+        comment._children = []
         comment.visible_replies = []
-        comment.rendered_content = _render_comment_content(comment.content)
+        comment.visible_descendant_count = 0
+        comment.descendant_count = 0
+        comment.rendered_content = ''
+
     for comment in comments:
         if comment.parent_id and comment.parent_id in comment_map:
-            comment_map[comment.parent_id].visible_replies.append(comment)
-        else:
+            comment_map[comment.parent_id]._children.append(comment)
+
+    placeholder_html = '<p><em>该评论已删除，回复内容已保留。</em></p>'
+
+    def build_visible_tree(comment):
+        visible_children = []
+        visible_descendant_count = 0
+
+        for child in getattr(comment, '_children', []):
+            if build_visible_tree(child):
+                visible_children.append(child)
+                visible_descendant_count += 1 + int(getattr(child, 'visible_descendant_count', 0) or 0)
+
+        comment.visible_replies = visible_children
+        comment.visible_descendant_count = visible_descendant_count
+        comment.descendant_count = len(_collect_comment_descendant_ids(comment.id))
+
+        status = str(comment.status or '').strip().lower()
+        if status == 'approved':
+            comment.rendered_content = _render_comment_content(comment.content)
+            return True
+        if status == 'pending':
+            if include_pending:
+                comment.rendered_content = _render_comment_content(comment.content)
+                return True
+            return False
+        if status == 'deleted' and visible_children:
+            comment.rendered_content = placeholder_html
+            return True
+        return False
+
+    top_level = []
+    for comment in comments:
+        if comment.parent_id and comment.parent_id in comment_map:
+            continue
+        if build_visible_tree(comment):
             top_level.append(comment)
+
+    for comment in comments:
+        if hasattr(comment, '_children'):
+            delattr(comment, '_children')
+
     return top_level
 
 
@@ -209,10 +254,28 @@ def create_comment(filename, content, user=None, parent_id=None, article_url='')
     return comment
 
 
-def delete_comment(comment, user=None):
-    if not can_delete_comment(comment, user=user):
+def delete_comment(comment, user=None, delete_mode='single'):
+    actor = user or current_user
+    if not can_delete_comment(comment, user=actor):
         raise PermissionError('无权删除该评论')
-    comment.status = 'deleted'
+
+    normalized_mode = str(delete_mode or 'single').strip().lower()
+    if normalized_mode not in {'single', 'tree'}:
+        raise ValueError('评论删除模式无效')
+    if normalized_mode == 'tree' and getattr(actor, 'role', '') != 'admin':
+        raise PermissionError('只有管理员可以删除整棵评论树')
+
+    if normalized_mode == 'tree':
+        target_ids = _collect_comment_descendant_ids(comment.id)
+        target_ids.append(comment.id)
+        target_ids = list(dict.fromkeys(target_ids))
+        (
+            Comment.query
+            .filter(Comment.id.in_(target_ids))
+            .update({'status': 'deleted'}, synchronize_session=False)
+        )
+    else:
+        comment.status = 'deleted'
     db.session.commit()
 
 
