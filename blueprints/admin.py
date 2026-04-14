@@ -3,6 +3,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from models import Comment, DocumentViewStat, NotificationLog, PasswordAccessRule, db, SystemSetting, User, PermissionRule
 from services import (
+    annotate_comment_descendant_counts,
+    clear_comment_approval_token,
+    get_comment_descendant_ids,
     get_comment_stats,
     get_docs_root,
     get_posts,
@@ -18,6 +21,9 @@ from services import (
 from sqlalchemy import func
 
 admin_bp = Blueprint('admin', __name__, template_folder='templates', url_prefix='/admin')
+
+DELETED_USER_USERNAME = '__deleted_user__'
+DELETED_USER_NICKNAME = '已注销用户'
 
 SECURITY_SETTING_DEFAULTS = {
     'security_rate_limit_backend': 'database',
@@ -55,6 +61,12 @@ COVER_SETTING_DEFAULTS = {
 
 def _get_settings_map():
     return {s.key: s.value for s in SystemSetting.query.all()}
+
+
+def _is_protected_system_user(user):
+    if not user:
+        return False
+    return user.username in {'admin', DELETED_USER_USERNAME}
 
 
 def _get_access_mode_label(access_mode):
@@ -160,7 +172,7 @@ def _get_admin_access_context():
     access_mode = settings.get('access_mode', 'open')
     users = (
         User.query
-        .filter(User.role != 'admin')
+        .filter(User.role != 'admin', User.username != DELETED_USER_USERNAME)
         .order_by(User.role.asc(), User.username.asc())
         .all()
     )
@@ -198,8 +210,8 @@ def _save_user_permission_from_form():
         raise ValueError('规则参数不全')
 
     target_user = User.query.get(int(user_id))
-    if not target_user or target_user.role == 'admin':
-        raise ValueError('只能为非管理员用户配置权限规则')
+    if not target_user or target_user.role == 'admin' or _is_protected_system_user(target_user):
+        raise ValueError('只能为普通用户配置权限规则')
 
     p = PermissionRule.query.filter_by(user_id=target_user.id, dir_path=dir_path).first()
     if not p:
@@ -287,6 +299,26 @@ def _create_user_record(username, password, role='regular', email=None):
     return user
 
 
+def _get_or_create_deleted_user():
+    deleted_user = User.query.filter_by(username=DELETED_USER_USERNAME).first()
+    if deleted_user:
+        if deleted_user.nickname != DELETED_USER_NICKNAME:
+            deleted_user.nickname = DELETED_USER_NICKNAME
+            db.session.commit()
+        return deleted_user
+
+    deleted_user = User()
+    deleted_user.username = DELETED_USER_USERNAME
+    deleted_user.nickname = DELETED_USER_NICKNAME
+    deleted_user.role = 'guest'
+    deleted_user.can_comment = False
+    deleted_user.email_verified = False
+    deleted_user.set_password(os.urandom(24).hex())
+    db.session.add(deleted_user)
+    db.session.commit()
+    return deleted_user
+
+
 def _update_user_record(user, username=None, nickname=None, email=None, role=None, new_password=None):
     if user is None:
         raise ValueError('用户不存在')
@@ -326,10 +358,15 @@ def _update_user_record(user, username=None, nickname=None, email=None, role=Non
 def _delete_user_record(user):
     if user is None:
         raise ValueError('用户不存在')
-    if user.username == 'admin':
-        raise ValueError('不能删除 admin 账号')
+    if _is_protected_system_user(user):
+        raise ValueError('不能删除系统保留账号')
 
-    Comment.query.filter_by(user_id=user.id).delete()
+    deleted_user = _get_or_create_deleted_user()
+    (
+        Comment.query
+        .filter_by(user_id=user.id)
+        .update({'user_id': deleted_user.id}, synchronize_session=False)
+    )
     PermissionRule.query.filter_by(user_id=user.id).delete()
     db.session.delete(user)
     db.session.commit()
@@ -377,13 +414,14 @@ def _send_comment_status_mail(comment, approved):
             cooldown_seconds=30,
         )
     except Exception:
-        pass
+        current_app.logger.exception('发送评论状态邮件失败: comment_id=%s approved=%s target_email=%s', getattr(comment, 'id', None), approved, getattr(getattr(comment, 'user', None), 'email', None))
 
 
 def _approve_comment_record(comment):
     if comment is None:
         raise ValueError('评论不存在')
     comment.status = 'approved'
+    clear_comment_approval_token(comment)
     db.session.commit()
     _send_comment_status_mail(comment, approved=True)
     return comment
@@ -394,6 +432,7 @@ def _delete_comment_record(comment):
         raise ValueError('评论不存在')
     _send_comment_status_mail(comment, approved=False)
     comment.status = 'deleted'
+    clear_comment_approval_token(comment)
     db.session.commit()
     return comment
 
@@ -403,13 +442,13 @@ def _delete_comment_tree_record(comment):
         raise ValueError('评论不存在')
 
     _send_comment_status_mail(comment, approved=False)
-    target_ids = _collect_comment_descendant_ids(comment.id)
+    target_ids = get_comment_descendant_ids(comment)
     target_ids.append(comment.id)
     target_ids = list(dict.fromkeys(target_ids))
     (
         Comment.query
         .filter(Comment.id.in_(target_ids))
-        .update({'status': 'deleted'}, synchronize_session=False)
+        .update({'status': 'deleted', 'approval_token': None, 'approval_token_expires_at': None}, synchronize_session=False)
     )
     db.session.commit()
     return len(target_ids)
@@ -419,23 +458,12 @@ def _restore_comment_record(comment):
     if comment is None:
         raise ValueError('评论不存在')
     comment.status = 'approved'
+    clear_comment_approval_token(comment)
     db.session.commit()
     return comment
 
-
-def _collect_comment_descendant_ids(comment_id):
-    descendant_ids = []
-    children = Comment.query.filter_by(parent_id=comment_id).all()
-    for child in children:
-        descendant_ids.extend(_collect_comment_descendant_ids(child.id))
-        descendant_ids.append(child.id)
-    return descendant_ids
-
-
 def _annotate_comment_descendant_counts(comments):
-    for comment in comments or []:
-        comment.descendant_count = len(_collect_comment_descendant_ids(comment.id))
-    return comments
+    return annotate_comment_descendant_counts(comments)
 
 
 def _hard_delete_comment_record(comment):
@@ -444,7 +472,7 @@ def _hard_delete_comment_record(comment):
     if comment.status != 'deleted':
         raise ValueError('请先将评论标记为已删除，再执行彻底删除')
 
-    target_ids = _collect_comment_descendant_ids(comment.id)
+    target_ids = get_comment_descendant_ids(comment)
     target_ids.append(comment.id)
     target_ids = list(dict.fromkeys(target_ids))
 
@@ -629,6 +657,9 @@ def admin_delete_user(user_id):
 def admin_update_user(user_id):
     _require_admin_role()
     user = User.query.get_or_404(user_id)
+    if _is_protected_system_user(user):
+        flash('系统保留账号不支持在此修改')
+        return redirect(url_for('admin.admin_users'))
     try:
         _update_user_record(
             user,
@@ -773,6 +804,9 @@ def admin_verify_user_email(user_id):
     _require_admin_role()
     user = User.query.get(user_id)
     if user:
+        if _is_protected_system_user(user):
+            flash('系统保留账号不支持此操作')
+            return redirect(url_for('admin.admin_users'))
         user.email_verified = True
         db.session.commit()
         flash('用户邮箱已标记为已验证')
@@ -791,6 +825,9 @@ def admin_user_detail(user_id):
 def admin_update_user_detail(user_id):
     _require_admin_role()
     user = User.query.get_or_404(user_id)
+    if _is_protected_system_user(user):
+        flash('系统保留账号不支持在此修改')
+        return redirect(url_for('admin.admin_users'))
     try:
         _update_user_record(
             user,
@@ -833,7 +870,7 @@ def admin_users():
     verified_filter = (request.args.get('verified') or 'all').strip()
     can_comment_filter = (request.args.get('can_comment') or 'all').strip()
     
-    query = User.query
+    query = User.query.filter(User.username != DELETED_USER_USERNAME)
     
     if keyword:
         like_value = f'%{keyword}%'
@@ -893,6 +930,8 @@ def admin_user_detail_page(user_id):
     _require_admin_role()
     
     user = User.query.get_or_404(user_id)
+    if user.username == DELETED_USER_USERNAME:
+        abort(404)
     comments = Comment.query.filter_by(user_id=user.id).order_by(Comment.created_at.desc()).all()
     _annotate_comment_descendant_counts(comments)
     
@@ -904,6 +943,9 @@ def admin_user_detail_page(user_id):
 def admin_update_user_info(user_id):
     _require_admin_role()
     user = User.query.get_or_404(user_id)
+    if _is_protected_system_user(user):
+        flash('系统保留账号不支持在此修改')
+        return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
     try:
         _update_user_record(
             user,
@@ -924,6 +966,9 @@ def admin_update_user_info(user_id):
 def admin_verify_user_email_page(user_id):
     _require_admin_role()
     user = User.query.get_or_404(user_id)
+    if _is_protected_system_user(user):
+        flash('系统保留账号不支持此操作')
+        return redirect(url_for('admin.admin_users'))
     user.email_verified = True
     db.session.commit()
     
@@ -950,6 +995,9 @@ def admin_delete_user_page(user_id):
 def admin_toggle_comment_permission(user_id):
     _require_admin_role()
     user = User.query.get_or_404(user_id)
+    if _is_protected_system_user(user):
+        flash('系统保留账号不支持此操作')
+        return redirect(url_for('admin.admin_users'))
     user.can_comment = 'can_comment' in request.form
     db.session.commit()
     

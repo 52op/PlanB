@@ -178,6 +178,7 @@ class Comment(db.Model):
     content = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending')
     approval_token = db.Column(db.String(64), nullable=True, unique=True)
+    approval_token_expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -250,6 +251,7 @@ def init_db(app):
         _ensure_column(app, 'users', 'avatar_url', 'VARCHAR(255)')
         _ensure_column(app, 'users', 'can_comment', 'BOOLEAN NOT NULL DEFAULT 1')
         _ensure_column(app, 'comments', 'approval_token', 'VARCHAR(64)')
+        _ensure_column(app, 'comments', 'approval_token_expires_at', 'DATETIME')
         _ensure_column(app, 'permission_rules', 'can_manage', 'BOOLEAN NOT NULL DEFAULT 0')
         
         # 确保上传目录存在

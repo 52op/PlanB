@@ -6,6 +6,7 @@ import os
 import uuid
 from PIL import Image as PILImage, ImageOps
 from services import (
+    annotate_comment_descendant_counts,
     can_delete_comment,
     check_verification_send_rate_limit,
     check_permission,
@@ -58,13 +59,14 @@ def _can_send_verification_code(client_ip, email, purpose):
 
 def _build_account_comment_items(comments):
     from services.docs import _can_access_document_metadata, _parse_markdown_file
-    from services.comments import _collect_comment_descendant_ids
 
     status_labels = {
         'approved': '已通过',
         'pending': '待审核',
         'deleted': '已删除',
     }
+
+    annotate_comment_descendant_counts(comments)
 
     items = []
     for comment in comments or []:
@@ -89,7 +91,7 @@ def _build_account_comment_items(comments):
             'content': comment.content,
             'status': comment.status,
             'status_label': status_labels.get(comment.status, comment.status or '未知状态'),
-            'descendant_count': len(_collect_comment_descendant_ids(comment.id)),
+            'descendant_count': getattr(comment, 'descendant_count', 0),
             'created_at': comment.created_at,
             'created_at_display': comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '',
             'article_title': title,
@@ -230,6 +232,7 @@ def login():
                 except ValueError as exc:
                     flash(str(exc))
                 except Exception:
+                    current_app.logger.exception('发送登录验证码失败: email=%s', email)
                     flash('验证码发送失败，请检查邮件服务器配置')
 
         elif action_type == 'send_register_code':
@@ -261,6 +264,7 @@ def login():
                 except ValueError as exc:
                     flash(str(exc))
                 except Exception:
+                    current_app.logger.exception('发送注册验证码失败: email=%s', email)
                     flash('验证码发送失败，请检查邮件服务器配置')
 
         elif action_type == 'register_user':
@@ -383,6 +387,8 @@ def account():
 def update_profile():
     nickname = (request.form.get('nickname') or '').strip()
     avatar = request.files.get('avatar')
+    old_avatar_path = None
+    new_avatar_path = None
 
     if nickname:
         current_user.nickname = nickname[:80]
@@ -395,35 +401,58 @@ def update_profile():
         
         upload_dir = os.path.join(current_app.config.get('UPLOADS_DIR'), 'avatars')
         os.makedirs(upload_dir, exist_ok=True)
-        
-        # 删除旧头像
+
         if current_user.avatar_url and current_user.avatar_url.startswith('/media/'):
             old_avatar_relative = current_user.avatar_url.replace('/media/', '', 1).lstrip('/')
             old_avatar_path = os.path.join(current_app.config.get('UPLOADS_DIR'), old_avatar_relative)
-            if os.path.exists(old_avatar_path):
-                try:
-                    os.remove(old_avatar_path)
-                except Exception:
-                    pass
         
         # 使用用户ID+时间戳命名
         from datetime import datetime
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         file_name = f'{current_user.id}-{timestamp}.jpg'
         save_path = os.path.join(upload_dir, file_name)
+        new_avatar_path = save_path
         
         # 处理图片：先按 EXIF 方向自动纠正，再裁剪为正方形并调整大小为 512x512
-        image = PILImage.open(avatar.stream)
-        image = ImageOps.exif_transpose(image).convert('RGB')
-        size = min(image.size)
-        left = (image.width - size) // 2
-        top = (image.height - size) // 2
-        image = image.crop((left, top, left + size, top + size)).resize((512, 512), PILImage.Resampling.LANCZOS)
-        image.save(save_path, format='JPEG', quality=85, optimize=True)
+        try:
+            image = PILImage.open(avatar.stream)
+            image = ImageOps.exif_transpose(image).convert('RGB')
+            size = min(image.size)
+            left = (image.width - size) // 2
+            top = (image.height - size) // 2
+            image = image.crop((left, top, left + size, top + size)).resize((512, 512), PILImage.Resampling.LANCZOS)
+            image.save(save_path, format='JPEG', quality=85, optimize=True)
+        except Exception:
+            if new_avatar_path and os.path.exists(new_avatar_path):
+                try:
+                    os.remove(new_avatar_path)
+                except Exception:
+                    current_app.logger.exception('清理失败头像文件时出错: path=%s', new_avatar_path)
+            current_app.logger.exception('处理头像图片失败: user_id=%s filename=%s', current_user.id, avatar.filename)
+            flash('头像处理失败，请尝试更换图片后重试')
+            return redirect(url_for('auth.account'))
         
         current_user.avatar_url = f'/media/avatars/{file_name}'
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        if new_avatar_path and os.path.exists(new_avatar_path):
+            try:
+                os.remove(new_avatar_path)
+            except Exception:
+                current_app.logger.exception('数据库提交失败后清理新头像文件出错: path=%s', new_avatar_path)
+        current_app.logger.exception('保存个人资料失败: user_id=%s', current_user.id)
+        flash('个人资料保存失败，请稍后重试')
+        return redirect(url_for('auth.account'))
+
+    if new_avatar_path and old_avatar_path and old_avatar_path != new_avatar_path and os.path.exists(old_avatar_path):
+        try:
+            os.remove(old_avatar_path)
+        except Exception:
+            current_app.logger.exception('删除旧头像文件失败: user_id=%s path=%s', current_user.id, old_avatar_path)
+
     flash('个人资料已更新')
     return redirect(url_for('auth.account'))
 
@@ -486,6 +515,7 @@ def send_account_verification():
     except ValueError as exc:
         flash(str(exc))
     except Exception:
+        current_app.logger.exception('发送账户验证邮件失败: user_id=%s email=%s', current_user.id, current_user.email)
         flash('验证邮件发送失败，请检查邮件配置')
     return redirect(url_for('auth.account'))
 
@@ -552,6 +582,7 @@ def send_email_change_code():
     except ValueError as exc:
         flash(str(exc))
     except Exception:
+        current_app.logger.exception('发送邮箱变更验证码失败: user_id=%s new_email=%s', current_user.id, new_email)
         flash('验证码发送失败，请检查邮件配置')
     return redirect(url_for('auth.account'))
 

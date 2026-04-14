@@ -1,6 +1,7 @@
 import os
 import re
 import uuid
+import logging
 from datetime import datetime
 from urllib.parse import urlparse, urlunparse
 
@@ -13,6 +14,8 @@ from models import Image, SystemSetting, db
 from runtime_paths import get_data_subdir
 from .paths import get_docs_root
 from .urls import normalize_local_media_url
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_upload_subdir(value):
@@ -146,6 +149,7 @@ def _delete_from_local(image):
             return True
         return False
     except Exception:
+        logger.exception('删除本地媒体文件失败: image_id=%s path=%s', getattr(image, 'id', None), getattr(image, 'path', None))
         return False
 
 
@@ -172,6 +176,7 @@ def _delete_from_s3(image):
         s3_client.delete_object(Bucket=bucket, Key=image.path)
         return True
     except Exception:
+        logger.exception('删除 S3 媒体文件失败: image_id=%s path=%s', getattr(image, 'id', None), getattr(image, 'path', None))
         return False
 
 

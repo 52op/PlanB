@@ -387,7 +387,7 @@
                 <article style="padding:16px 18px; border:1px solid var(--color-border); border-radius:16px; background:var(--color-surface); margin-left: {{ depth * 24 }}px;">
                 <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px; color:var(--color-text-muted); font-size:13px;">
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <strong style="color:var(--color-text);">{{ '已删除评论' if is_deleted_placeholder else (comment.user.username if comment.user else '匿名') }}</strong>
+                        <strong style="color:var(--color-text);">{{ '已删除评论' if is_deleted_placeholder else ((comment.user.nickname or comment.user.username) if comment.user else '匿名') }}</strong>
                         {% if not is_deleted_placeholder and comment.user and comment.user.role == 'admin' %}<span style="padding:2px 8px; border-radius:999px; background:#eef7f5; color:#0f766e; font-size:12px;">管理员</span>{% endif %}
                         {% if comment.status == 'pending' %}<span style="padding:2px 8px; border-radius:999px; background:rgba(255, 241, 242, 1); color:#be123c; font-size:12px;">待审核</span>{% endif %}
                         {% if is_deleted_placeholder %}<span style="padding:2px 8px; border-radius:999px; background:#fff1f2; color:#be123c; font-size:12px;">已删除</span>{% endif %}
@@ -405,7 +405,7 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="parent_id" value="{{ comment.id }}">
                         <div class="mention-wrap" style="flex:1; min-width:220px;">
-                            <textarea name="content" class="comment-input" placeholder="回复 {{ comment.user.username if comment.user else '该评论' }}…（可使用 @用户名）" style="width:100%; min-height:72px; border:1px solid var(--color-border); border-radius:12px; padding:10px; font:inherit; box-sizing:border-box;"></textarea>
+                            <textarea name="content" class="comment-input" placeholder="回复 {{ comment.user.nickname or comment.user.username if comment.user else '该评论' }}…（可使用 @用户名）" style="width:100%; min-height:72px; border:1px solid var(--color-border); border-radius:12px; padding:10px; font:inherit; box-sizing:border-box;"></textarea>
                             <div class="mention-suggestions"></div>
                         </div>
                         <button type="submit" class="action-btn">回复</button>

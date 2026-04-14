@@ -3,6 +3,7 @@
 默认使用数据库持久化，支持可选 Redis 后端。
 """
 from datetime import datetime, timedelta
+import logging
 import time
 
 from sqlalchemy import or_
@@ -18,6 +19,8 @@ DEFAULT_DELAY_LEVELS = [
     (5, 300),
     (10, 1800),
 ]
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_SEND_DELAY_LEVELS = [
     (5, 600),
@@ -242,6 +245,7 @@ def _check_bucket_rate_limit(bucket_type, scope_key):
         try:
             return _check_redis_rate_limit(bucket_type, scope_key, backend_payload)
         except Exception:
+            logger.exception('Redis 限流检查失败，回退到数据库后端: bucket_type=%s scope_key=%s', bucket_type, scope_key)
             return _check_database_rate_limit(bucket_type, scope_key)
     return _check_database_rate_limit(bucket_type, scope_key)
 
@@ -254,6 +258,7 @@ def _record_bucket_failure(bucket_type, scope_key):
         try:
             return _record_redis_failure(bucket_type, scope_key, backend_payload)
         except Exception:
+            logger.exception('Redis 限流失败记录失败，回退到数据库后端: bucket_type=%s scope_key=%s', bucket_type, scope_key)
             return _record_database_failure(bucket_type, scope_key)
     return _record_database_failure(bucket_type, scope_key)
 
@@ -267,7 +272,7 @@ def _record_bucket_success(bucket_type, scope_key):
             _record_redis_success(bucket_type, scope_key, backend_payload)
             return
         except Exception:
-            pass
+            logger.exception('Redis 限流成功清理失败，回退到数据库后端: bucket_type=%s scope_key=%s', bucket_type, scope_key)
     _record_database_success(bucket_type, scope_key)
 
 

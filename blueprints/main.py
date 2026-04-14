@@ -12,6 +12,7 @@ from flask_login import login_required
 from models import DocumentViewStat, SystemSetting, db
 from services import (
     build_share_session_key,
+    clear_comment_approval_token,
     get_adjacent_posts,
     InvalidPathError,
     check_global_access,
@@ -40,6 +41,7 @@ from services import (
     get_public_post_tree,
     get_cover_fallback_settings,
     get_local_cover_base_dir,
+    is_comment_approval_token_valid,
     resolve_shared_path,
     get_safe_redirect_target,
     has_password_rule_access,
@@ -1617,7 +1619,19 @@ def edit_comment(comment_id):
     return redirect(_comment_redirect_target(_get_docs_endpoint(filename=comment.filename)))
 
 
+def _get_comment_redirect_target(comment):
+    site_settings = _get_site_settings()
+    if comment and _blog_enabled(site_settings):
+        payload = get_document_payload(comment.filename)
+        if payload and payload.get('metadata', {}).get('slug'):
+            return url_for('main.post_detail', slug=payload['metadata']['slug']) + '#comments'
+    if comment:
+        return _get_docs_endpoint(filename=comment.filename) + '#comments'
+    return url_for('main.index')
+
+
 @main_bp.route('/comment/approve/<token>')
+@main_bp.route('/comment/approve/<token>', methods=['POST'])
 def approve_comment(token):
     """通过审核令牌批准评论"""
     from models import Comment
@@ -1626,30 +1640,48 @@ def approve_comment(token):
         abort(404)
     
     comment = Comment.query.filter_by(approval_token=token).first()
-    if not comment:
-        abort(404)
-    
-    # 检查评论状态
-    if comment.status == 'approved':
-        flash('该评论已经审核通过')
-    elif comment.status == 'deleted':
-        flash('该评论已被删除')
-    else:
-        # 审核通过
+    if comment and comment.status not in {'approved', 'deleted'} and is_comment_approval_token_valid(comment):
         comment.status = 'approved'
+        clear_comment_approval_token(comment)
         db.session.commit()
         flash('评论已审核通过')
-    
-    # 重定向到文章页面
-    site_settings = _get_site_settings()
-    if _blog_enabled(site_settings):
-        # 尝试获取文章的 slug
-        payload = get_document_payload(comment.filename)
-        if payload and payload.get('metadata', {}).get('slug'):
-            return redirect(url_for('main.post_detail', slug=payload['metadata']['slug']) + '#comments')
-    
-    # 如果无法获取 slug，重定向到文档页面
-    return redirect(_get_docs_endpoint(filename=comment.filename) + '#comments')
+    elif comment and comment.status == 'approved':
+        flash('该评论已经审核通过')
+    elif comment and comment.status == 'deleted':
+        flash('该评论已被删除')
+    elif comment:
+        flash('该审核链接已过期，请前往后台处理该评论')
+    else:
+        flash('该审核链接无效或已失效')
+    return redirect(_get_comment_redirect_target(comment))
+
+
+@main_bp.route('/comment/approve/<token>')
+def approve_comment_confirm(token):
+    from models import Comment
+
+    if not token:
+        abort(404)
+
+    comment = Comment.query.filter_by(approval_token=token).first()
+    token_state = 'ready'
+    if not comment:
+        token_state = 'invalid'
+    elif comment.status == 'approved':
+        token_state = 'approved'
+    elif comment.status == 'deleted':
+        token_state = 'deleted'
+    elif not is_comment_approval_token_valid(comment):
+        token_state = 'expired'
+
+    return render_template(
+        'comment_approve.html',
+        comment=comment,
+        token=token,
+        token_state=token_state,
+        redirect_target=_get_comment_redirect_target(comment),
+        site_settings=_get_site_settings(),
+    )
 
 
 @main_bp.route('/docs/dir/', defaults={'dirname': ''})

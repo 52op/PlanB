@@ -4,6 +4,7 @@ import secrets
 
 import bleach
 import markdown
+from flask import current_app
 from flask_login import current_user
 
 from models import Comment, EmailVerificationCode, SystemSetting, User, db
@@ -14,6 +15,7 @@ EMAIL_RE = re.compile(r'^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$', re.I)
 PASSWORD_RE = re.compile(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$')
 COMMENT_ALLOWED_TAGS = set(bleach.sanitizer.ALLOWED_TAGS).union({'p', 'br', 'pre', 'code', 'blockquote', 'ul', 'ol', 'li', 'strong', 'em', 'a'})
 COMMENT_ALLOWED_ATTRIBUTES = {'a': ['href', 'title', 'rel', 'target']}
+COMMENT_APPROVAL_TOKEN_TTL_HOURS = 72
 
 
 def _render_comment_content(text):
@@ -22,6 +24,28 @@ def _render_comment_content(text):
 
 
 MENTION_RE = re.compile(r'@([A-Za-z0-9_\-\u4e00-\u9fff]+)')
+
+
+def issue_comment_approval_token(comment):
+    if comment is None:
+        return
+    comment.approval_token = secrets.token_urlsafe(32)
+    comment.approval_token_expires_at = datetime.utcnow() + timedelta(hours=COMMENT_APPROVAL_TOKEN_TTL_HOURS)
+
+
+def clear_comment_approval_token(comment):
+    if comment is None:
+        return
+    comment.approval_token = None
+    comment.approval_token_expires_at = None
+
+
+def is_comment_approval_token_valid(comment):
+    if comment is None or not comment.approval_token:
+        return False
+    if comment.approval_token_expires_at and comment.approval_token_expires_at < datetime.utcnow():
+        return False
+    return True
 
 
 def create_email_verification_code(email, purpose='register'):
@@ -62,29 +86,93 @@ def comments_require_approval():
     return (SystemSetting.get('comments_require_approval', 'true') or 'true').lower() == 'true'
 
 
-def _collect_comment_descendant_ids(comment_id):
-    descendant_ids = []
-    children = Comment.query.filter_by(parent_id=comment_id).all()
-    for child in children:
-        descendant_ids.extend(_collect_comment_descendant_ids(child.id))
-        descendant_ids.append(child.id)
-    return descendant_ids
+def _build_children_index(comments):
+    comment_map = {}
+    children_map = {}
+    for comment in comments or []:
+        comment_map[comment.id] = comment
+        children_map.setdefault(comment.id, [])
+    for comment in comments or []:
+        if comment.parent_id and comment.parent_id in comment_map:
+            children_map.setdefault(comment.parent_id, []).append(comment)
+    return comment_map, children_map
+
+
+def _build_descendant_cache(children_map):
+    descendant_cache = {}
+
+    def collect(comment_id):
+        if comment_id in descendant_cache:
+            return descendant_cache[comment_id]
+        descendant_ids = []
+        for child in children_map.get(comment_id, []):
+            descendant_ids.append(child.id)
+            descendant_ids.extend(collect(child.id))
+        descendant_cache[comment_id] = descendant_ids
+        return descendant_ids
+
+    for comment_id in list(children_map.keys()):
+        collect(comment_id)
+    return descendant_cache
+
+
+def _get_descendant_data_for_comments(comments):
+    _, children_map = _build_children_index(comments)
+    descendant_cache = _build_descendant_cache(children_map)
+    return children_map, descendant_cache
+
+
+def get_comment_descendant_ids(comment, comments=None):
+    if comment is None:
+        return []
+    pool = comments
+    if pool is None:
+        pool = Comment.query.filter_by(filename=comment.filename).all()
+    _, descendant_cache = _get_descendant_data_for_comments(pool)
+    return list(descendant_cache.get(comment.id, []))
+
+
+def annotate_comment_descendant_counts(comments, all_comments=None):
+    selected_comments = list(comments or [])
+    if not selected_comments:
+        return selected_comments
+
+    grouped_comments = {}
+    if all_comments is not None:
+        for comment in all_comments:
+            grouped_comments.setdefault(comment.filename, []).append(comment)
+    else:
+        filenames = sorted({comment.filename for comment in selected_comments if comment.filename})
+        if filenames:
+            comment_pool = (
+                Comment.query
+                .filter(Comment.filename.in_(filenames))
+                .all()
+            )
+            for comment in comment_pool:
+                grouped_comments.setdefault(comment.filename, []).append(comment)
+
+    descendant_maps = {}
+    for filename, filename_comments in grouped_comments.items():
+        _, descendant_cache = _get_descendant_data_for_comments(filename_comments)
+        descendant_maps[filename] = descendant_cache
+
+    for comment in selected_comments:
+        descendant_cache = descendant_maps.get(comment.filename, {})
+        comment.descendant_count = len(descendant_cache.get(comment.id, []))
+    return selected_comments
 
 
 def get_comments_for_filename(filename, include_pending=False):
     comments = Comment.query.filter_by(filename=filename).order_by(Comment.created_at.asc()).all()
-    comment_map = {comment.id: comment for comment in comments}
+    comment_map, children_map, = _build_children_index(comments)
+    _, descendant_cache = _get_descendant_data_for_comments(comments)
 
     for comment in comments:
-        comment._children = []
         comment.visible_replies = []
         comment.visible_descendant_count = 0
-        comment.descendant_count = 0
+        comment.descendant_count = len(descendant_cache.get(comment.id, []))
         comment.rendered_content = ''
-
-    for comment in comments:
-        if comment.parent_id and comment.parent_id in comment_map:
-            comment_map[comment.parent_id]._children.append(comment)
 
     placeholder_html = '<p><em>该评论已删除，回复内容已保留。</em></p>'
 
@@ -92,14 +180,13 @@ def get_comments_for_filename(filename, include_pending=False):
         visible_children = []
         visible_descendant_count = 0
 
-        for child in getattr(comment, '_children', []):
+        for child in children_map.get(comment.id, []):
             if build_visible_tree(child):
                 visible_children.append(child)
                 visible_descendant_count += 1 + int(getattr(child, 'visible_descendant_count', 0) or 0)
 
         comment.visible_replies = visible_children
         comment.visible_descendant_count = visible_descendant_count
-        comment.descendant_count = len(_collect_comment_descendant_ids(comment.id))
 
         status = str(comment.status or '').strip().lower()
         if status == 'approved':
@@ -121,10 +208,6 @@ def get_comments_for_filename(filename, include_pending=False):
             continue
         if build_visible_tree(comment):
             top_level.append(comment)
-
-    for comment in comments:
-        if hasattr(comment, '_children'):
-            delattr(comment, '_children')
 
     return top_level
 
@@ -162,9 +245,6 @@ def create_comment(filename, content, user=None, parent_id=None, article_url='')
     comment.user_id = author.id
     comment.content = text
     
-    # 生成审核令牌
-    comment.approval_token = secrets.token_urlsafe(32)
-    
     if parent_id:
         comment.parent_id = int(parent_id)
     if getattr(author, 'role', '') == 'admin':
@@ -173,6 +253,10 @@ def create_comment(filename, content, user=None, parent_id=None, article_url='')
         comment.status = 'pending'
     else:
         comment.status = 'approved' if not comments_require_approval() else 'pending'
+    if comment.status == 'pending':
+        issue_comment_approval_token(comment)
+    else:
+        clear_comment_approval_token(comment)
     db.session.add(comment)
     db.session.commit()
 
@@ -205,7 +289,7 @@ def create_comment(filename, content, user=None, parent_id=None, article_url='')
                     cooldown_seconds=10,
                 )
             except Exception:
-                pass
+                current_app.logger.exception('发送评论审核通知邮件失败: comment_id=%s admin_email=%s', comment.id, admin.email)
 
     # 发送回复通知
     if comment.parent_id:
@@ -225,7 +309,7 @@ def create_comment(filename, content, user=None, parent_id=None, article_url='')
                     cooldown_seconds=30,
                 )
             except Exception:
-                pass
+                current_app.logger.exception('发送评论回复通知邮件失败: comment_id=%s parent_comment_id=%s target_email=%s', comment.id, parent_comment.id, parent_comment.user.email)
 
     # 发送提及通知
     mentioned_names = {name for name in MENTION_RE.findall(text) if name}
@@ -250,7 +334,7 @@ def create_comment(filename, content, user=None, parent_id=None, article_url='')
                     cooldown_seconds=30,
                 )
             except Exception:
-                pass
+                current_app.logger.exception('发送评论提及通知邮件失败: comment_id=%s target_user_id=%s target_email=%s', comment.id, mentioned_user.id, mentioned_user.email)
     return comment
 
 
@@ -266,16 +350,17 @@ def delete_comment(comment, user=None, delete_mode='single'):
         raise PermissionError('只有管理员可以删除整棵评论树')
 
     if normalized_mode == 'tree':
-        target_ids = _collect_comment_descendant_ids(comment.id)
+        target_ids = get_comment_descendant_ids(comment)
         target_ids.append(comment.id)
         target_ids = list(dict.fromkeys(target_ids))
         (
             Comment.query
             .filter(Comment.id.in_(target_ids))
-            .update({'status': 'deleted'}, synchronize_session=False)
+            .update({'status': 'deleted', 'approval_token': None, 'approval_token_expires_at': None}, synchronize_session=False)
         )
     else:
         comment.status = 'deleted'
+        clear_comment_approval_token(comment)
     db.session.commit()
 
 
@@ -293,6 +378,10 @@ def update_comment(comment, content, user=None):
         comment.status = 'pending'
     else:
         comment.status = 'approved'
+    if comment.status == 'pending':
+        issue_comment_approval_token(comment)
+    else:
+        clear_comment_approval_token(comment)
     db.session.commit()
     return comment
 
