@@ -247,42 +247,187 @@ def _save_password_rule_from_form():
     db.session.add(rule)
     db.session.commit()
 
+
+def _require_admin_role():
+    if current_user.role != 'admin':
+        abort(403)
+
+
+def _normalize_optional_email(value):
+    normalized = (value or '').strip().lower()
+    return normalized or None
+
+
+def _normalize_user_role(value, default='regular'):
+    role = (value or '').strip()
+    return role if role in {'admin', 'regular', 'guest'} else default
+
+
+def _create_user_record(username, password, role='regular', email=None):
+    normalized_username = (username or '').strip()
+    normalized_email = _normalize_optional_email(email)
+    normalized_role = _normalize_user_role(role)
+
+    if not normalized_username or not password:
+        raise ValueError('用户名和密码不能为空')
+    if User.query.filter_by(username=normalized_username).first():
+        raise ValueError('用户名已存在')
+    if normalized_email and User.query.filter_by(email=normalized_email).first():
+        raise ValueError('邮箱已被使用')
+
+    user = User()
+    user.username = normalized_username
+    user.email = normalized_email
+    user.role = normalized_role
+    user.can_comment = True
+    user.set_password(password)
+
+    db.session.add(user)
+    db.session.commit()
+    return user
+
+
+def _update_user_record(user, username=None, nickname=None, email=None, role=None, new_password=None):
+    if user is None:
+        raise ValueError('用户不存在')
+
+    if username is not None:
+        normalized_username = username.strip()
+        if not normalized_username:
+            raise ValueError('用户名不能为空')
+        existing_user = User.query.filter(User.username == normalized_username, User.id != user.id).first()
+        if existing_user:
+            raise ValueError('用户名已存在')
+        user.username = normalized_username
+
+    if nickname is not None:
+        user.nickname = nickname.strip() or None
+
+    if email is not None:
+        normalized_email = _normalize_optional_email(email)
+        if normalized_email:
+            existing_email = User.query.filter(User.email == normalized_email, User.id != user.id).first()
+            if existing_email:
+                raise ValueError('邮箱已被使用')
+        if user.email != normalized_email:
+            user.email_verified = False
+        user.email = normalized_email
+
+    if role is not None and user.username != 'admin':
+        user.role = _normalize_user_role(role, default=user.role or 'regular')
+
+    if new_password:
+        user.set_password(new_password)
+
+    db.session.commit()
+    return user
+
+
+def _delete_user_record(user):
+    if user is None:
+        raise ValueError('用户不存在')
+    if user.username == 'admin':
+        raise ValueError('不能删除 admin 账号')
+
+    Comment.query.filter_by(user_id=user.id).delete()
+    PermissionRule.query.filter_by(user_id=user.id).delete()
+    db.session.delete(user)
+    db.session.commit()
+
+
+def _send_comment_status_mail(comment, approved):
+    if not (
+        comment
+        and comment.user
+        and comment.user.email
+        and comment.user.email_verified
+        and mailer_is_configured()
+    ):
+        return
+
+    try:
+        if approved:
+            send_logged_mail(
+                'comment_approved',
+                comment.user.email,
+                '你的评论已通过审核',
+                f'你在 {comment.filename} 下的评论已通过审核。',
+                '评论审核通过',
+                f'你在文章 <strong>{comment.filename}</strong> 下的评论已通过审核。',
+                f'<div style="margin-top:16px;padding:16px 18px;border-radius:14px;background:#f0fdf4;color:#166534;line-height:1.8;">{comment.content}</div>',
+                action_url=request.url_root.rstrip('/') + url_for('main.docs_doc', filename=comment.filename),
+                action_label='查看文章',
+                cooldown_seconds=30,
+            )
+            return
+
+        if comment.status == 'deleted':
+            return
+
+        send_logged_mail(
+            'comment_rejected',
+            comment.user.email,
+            '你的评论未通过审核',
+            f'你在 {comment.filename} 下的评论未通过审核。',
+            '评论未通过审核',
+            f'你在文章 <strong>{comment.filename}</strong> 下的评论未通过审核。',
+            f'<div style="margin-top:16px;padding:16px 18px;border-radius:14px;background:#fff1f2;color:#9f1239;line-height:1.8;">{comment.content}</div>',
+            action_url=request.url_root.rstrip('/') + url_for('main.docs_doc', filename=comment.filename),
+            action_label='返回文章',
+            cooldown_seconds=30,
+        )
+    except Exception:
+        pass
+
+
+def _approve_comment_record(comment):
+    if comment is None:
+        raise ValueError('评论不存在')
+    comment.status = 'approved'
+    db.session.commit()
+    _send_comment_status_mail(comment, approved=True)
+    return comment
+
+
+def _delete_comment_record(comment):
+    if comment is None:
+        raise ValueError('评论不存在')
+    _send_comment_status_mail(comment, approved=False)
+    comment.status = 'deleted'
+    db.session.commit()
+    return comment
+
 @admin_bp.route('/images')
 @login_required
 def image_management():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     return render_template('image_management.html')
 
 @admin_bp.route('/')
 @login_required
 def admin_dashboard():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     return render_template('admin_dashboard.html', **_get_admin_stats_context())
 
 
 @admin_bp.route('/base')
 @login_required
 def admin_base():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     return render_template('admin_base.html', **_get_admin_base_context())
 
 
 @admin_bp.route('/access')
 @login_required
 def admin_access():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     return render_template('admin_access.html', **_get_admin_access_context())
 
 
 @admin_bp.route('/cover-preview', methods=['POST'])
 @login_required
 def admin_cover_preview():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
 
     settings = {
         'random_cover_source_type': (request.form.get('random_cover_source_type') or '').strip(),
@@ -305,8 +450,7 @@ def admin_cover_preview():
 @admin_bp.route('/security')
 @login_required
 def admin_security():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     return render_template(
         'admin_security.html',
         security_settings=_get_security_settings(),
@@ -317,8 +461,7 @@ def admin_security():
 @admin_bp.route('/security/settings', methods=['POST'])
 @login_required
 def update_security_settings():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
 
     checkbox_keys = {
         'security_login_rate_limit_enabled',
@@ -338,8 +481,7 @@ def update_security_settings():
 @admin_bp.route('/settings', methods=['POST'])
 @login_required
 def update_settings():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
 
     # 循环处理所有可能的设置项，如果表单中存在该值，则更新
     settings_to_update = [
@@ -399,60 +541,50 @@ def update_settings():
 @admin_bp.route('/user/add', methods=['POST'])
 @login_required
 def admin_add_user():
-    if current_user.role != 'admin': abort(403)
-    username = request.form.get('username')
-    password = request.form.get('password')
-    role = request.form.get('role')
-    
-    if User.query.filter_by(username=username).first():
-        flash("用户名已存在")
-        return redirect(url_for('admin.admin_users'))
-        
-    u = User()
-    u.username = username
-    u.role = role
-    u.set_password(password)
-    db.session.add(u)
-    db.session.commit()
-    flash("添加用户成功")
-    return redirect(url_for('admin.admin_base'))
+    _require_admin_role()
+    try:
+        _create_user_record(
+            username=request.form.get('username'),
+            password=request.form.get('password'),
+            role=request.form.get('role'),
+        )
+        flash('添加用户成功')
+    except ValueError as exc:
+        flash(str(exc))
+    return redirect(url_for('admin.admin_users'))
 
 @admin_bp.route('/user/delete/<int:user_id>', methods=['POST'])
 @login_required
 def admin_delete_user(user_id):
-    if current_user.role != 'admin': abort(403)
-    u = User.query.get(user_id)
-    if u and u.username != 'admin':
-        db.session.delete(u)
-        db.session.commit()
-        flash("删除用户成功")
+    _require_admin_role()
+    user = User.query.get_or_404(user_id)
+    try:
+        _delete_user_record(user)
+        flash('删除用户成功')
+    except ValueError as exc:
+        flash(str(exc))
     return redirect(url_for('admin.admin_users'))
 
 @admin_bp.route('/user/update/<int:user_id>', methods=['POST'])
 @login_required
 def admin_update_user(user_id):
-    if current_user.role != 'admin': abort(403)
-    u = User.query.get(user_id)
-    if u:
-        new_pwd = request.form.get('new_password')
-        new_role = request.form.get('role')
-        
-        if new_pwd:
-            u.set_password(new_pwd)
-            
-        if new_role and new_role in ['admin', 'regular', 'guest']:
-            if u.username != 'admin':
-                u.role = new_role
-                
-        db.session.commit()
-        flash("用户资料已更新")
+    _require_admin_role()
+    user = User.query.get_or_404(user_id)
+    try:
+        _update_user_record(
+            user,
+            role=request.form.get('role'),
+            new_password=request.form.get('new_password'),
+        )
+        flash('用户资料已更新')
+    except ValueError as exc:
+        flash(str(exc))
     return redirect(url_for('admin.admin_users'))
 
 @admin_bp.route('/permission/add', methods=['POST'])
 @login_required
 def admin_add_permission():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     try:
         _save_user_permission_from_form()
         flash("权限规则已更新")
@@ -463,8 +595,7 @@ def admin_add_permission():
 @admin_bp.route('/permission/delete/<int:rule_id>', methods=['POST'])
 @login_required
 def admin_delete_permission(rule_id):
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     p = PermissionRule.query.get(rule_id)
     if p:
         db.session.delete(p)
@@ -476,8 +607,7 @@ def admin_delete_permission(rule_id):
 @admin_bp.route('/access/user-rules', methods=['POST'])
 @login_required
 def admin_access_save_user_rule():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     try:
         _save_user_permission_from_form()
         flash('用户目录权限规则已更新')
@@ -491,8 +621,7 @@ def admin_access_save_user_rule():
 @admin_bp.route('/access/user-rules/<int:rule_id>/delete', methods=['POST'])
 @login_required
 def admin_access_delete_user_rule(rule_id):
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     rule = PermissionRule.query.get(rule_id)
     if rule:
         db.session.delete(rule)
@@ -504,8 +633,7 @@ def admin_access_delete_user_rule(rule_id):
 @admin_bp.route('/access/password-rules', methods=['POST'])
 @login_required
 def admin_access_add_password_rule():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     try:
         _save_password_rule_from_form()
         flash('访问密码权限规则已添加')
@@ -519,8 +647,7 @@ def admin_access_add_password_rule():
 @admin_bp.route('/access/password-rules/<int:rule_id>/delete', methods=['POST'])
 @login_required
 def admin_access_delete_password_rule(rule_id):
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     rule = PasswordAccessRule.query.get(rule_id)
     if rule:
         db.session.delete(rule)
@@ -532,28 +659,10 @@ def admin_access_delete_password_rule(rule_id):
 @admin_bp.route('/comment/approve/<int:comment_id>', methods=['POST'])
 @login_required
 def admin_approve_comment(comment_id):
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     comment = Comment.query.get(comment_id)
     if comment:
-        comment.status = 'approved'
-        db.session.commit()
-        if comment.user and comment.user.email and comment.user.email_verified and mailer_is_configured():
-            try:
-                send_logged_mail(
-                    'comment_approved',
-                    comment.user.email,
-                    '你的评论已通过审核',
-                    f'你在 {comment.filename} 下的评论已通过审核。',
-                    '评论审核通过',
-                    f'你在文章 <strong>{comment.filename}</strong> 下的评论已通过审核。',
-                    f'<div style="margin-top:16px;padding:16px 18px;border-radius:14px;background:#f0fdf4;color:#166534;line-height:1.8;">{comment.content}</div>',
-                    action_url=request.url_root.rstrip('/') + url_for('main.docs_doc', filename=comment.filename),
-                    action_label='查看文章',
-                    cooldown_seconds=30,
-                )
-            except Exception:
-                pass
+        _approve_comment_record(comment)
         flash('评论已通过审核')
     return redirect(url_for('admin.admin_base'))
 
@@ -561,28 +670,10 @@ def admin_approve_comment(comment_id):
 @admin_bp.route('/comment/delete/<int:comment_id>', methods=['POST'])
 @login_required
 def admin_delete_comment(comment_id):
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     comment = Comment.query.get(comment_id)
     if comment:
-        if comment.user and comment.user.email and comment.user.email_verified and mailer_is_configured() and comment.status != 'deleted':
-            try:
-                send_logged_mail(
-                    'comment_rejected',
-                    comment.user.email,
-                    '你的评论未通过审核',
-                    f'你在 {comment.filename} 下的评论未通过审核。',
-                    '评论未通过审核',
-                    f'你在文章 <strong>{comment.filename}</strong> 下的评论未通过审核。',
-                    f'<div style="margin-top:16px;padding:16px 18px;border-radius:14px;background:#fff1f2;color:#9f1239;line-height:1.8;">{comment.content}</div>',
-                    action_url=request.url_root.rstrip('/') + url_for('main.docs_doc', filename=comment.filename),
-                    action_label='返回文章',
-                    cooldown_seconds=30,
-                )
-            except Exception:
-                pass
-        comment.status = 'deleted'
-        db.session.commit()
+        _delete_comment_record(comment)
         flash('评论已删除')
     return redirect(url_for('admin.admin_base'))
 
@@ -590,8 +681,7 @@ def admin_delete_comment(comment_id):
 @admin_bp.route('/user/verify/<int:user_id>', methods=['POST'])
 @login_required
 def admin_verify_user_email(user_id):
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     user = User.query.get(user_id)
     if user:
         user.email_verified = True
@@ -603,56 +693,33 @@ def admin_verify_user_email(user_id):
 @admin_bp.route('/user/<int:user_id>')
 @login_required
 def admin_user_detail(user_id):
-    if current_user.role != 'admin':
-        abort(403)
-    user = User.query.get_or_404(user_id)
-    comments = Comment.query.filter_by(user_id=user.id).order_by(Comment.created_at.desc()).all()
-    return render_template('admin_user_detail.html', user=user, comments=comments)
+    _require_admin_role()
+    return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
 
 
 @admin_bp.route('/user/detail-update/<int:user_id>', methods=['POST'])
 @login_required
 def admin_update_user_detail(user_id):
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     user = User.query.get_or_404(user_id)
-
-    username = (request.form.get('username') or '').strip()
-    nickname = (request.form.get('nickname') or '').strip()
-    email = (request.form.get('email') or '').strip().lower()
-    role = (request.form.get('role') or '').strip()
-
-    if not username:
-        flash('用户名不能为空')
-        return redirect(url_for('admin.admin_user_detail', user_id=user_id))
-
-    existing_user = User.query.filter(User.username == username, User.id != user.id).first()
-    if existing_user:
-        flash('用户名已存在')
-        return redirect(url_for('admin.admin_user_detail', user_id=user_id))
-
-    if email:
-        existing_email = User.query.filter(User.email == email, User.id != user.id).first()
-        if existing_email:
-            flash('邮箱已被使用')
-            return redirect(url_for('admin.admin_user_detail', user_id=user_id))
-
-    user.username = username
-    user.nickname = nickname or None
-    user.email = email or None
-    if role in ['admin', 'regular', 'guest'] and user.username != 'admin':
-        user.role = role
-
-    db.session.commit()
-    flash('用户资料已更新')
-    return redirect(url_for('admin.admin_user_detail', user_id=user_id))
+    try:
+        _update_user_record(
+            user,
+            username=request.form.get('username') or '',
+            nickname=request.form.get('nickname') or '',
+            email=request.form.get('email') or '',
+            role=request.form.get('role'),
+        )
+        flash('用户资料已更新')
+    except ValueError as exc:
+        flash(str(exc))
+    return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
 
 
 @admin_bp.route('/notifications')
 @login_required
 def notification_logs():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     page = request.args.get('page', 1, type=int)
     event_type = (request.args.get('event_type') or 'all').strip()
     keyword = (request.args.get('q') or '').strip()
@@ -669,8 +736,7 @@ def notification_logs():
 @admin_bp.route('/users')
 @login_required
 def admin_users():
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     
     page = request.args.get('page', 1, type=int)
     keyword = (request.args.get('q') or '').strip()
@@ -718,45 +784,24 @@ def admin_users():
 @admin_bp.route('/users/add', methods=['POST'])
 @login_required
 def admin_add_user_page():
-    if current_user.role != 'admin':
-        abort(403)
-    
-    username = (request.form.get('username') or '').strip()
-    email = (request.form.get('email') or '').strip().lower()
-    password = request.form.get('password')
-    role = request.form.get('role') or 'regular'
-    
-    if not username or not password:
-        flash('用户名和密码不能为空')
-        return redirect(url_for('admin.admin_users'))
-    
-    if User.query.filter_by(username=username).first():
-        flash('用户名已存在')
-        return redirect(url_for('admin.admin_users'))
-    
-    if email and User.query.filter_by(email=email).first():
-        flash('邮箱已被使用')
-        return redirect(url_for('admin.admin_users'))
-    
-    user = User()
-    user.username = username
-    user.email = email or None
-    user.role = role if role in ['admin', 'regular', 'guest'] else 'regular'
-    user.set_password(password)
-    user.can_comment = True
-    
-    db.session.add(user)
-    db.session.commit()
-    
-    flash('用户添加成功')
+    _require_admin_role()
+    try:
+        _create_user_record(
+            username=request.form.get('username'),
+            password=request.form.get('password'),
+            role=request.form.get('role') or 'regular',
+            email=request.form.get('email'),
+        )
+        flash('用户添加成功')
+    except ValueError as exc:
+        flash(str(exc))
     return redirect(url_for('admin.admin_users'))
 
 
 @admin_bp.route('/users/<int:user_id>')
 @login_required
 def admin_user_detail_page(user_id):
-    if current_user.role != 'admin':
-        abort(403)
+    _require_admin_role()
     
     user = User.query.get_or_404(user_id)
     comments = Comment.query.filter_by(user_id=user.id).order_by(Comment.created_at.desc()).all()
@@ -767,63 +812,27 @@ def admin_user_detail_page(user_id):
 @admin_bp.route('/users/<int:user_id>/update', methods=['POST'])
 @login_required
 def admin_update_user_info(user_id):
-    if current_user.role != 'admin':
-        abort(403)
-    
+    _require_admin_role()
     user = User.query.get_or_404(user_id)
-    
-    username = (request.form.get('username') or '').strip()
-    nickname = (request.form.get('nickname') or '').strip()
-    email = (request.form.get('email') or '').strip().lower()
-    role = (request.form.get('role') or '').strip()
-    new_password = request.form.get('new_password')
-    
-    if not username:
-        flash('用户名不能为空')
-        return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
-    
-    # 检查用户名是否被占用
-    existing_user = User.query.filter(User.username == username, User.id != user.id).first()
-    if existing_user:
-        flash('用户名已存在')
-        return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
-    
-    # 检查邮箱是否被占用
-    if email:
-        existing_email = User.query.filter(User.email == email, User.id != user.id).first()
-        if existing_email:
-            flash('邮箱已被使用')
-            return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
-    
-    # 更新用户信息
-    old_email = user.email
-    user.username = username
-    user.nickname = nickname or None
-    user.email = email or None
-    
-    # 如果邮箱变更，标记为未验证
-    if old_email != user.email:
-        user.email_verified = False
-    
-    # 更新角色（admin 账号除外）
-    if role in ['admin', 'regular', 'guest'] and user.username != 'admin':
-        user.role = role
-    
-    # 更新密码
-    if new_password:
-        user.set_password(new_password)
-    
-    db.session.commit()
-    flash('用户信息已更新')
+    try:
+        _update_user_record(
+            user,
+            username=request.form.get('username') or '',
+            nickname=request.form.get('nickname') or '',
+            email=request.form.get('email'),
+            role=request.form.get('role'),
+            new_password=request.form.get('new_password'),
+        )
+        flash('用户信息已更新')
+    except ValueError as exc:
+        flash(str(exc))
     return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
 
 
 @admin_bp.route('/users/<int:user_id>/verify-email', methods=['POST'])
 @login_required
 def admin_verify_user_email_page(user_id):
-    if current_user.role != 'admin':
-        abort(403)
-    
+    _require_admin_role()
     user = User.query.get_or_404(user_id)
     user.email_verified = True
     db.session.commit()
@@ -835,35 +844,21 @@ def admin_verify_user_email_page(user_id):
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 def admin_delete_user_page(user_id):
-    if current_user.role != 'admin':
-        abort(403)
-    
+    _require_admin_role()
     user = User.query.get_or_404(user_id)
-    
-    if user.username == 'admin':
-        flash('不能删除 admin 账号')
+    try:
+        _delete_user_record(user)
+        flash('用户已删除')
+    except ValueError as exc:
+        flash(str(exc))
         return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
-    
-    # 删除用户的所有评论
-    Comment.query.filter_by(user_id=user.id).delete()
-    
-    # 删除用户的权限规则
-    PermissionRule.query.filter_by(user_id=user.id).delete()
-    
-    # 删除用户
-    db.session.delete(user)
-    db.session.commit()
-    
-    flash('用户已删除')
     return redirect(url_for('admin.admin_users'))
 
 
 @admin_bp.route('/users/<int:user_id>/toggle-comment', methods=['POST'])
 @login_required
 def admin_toggle_comment_permission(user_id):
-    if current_user.role != 'admin':
-        abort(403)
-    
+    _require_admin_role()
     user = User.query.get_or_404(user_id)
     user.can_comment = 'can_comment' in request.form
     db.session.commit()
@@ -874,31 +869,9 @@ def admin_toggle_comment_permission(user_id):
 @admin_bp.route('/comments/<int:comment_id>/approve', methods=['POST'])
 @login_required
 def admin_approve_comment_page(comment_id):
-    if current_user.role != 'admin':
-        abort(403)
-    
+    _require_admin_role()
     comment = Comment.query.get_or_404(comment_id)
-    comment.status = 'approved'
-    db.session.commit()
-    
-    # 发送通知邮件
-    if comment.user and comment.user.email and comment.user.email_verified and mailer_is_configured():
-        try:
-            send_logged_mail(
-                'comment_approved',
-                comment.user.email,
-                '你的评论已通过审核',
-                f'你在 {comment.filename} 下的评论已通过审核。',
-                '评论审核通过',
-                f'你在文章 <strong>{comment.filename}</strong> 下的评论已通过审核。',
-                f'<div style="margin-top:16px;padding:16px 18px;border-radius:14px;background:#f0fdf4;color:#166534;line-height:1.8;">{comment.content}</div>',
-                action_url=request.url_root.rstrip('/') + url_for('main.docs_doc', filename=comment.filename),
-                action_label='查看文章',
-                cooldown_seconds=30,
-            )
-        except Exception:
-            pass
-    
+    _approve_comment_record(comment)
     flash('评论已通过审核')
     user_id = request.form.get('user_id')
     if user_id:
@@ -909,32 +882,9 @@ def admin_approve_comment_page(comment_id):
 @admin_bp.route('/comments/<int:comment_id>/delete', methods=['POST'])
 @login_required
 def admin_delete_comment_page(comment_id):
-    if current_user.role != 'admin':
-        abort(403)
-    
+    _require_admin_role()
     comment = Comment.query.get_or_404(comment_id)
-    
-    # 发送通知邮件
-    if comment.user and comment.user.email and comment.user.email_verified and mailer_is_configured() and comment.status != 'deleted':
-        try:
-            send_logged_mail(
-                'comment_rejected',
-                comment.user.email,
-                '你的评论未通过审核',
-                f'你在 {comment.filename} 下的评论未通过审核。',
-                '评论未通过审核',
-                f'你在文章 <strong>{comment.filename}</strong> 下的评论未通过审核。',
-                f'<div style="margin-top:16px;padding:16px 18px;border-radius:14px;background:#fff1f2;color:#9f1239;line-height:1.8;">{comment.content}</div>',
-                action_url=request.url_root.rstrip('/') + url_for('main.docs_doc', filename=comment.filename),
-                action_label='返回文章',
-                cooldown_seconds=30,
-            )
-        except Exception:
-            pass
-    
-    comment.status = 'deleted'
-    db.session.commit()
-    
+    _delete_comment_record(comment)
     flash('评论已删除')
     user_id = request.form.get('user_id')
     if user_id:

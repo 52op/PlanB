@@ -162,7 +162,7 @@ def _parse_share_expiry(raw_value):
     try:
         expires_at = datetime.fromisoformat(value)
     except ValueError as exc:
-        raise ValueError('???????') from exc
+        raise ValueError('分享有效期格式无效，请使用 ISO 日期时间格式') from exc
 
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=app_timezone)
@@ -171,7 +171,7 @@ def _parse_share_expiry(raw_value):
 
     expires_at = expires_at.astimezone(timezone.utc).replace(tzinfo=None)
     if expires_at <= datetime.utcnow():
-        raise ValueError('???????????')
+        raise ValueError('分享有效期必须晚于当前时间')
     return expires_at
 
 
