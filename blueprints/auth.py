@@ -6,7 +6,9 @@ import os
 import uuid
 from PIL import Image as PILImage
 from services import (
+    can_delete_comment,
     check_verification_send_rate_limit,
+    check_permission,
     build_verification_scope_key,
     check_rate_limit,
     check_verification_rate_limit,
@@ -52,6 +54,48 @@ def _can_send_verification_code(client_ip, email, purpose):
     else:
         flash(f'当前网络环境请求验证码过于频繁，请在 {format_wait_time(wait_seconds)} 后重试')
     return False
+
+
+def _build_account_comment_items(comments):
+    from services.docs import _can_access_document_metadata, _parse_markdown_file
+
+    status_labels = {
+        'approved': '已通过',
+        'pending': '待审核',
+        'deleted': '已删除',
+    }
+
+    items = []
+    for comment in comments or []:
+        metadata = {}
+        payload = _parse_markdown_file(comment.filename)
+        if payload:
+            metadata = payload.get('metadata') or {}
+
+        title = str(metadata.get('title') or comment.filename).strip() or comment.filename
+        can_open = bool(
+            metadata and _can_access_document_metadata(comment.filename, metadata, user=current_user)
+        )
+        article_url = ''
+        if can_open:
+            if metadata.get('template') == 'post' and metadata.get('slug'):
+                article_url = url_for('main.post_detail', slug=metadata['slug'])
+            elif check_permission(current_user, comment.filename, 'read'):
+                article_url = url_for('main.docs_doc', filename=comment.filename)
+
+        items.append({
+            'id': comment.id,
+            'content': comment.content,
+            'status': comment.status,
+            'status_label': status_labels.get(comment.status, comment.status or '未知状态'),
+            'created_at': comment.created_at,
+            'created_at_display': comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '',
+            'article_title': title,
+            'article_url': article_url,
+            'can_open': bool(article_url),
+            'can_delete': can_delete_comment(comment, user=current_user),
+        })
+    return items
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -323,11 +367,11 @@ def account():
     page = request.args.get('page', 1, type=int)
     query = Comment.query.filter_by(user_id=current_user.id).order_by(Comment.created_at.desc())
     pagination = query.paginate(page=page, per_page=10, error_out=False)
-
     site_settings = _get_site_settings()
+    account_comments = _build_account_comment_items(pagination.items)
 
     return render_template('account.html',
-                         comments=pagination.items,
+                         comments=account_comments,
                          comments_pagination=pagination,
                          site_settings=site_settings)
 

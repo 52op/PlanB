@@ -166,9 +166,13 @@
                 <hr style="margin:18px 0; border:none; border-top:1px solid #eef2f7;">
                 <a href="{{ url_for('auth.logout') }}" class="btn" style="background:#dc3545;">退出登录</a>
 
-                {% if not allow_user_theme_override %}
-                <div class="flash" style="margin-top:12px; background:#eef2ff; color:#3730a3;">当前站点已关闭用户自定义主题。</div>
-                {% endif %}
+                <div style="margin-top:18px; padding:14px 16px; border-radius:10px; background:#f8fafc; border:1px solid #e5eaf0;">
+                    <h2 style="margin:0 0 10px; font-size:18px;">当前主题设置</h2>
+                    <div class="meta-row"><span>文档主题色</span><strong id="accountThemeColorLabel">读取中...</strong></div>
+                    <div class="meta-row"><span>文档显示模式</span><strong id="accountThemeModeLabel">读取中...</strong></div>
+                    <div class="meta-row"><span>博客主题</span><strong id="accountBlogThemeLabel">读取中...</strong></div>
+                    <div style="margin-top:10px; color:#64748b; font-size:13px;">这些设置保存在当前浏览器，本页展示的是你现在这台设备上实际生效的主题偏好。</div>
+                </div>
             </section>
         </div>
 
@@ -180,12 +184,34 @@
                 {% for comment in comments %}
                 <div class="comment-item">
                     <div class="comment-meta">
-                        <span>{{ comment.created_at }}</span>
+                        <span>{{ comment.created_at_display }}</span>
                         <span>
-                            {% if comment.status == 'approved' %}<span class="badge approved">已通过</span>{% elif comment.status == 'pending' %}<span class="badge pending">待审核</span>{% else %}<span class="badge deleted">已隐藏</span>{% endif %}
+                            {% if comment.status == 'approved' %}<span class="badge approved">{{ comment.status_label }}</span>{% elif comment.status == 'pending' %}<span class="badge pending">{{ comment.status_label }}</span>{% else %}<span class="badge deleted">{{ comment.status_label }}</span>{% endif %}
                         </span>
                     </div>
+                    <div style="margin-bottom:10px; color:#475569; font-size:14px;">
+                        <strong>对应文章：</strong>
+                        {% if comment.can_open %}
+                        <a href="{{ comment.article_url }}#comments" style="color:#0056b3; text-decoration:none;">{{ comment.article_title }}</a>
+                        {% else %}
+                        <span>{{ comment.article_title }}</span>
+                        {% endif %}
+                    </div>
                     <div class="comment-body">{{ comment.content }}</div>
+                    {% if comment.can_delete %}
+                    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                        {% if comment.can_open %}
+                        <a href="{{ comment.article_url }}#comments" class="btn" style="padding:8px 12px; text-decoration:none;">查看文章</a>
+                        {% endif %}
+                        {% if comment.status != 'deleted' %}
+                        <form method="POST" action="{{ url_for('main.remove_comment', comment_id=comment.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="return_to" value="{{ url_for('auth.account') }}">
+                            <button type="submit" class="btn" style="padding:8px 12px; background:#dc3545;">删除评论</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -198,6 +224,54 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        function readCookie(name) {
+            const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const match = document.cookie.match(new RegExp('(?:^|; )' + escaped + '=([^;]*)'));
+            return match ? decodeURIComponent(match[1]) : '';
+        }
+
+        function updateThemeSummary() {
+            const colorMap = {
+                blue: '蓝色',
+                green: '绿色',
+                purple: '紫色',
+                orange: '橙色',
+                rose: '玫瑰',
+            };
+            const modeMap = {
+                light: '浅色模式',
+                dark: '深色模式',
+                auto: '跟随系统',
+            };
+            const blogThemeMap = {
+                default: '默认风格',
+                indigo: 'Indigo',
+                hexo: 'Hexo',
+                astro: 'Astro',
+                vercel: 'Vercel',
+            };
+
+            const defaultColor = document.documentElement.dataset.defaultTheme || 'blue';
+            const defaultMode = document.documentElement.dataset.defaultMode || 'light';
+            const currentColor = localStorage.getItem('theme_color') || defaultColor;
+            const currentMode = localStorage.getItem('theme_mode') || defaultMode;
+            const currentBlogTheme = readCookie('user_blog_theme');
+
+            const colorLabel = document.getElementById('accountThemeColorLabel');
+            const modeLabel = document.getElementById('accountThemeModeLabel');
+            const blogThemeLabel = document.getElementById('accountBlogThemeLabel');
+
+            if (colorLabel) colorLabel.textContent = colorMap[currentColor] || currentColor;
+            if (modeLabel) modeLabel.textContent = modeMap[currentMode] || currentMode;
+            if (blogThemeLabel) {
+                blogThemeLabel.textContent = currentBlogTheme
+                    ? (blogThemeMap[currentBlogTheme] || currentBlogTheme)
+                    : '跟随站点默认';
+            }
+        }
+
+        updateThemeSummary();
+
         // 头像预览
         const avatarInput = document.getElementById('avatarInput');
         const avatarPreview = document.getElementById('avatarPreview');
