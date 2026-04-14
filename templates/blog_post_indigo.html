@@ -67,7 +67,8 @@
         <div class="comment-avatar-fallback">删</div>
     {% elif comment.user %}
         {% if comment.user.avatar_url %}
-        <img src="{{ comment.user.avatar_url }}" alt="{{ comment.user.username }}" class="comment-avatar">
+        <img src="{{ comment.user.avatar_url }}" alt="{{ comment.user.username }}" class="comment-avatar" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+        <div class="comment-avatar-fallback" style="display:none;">{{ (comment.user.username[:1] or 'U')|upper }}</div>
         {% else %}
         <div class="comment-avatar-fallback">{{ (comment.user.username[:1] or 'U')|upper }}</div>
         {% endif %}

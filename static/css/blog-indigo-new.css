@@ -1970,7 +1970,8 @@ body.mobile-sidebar-open .mobile-menu-toggle .icon-close {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--primary-color);
+    background: var(--brand-gradient);
+    box-shadow: 0 6px 14px rgba(102, 126, 234, 0.18);
     color: white;
     display: flex;
     align-items: center;

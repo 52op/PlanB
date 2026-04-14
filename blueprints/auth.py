@@ -4,7 +4,7 @@ from models import Comment, SystemSetting, User, db
 from werkzeug.utils import secure_filename
 import os
 import uuid
-from PIL import Image as PILImage
+from PIL import Image as PILImage, ImageOps
 from services import (
     can_delete_comment,
     check_verification_send_rate_limit,
@@ -412,12 +412,13 @@ def update_profile():
         file_name = f'{current_user.id}-{timestamp}.jpg'
         save_path = os.path.join(upload_dir, file_name)
         
-        # 处理图片：裁剪为正方形并调整大小为 512x512（放宽限制）
-        image = PILImage.open(avatar.stream).convert('RGB')
+        # 处理图片：先按 EXIF 方向自动纠正，再裁剪为正方形并调整大小为 512x512
+        image = PILImage.open(avatar.stream)
+        image = ImageOps.exif_transpose(image).convert('RGB')
         size = min(image.size)
         left = (image.width - size) // 2
         top = (image.height - size) // 2
-        image = image.crop((left, top, left + size, top + size)).resize((512, 512))
+        image = image.crop((left, top, left + size, top + size)).resize((512, 512), PILImage.Resampling.LANCZOS)
         image.save(save_path, format='JPEG', quality=85, optimize=True)
         
         current_user.avatar_url = f'/media/avatars/{file_name}'
