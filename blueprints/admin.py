@@ -63,6 +63,13 @@ def _get_settings_map():
     return {s.key: s.value for s in SystemSetting.query.all()}
 
 
+def _get_or_404(model, object_id):
+    instance = db.session.get(model, object_id)
+    if instance is None:
+        abort(404)
+    return instance
+
+
 def _is_protected_system_user(user):
     if not user:
         return False
@@ -209,7 +216,7 @@ def _save_user_permission_from_form():
     if not user_id or not dir_path:
         raise ValueError('规则参数不全')
 
-    target_user = User.query.get(int(user_id))
+    target_user = db.session.get(User, int(user_id))
     if not target_user or target_user.role == 'admin' or _is_protected_system_user(target_user):
         raise ValueError('只能为普通用户配置权限规则')
 
@@ -644,7 +651,7 @@ def admin_add_user():
 @login_required
 def admin_delete_user(user_id):
     _require_admin_role()
-    user = User.query.get_or_404(user_id)
+    user = _get_or_404(User, user_id)
     try:
         _delete_user_record(user)
         flash('删除用户成功')
@@ -656,7 +663,7 @@ def admin_delete_user(user_id):
 @login_required
 def admin_update_user(user_id):
     _require_admin_role()
-    user = User.query.get_or_404(user_id)
+    user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
         flash('系统保留账号不支持在此修改')
         return redirect(url_for('admin.admin_users'))
@@ -686,7 +693,7 @@ def admin_add_permission():
 @login_required
 def admin_delete_permission(rule_id):
     _require_admin_role()
-    p = PermissionRule.query.get(rule_id)
+    p = db.session.get(PermissionRule, rule_id)
     if p:
         db.session.delete(p)
         db.session.commit()
@@ -712,7 +719,7 @@ def admin_access_save_user_rule():
 @login_required
 def admin_access_delete_user_rule(rule_id):
     _require_admin_role()
-    rule = PermissionRule.query.get(rule_id)
+    rule = db.session.get(PermissionRule, rule_id)
     if rule:
         db.session.delete(rule)
         db.session.commit()
@@ -738,7 +745,7 @@ def admin_access_add_password_rule():
 @login_required
 def admin_access_delete_password_rule(rule_id):
     _require_admin_role()
-    rule = PasswordAccessRule.query.get(rule_id)
+    rule = db.session.get(PasswordAccessRule, rule_id)
     if rule:
         db.session.delete(rule)
         db.session.commit()
@@ -750,7 +757,7 @@ def admin_access_delete_password_rule(rule_id):
 @login_required
 def admin_approve_comment(comment_id):
     _require_admin_role()
-    comment = Comment.query.get(comment_id)
+    comment = db.session.get(Comment, comment_id)
     if comment:
         _approve_comment_record(comment)
         flash('评论已通过审核')
@@ -761,7 +768,7 @@ def admin_approve_comment(comment_id):
 @login_required
 def admin_delete_comment(comment_id):
     _require_admin_role()
-    comment = Comment.query.get(comment_id)
+    comment = db.session.get(Comment, comment_id)
     if comment:
         delete_mode = (request.form.get('delete_mode') or 'single').strip().lower()
         if delete_mode == 'tree':
@@ -777,7 +784,7 @@ def admin_delete_comment(comment_id):
 @login_required
 def admin_restore_comment(comment_id):
     _require_admin_role()
-    comment = Comment.query.get(comment_id)
+    comment = db.session.get(Comment, comment_id)
     if comment:
         _restore_comment_record(comment)
         flash('评论已恢复')
@@ -788,7 +795,7 @@ def admin_restore_comment(comment_id):
 @login_required
 def admin_hard_delete_comment(comment_id):
     _require_admin_role()
-    comment = Comment.query.get(comment_id)
+    comment = db.session.get(Comment, comment_id)
     if comment:
         try:
             deleted_count = _hard_delete_comment_record(comment)
@@ -802,7 +809,7 @@ def admin_hard_delete_comment(comment_id):
 @login_required
 def admin_verify_user_email(user_id):
     _require_admin_role()
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if user:
         if _is_protected_system_user(user):
             flash('系统保留账号不支持此操作')
@@ -824,7 +831,7 @@ def admin_user_detail(user_id):
 @login_required
 def admin_update_user_detail(user_id):
     _require_admin_role()
-    user = User.query.get_or_404(user_id)
+    user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
         flash('系统保留账号不支持在此修改')
         return redirect(url_for('admin.admin_users'))
@@ -929,7 +936,7 @@ def admin_add_user_page():
 def admin_user_detail_page(user_id):
     _require_admin_role()
     
-    user = User.query.get_or_404(user_id)
+    user = _get_or_404(User, user_id)
     if user.username == DELETED_USER_USERNAME:
         abort(404)
     comments = Comment.query.filter_by(user_id=user.id).order_by(Comment.created_at.desc()).all()
@@ -942,7 +949,7 @@ def admin_user_detail_page(user_id):
 @login_required
 def admin_update_user_info(user_id):
     _require_admin_role()
-    user = User.query.get_or_404(user_id)
+    user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
         flash('系统保留账号不支持在此修改')
         return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
@@ -965,7 +972,7 @@ def admin_update_user_info(user_id):
 @login_required
 def admin_verify_user_email_page(user_id):
     _require_admin_role()
-    user = User.query.get_or_404(user_id)
+    user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
         flash('系统保留账号不支持此操作')
         return redirect(url_for('admin.admin_users'))
@@ -980,7 +987,7 @@ def admin_verify_user_email_page(user_id):
 @login_required
 def admin_delete_user_page(user_id):
     _require_admin_role()
-    user = User.query.get_or_404(user_id)
+    user = _get_or_404(User, user_id)
     try:
         _delete_user_record(user)
         flash('用户已删除')
@@ -994,7 +1001,7 @@ def admin_delete_user_page(user_id):
 @login_required
 def admin_toggle_comment_permission(user_id):
     _require_admin_role()
-    user = User.query.get_or_404(user_id)
+    user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
         flash('系统保留账号不支持此操作')
         return redirect(url_for('admin.admin_users'))
@@ -1008,7 +1015,7 @@ def admin_toggle_comment_permission(user_id):
 @login_required
 def admin_approve_comment_page(comment_id):
     _require_admin_role()
-    comment = Comment.query.get_or_404(comment_id)
+    comment = _get_or_404(Comment, comment_id)
     _approve_comment_record(comment)
     flash('评论已通过审核')
     user_id = request.form.get('user_id')
@@ -1021,7 +1028,7 @@ def admin_approve_comment_page(comment_id):
 @login_required
 def admin_delete_comment_page(comment_id):
     _require_admin_role()
-    comment = Comment.query.get_or_404(comment_id)
+    comment = _get_or_404(Comment, comment_id)
     delete_mode = (request.form.get('delete_mode') or 'single').strip().lower()
     if delete_mode == 'tree':
         deleted_count = _delete_comment_tree_record(comment)
@@ -1039,7 +1046,7 @@ def admin_delete_comment_page(comment_id):
 @login_required
 def admin_restore_comment_page(comment_id):
     _require_admin_role()
-    comment = Comment.query.get_or_404(comment_id)
+    comment = _get_or_404(Comment, comment_id)
     _restore_comment_record(comment)
     flash('评论已恢复')
     user_id = request.form.get('user_id')
@@ -1052,7 +1059,7 @@ def admin_restore_comment_page(comment_id):
 @login_required
 def admin_hard_delete_comment_page(comment_id):
     _require_admin_role()
-    comment = Comment.query.get_or_404(comment_id)
+    comment = _get_or_404(Comment, comment_id)
     user_id = request.form.get('user_id')
     try:
         deleted_count = _hard_delete_comment_record(comment)

@@ -12,6 +12,7 @@ from services import (
     build_share_title,
     check_permission,
     clear_file_cache,
+    comments_enabled,
     delete_media_file,
     extract_article_preview,
     fetch_remote_image,
@@ -73,6 +74,10 @@ def _serialize_utc_datetime(value):
     if value is None:
         return None
     return value.replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _ensure_markdown_filename(filename):
@@ -155,7 +160,7 @@ def _parse_share_expiry(raw_value):
         '90d': timedelta(days=90),
     }
     if value in shortcuts:
-        return datetime.utcnow() + shortcuts[value]
+        return _utcnow() + shortcuts[value]
 
     app_timezone = _get_app_timezone()
 
@@ -170,7 +175,7 @@ def _parse_share_expiry(raw_value):
         expires_at = expires_at.astimezone(app_timezone)
 
     expires_at = expires_at.astimezone(timezone.utc).replace(tzinfo=None)
-    if expires_at <= datetime.utcnow():
+    if expires_at <= _utcnow():
         raise ValueError('分享有效期必须晚于当前时间')
     return expires_at
 
@@ -235,7 +240,13 @@ def _get_owned_share_link(token):
 
 
 @api_bp.route('/users/suggest')
+@login_required
 def suggest_users():
+    if not comments_enabled():
+        return jsonify({'items': []})
+    if not getattr(current_user, 'can_comment', True):
+        return jsonify({'items': []})
+
     query = (request.args.get('q') or '').strip()
     if not query:
         return jsonify({'items': []})
@@ -956,6 +967,17 @@ def list_shares():
     if scope == 'current' and target_type not in {'file', 'dir'}:
         return jsonify({'error': '分享目标类型无效'}), 400
 
+    if scope == 'all':
+        share_links = (
+            query
+            .order_by(ShareLink.created_at.desc(), ShareLink.id.desc())
+            .all()
+        )
+        return jsonify({
+            'success': True,
+            'items': [_build_share_response(share_link) for share_link in share_links],
+        })
+
     try:
             normalized_target_path, _, error_response, status_code = _resolve_share_target_for_owner(
                 target_type,
@@ -968,9 +990,7 @@ def list_shares():
         return jsonify({'error': '目标路径无效'}), 400
 
     share_links = (
-        ShareLink.query
-        .filter_by(
-            created_by_user_id=current_user.id,
+        query.filter_by(
             target_type=target_type,
             target_path=normalized_target_path,
         )
@@ -1008,7 +1028,7 @@ def update_share(token):
         if bool(data.get('active')):
             share_link.expires_at = None
         else:
-            share_link.expires_at = datetime.utcnow() - timedelta(seconds=1)
+            share_link.expires_at = _utcnow() - timedelta(seconds=1)
     elif 'expires_at' in data:
         try:
             share_link.expires_at = _parse_share_expiry(data.get('expires_at'))
@@ -1179,7 +1199,9 @@ def delete_image(image_id):
     if current_user.role != 'admin':
         return jsonify({'error': 'Permission denied'}), 403
 
-    image = Image.query.get_or_404(image_id)
+    image = db.session.get(Image, image_id)
+    if image is None:
+        return jsonify({'error': 'Image not found.'}), 404
     
     if image.is_referenced:
         return jsonify({'error': 'Image is currently in use and cannot be deleted.'}), 400

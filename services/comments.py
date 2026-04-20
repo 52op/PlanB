@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 import secrets
 
@@ -26,11 +26,15 @@ def _render_comment_content(text):
 MENTION_RE = re.compile(r'@([A-Za-z0-9_\-\u4e00-\u9fff]+)')
 
 
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def issue_comment_approval_token(comment):
     if comment is None:
         return
     comment.approval_token = secrets.token_urlsafe(32)
-    comment.approval_token_expires_at = datetime.utcnow() + timedelta(hours=COMMENT_APPROVAL_TOKEN_TTL_HOURS)
+    comment.approval_token_expires_at = _utcnow() + timedelta(hours=COMMENT_APPROVAL_TOKEN_TTL_HOURS)
 
 
 def clear_comment_approval_token(comment):
@@ -43,15 +47,15 @@ def clear_comment_approval_token(comment):
 def is_comment_approval_token_valid(comment):
     if comment is None or not comment.approval_token:
         return False
-    if comment.approval_token_expires_at and comment.approval_token_expires_at < datetime.utcnow():
+    if comment.approval_token_expires_at and comment.approval_token_expires_at < _utcnow():
         return False
     return True
 
 
 def create_email_verification_code(email, purpose='register'):
     latest = EmailVerificationCode.query.filter_by(email=email, purpose=purpose).order_by(EmailVerificationCode.created_at.desc()).first()
-    if latest and latest.created_at and latest.created_at > datetime.utcnow() - timedelta(seconds=60):
-        seconds_left = 60 - int((datetime.utcnow() - latest.created_at).total_seconds())
+    if latest and latest.created_at and latest.created_at > _utcnow() - timedelta(seconds=60):
+        seconds_left = 60 - int((_utcnow() - latest.created_at).total_seconds())
         raise ValueError(f'请 {seconds_left} 秒后再发送验证码')
     EmailVerificationCode.query.filter_by(email=email, purpose=purpose).delete()
     code = f'{secrets.randbelow(1000000):06d}'
@@ -59,7 +63,7 @@ def create_email_verification_code(email, purpose='register'):
     record.email = email
     record.code = code
     record.purpose = purpose
-    record.expires_at = datetime.utcnow() + timedelta(minutes=10)
+    record.expires_at = _utcnow() + timedelta(minutes=10)
     db.session.add(record)
     db.session.commit()
     return code
@@ -69,7 +73,7 @@ def verify_email_code(email, code, purpose='register'):
     record = EmailVerificationCode.query.filter_by(email=email, purpose=purpose, code=code).first()
     if not record:
         return False
-    if record.expires_at < datetime.utcnow():
+    if record.expires_at < _utcnow():
         db.session.delete(record)
         db.session.commit()
         return False
@@ -246,7 +250,18 @@ def create_comment(filename, content, user=None, parent_id=None, article_url='')
     comment.content = text
     
     if parent_id:
-        comment.parent_id = int(parent_id)
+        try:
+            normalized_parent_id = int(parent_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError('回复目标无效') from exc
+        parent_comment = db.session.get(Comment, normalized_parent_id)
+        if not parent_comment:
+            raise ValueError('回复的评论不存在')
+        if parent_comment.filename != filename:
+            raise ValueError('回复目标与当前文章不匹配')
+        if str(parent_comment.status or '').strip().lower() == 'deleted':
+            raise ValueError('该评论已删除，暂时无法回复')
+        comment.parent_id = normalized_parent_id
     if getattr(author, 'role', '') == 'admin':
         comment.status = 'approved'
     elif getattr(author, 'role', '') == 'guest' and comments_require_approval():
@@ -293,7 +308,6 @@ def create_comment(filename, content, user=None, parent_id=None, article_url='')
 
     # 发送回复通知
     if comment.parent_id:
-        parent_comment = Comment.query.get(comment.parent_id)
         if parent_comment and parent_comment.user and parent_comment.user.email and parent_comment.user.email_verified and mailer_is_configured() and notification_allowed('comment_reply', parent_comment.user.email, cooldown_seconds=30):
             try:
                 send_logged_mail(
@@ -367,6 +381,8 @@ def delete_comment(comment, user=None, delete_mode='single'):
 def update_comment(comment, content, user=None):
     if not can_edit_comment(comment, user=user):
         raise PermissionError('无权编辑该评论')
+    if str(comment.status or '').strip().lower() == 'deleted':
+        raise PermissionError('已删除评论不支持编辑，请联系管理员处理')
     text = (content or '').strip()
     if not text:
         raise ValueError('评论内容不能为空')

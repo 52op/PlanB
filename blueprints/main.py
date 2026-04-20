@@ -781,7 +781,7 @@ def _render_blog_post(filename, file_tree=None, include_private=False):
     current_file = payload.get('filename') or filename
     previous_post, next_post = get_adjacent_posts(current_file, include_private=include_private)
 
-    stat = DocumentViewStat.query.get(current_file)
+    stat = db.session.get(DocumentViewStat, current_file)
     if not stat:
         stat = DocumentViewStat()
         stat.filename = current_file
@@ -920,7 +920,7 @@ def _render_document(filename, file_tree=None):
     previous_post, next_post = get_adjacent_posts(current_file, include_private=bool(getattr(current_user, 'is_authenticated', False))) if page_meta.get('template') == 'post' else (None, None)
 
     if page_meta.get('template') == 'post':
-        stat = DocumentViewStat.query.get(current_file)
+        stat = db.session.get(DocumentViewStat, current_file)
         if not stat:
             stat = DocumentViewStat()
             stat.filename = current_file
@@ -1592,7 +1592,7 @@ def remove_comment(comment_id):
     # 评论功能不受访问控制限制（博客文章的评论是公开的）
     from models import Comment
 
-    comment = Comment.query.get(comment_id)
+    comment = db.session.get(Comment, comment_id)
     if not comment:
         abort(404)
     try:
@@ -1608,7 +1608,7 @@ def edit_comment(comment_id):
     # 评论功能不受访问控制限制（博客文章的评论是公开的）
     from models import Comment
 
-    comment = Comment.query.get(comment_id)
+    comment = db.session.get(Comment, comment_id)
     if not comment:
         abort(404)
     try:
@@ -1630,7 +1630,6 @@ def _get_comment_redirect_target(comment):
     return url_for('main.index')
 
 
-@main_bp.route('/comment/approve/<token>')
 @main_bp.route('/comment/approve/<token>', methods=['POST'])
 def approve_comment(token):
     """通过审核令牌批准评论"""

@@ -1,9 +1,13 @@
 import os
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 
 from models import ShareLink
 from .paths import InvalidPathError, normalize_relative_path, resolve_docs_path
+
+
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def build_share_session_key(token):
@@ -21,7 +25,7 @@ def get_share_link_by_token(token):
 def is_share_expired(share_link, now=None):
     if not share_link or share_link.expires_at is None:
         return False
-    current_time = now or datetime.utcnow()
+    current_time = now or _utcnow()
     return share_link.expires_at <= current_time
 
 

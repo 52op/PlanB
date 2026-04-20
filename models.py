@@ -14,12 +14,12 @@ class SystemSetting(db.Model):
 
     @staticmethod
     def get(key, default=None):
-        setting = SystemSetting.query.get(key)
+        setting = db.session.get(SystemSetting, key)
         return setting.value if setting else default
 
     @staticmethod
     def set(key, value):
-        setting = SystemSetting.query.get(key)
+        setting = db.session.get(SystemSetting, key)
         if setting:
             setting.value = value
         else:
