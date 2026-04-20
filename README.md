@@ -584,15 +584,3 @@ build_onefile.bat
 - 生产环境请务必替换 `secret_key`
 
 ---
-
-## 我建议后续可以顺手统一的命名点
-
-如果你后面想把 **PlanB** 这个名字彻底统一，我建议优先改这几处：
-
-1. `planning.spec` 改成 `planb.spec`
-2. 打包产物从 `planning.exe` 改成 `PlanB.exe`
-3. 启动日志里的 `[planning]` 前缀改成 `[planb]`
-4. 默认站点名从 `Planning` 改成 `PlanB`
-5. Redis 默认前缀 `planning:rate-limit` 改成 `planb:rate-limit`
-
-这些都不是功能性必须修改，但它们会让项目在对外发布时更完整、更统一  。
