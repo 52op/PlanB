@@ -14,3 +14,4 @@ pypinyin
 redis
 beautifulsoup4
 markdownify
+certifi

@@ -1,6 +1,8 @@
 import hashlib
 import json
 import os
+import ssl
+import certifi
 from datetime import datetime, timedelta
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -216,10 +218,12 @@ def _set_cache_record(provider, cache_key, payload, ttl_hours):
     db.session.commit()
 
 
-def _fetch_pexels_cover_candidates(query, settings):
+def _fetch_pexels_cover_candidates(query, settings, return_error=False):
     query_value = str(query or '').strip()
     api_key = str(settings.get('random_cover_pexels_api_key') or '').strip()
     if not query_value or not api_key:
+        if return_error:
+            return [], '未提供 API Key 或查询为空'
         return []
 
     orientation = settings.get('random_cover_pexels_orientation') or DEFAULT_PEXELS_ORIENTATION
@@ -233,6 +237,8 @@ def _fetch_pexels_cover_candidates(query, settings):
         try:
             payload = json.loads(cached.payload)
             if isinstance(payload, list):
+                if return_error:
+                    return payload, None
                 return payload
         except (TypeError, ValueError):
             pass
@@ -253,10 +259,14 @@ def _fetch_pexels_cover_candidates(query, settings):
     )
 
     try:
-        with urlopen(request_obj, timeout=8) as response:
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        with urlopen(request_obj, timeout=8, context=ssl_context) as response:
             payload = json.loads(response.read().decode('utf-8'))
+            error = None
     except Exception as exc:
         current_app.logger.warning('Pexels 封面拉取失败: %s', exc)
+        if return_error:
+            return [], str(exc)
         return []
 
     photos = payload.get('photos') if isinstance(payload, dict) else []
@@ -279,6 +289,9 @@ def _fetch_pexels_cover_candidates(query, settings):
 
     if candidates:
         _set_cache_record('pexels', cache_key, candidates, cache_hours)
+        
+    if return_error:
+        return candidates, error
     return candidates
 
 
@@ -352,10 +365,20 @@ def preview_cover_source(settings=None, sample_query=''):
         }
 
     query_value, query_source = resolve_pexels_query(sample_item, resolved_settings)
-    candidates = _fetch_pexels_cover_candidates(query_value, resolved_settings)
+    candidates, error_msg = _fetch_pexels_cover_candidates(query_value, resolved_settings, return_error=True)
     preview_candidates = candidates[:4]
     selected_url = _select_stable_candidate(candidates, f"{_build_stable_seed(sample_item)}|{query_value}") if candidates else ''
     query_label = '测试关键词' if sample_query else ('默认关键词池' if query_source == 'default' else '文章标签')
+    
+    if not str(resolved_settings.get('random_cover_pexels_api_key') or '').strip():
+        msg = '当前还没有填写 Pexels API Key，无法拉取候选封面图。'
+    elif error_msg:
+        msg = f'Pexels 请求失败 ({error_msg})。请检查服务器网络能否访问 Pexels API，或是否受到了反爬限制。'
+    elif query_value:
+        msg = f'当前使用 {query_label} “{query_value}” 获取封面候选图。'
+    else:
+        msg = '当前没有可用的查询关键词。'
+        
     return {
         'source_type': 'pexels',
         'source_label': 'Pexels 标签搜索',
@@ -365,13 +388,7 @@ def preview_cover_source(settings=None, sample_query=''):
         'query': query_value,
         'query_source': query_source,
         'default_queries': resolved_settings.get('random_cover_pexels_default_queries') or [DEFAULT_PEXELS_QUERY],
-        'message': (
-            '当前还没有填写 Pexels API Key，无法拉取候选封面图。'
-            if not str(resolved_settings.get('random_cover_pexels_api_key') or '').strip() else
-            f'当前使用 {query_label} “{query_value}” 获取封面候选图。'
-            if query_value else
-            '当前没有可用的查询关键词。'
-        ),
+        'message': msg,
     }
 
 
