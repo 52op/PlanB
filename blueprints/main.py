@@ -575,8 +575,21 @@ def _build_directory_content(dirname, file_tree, can_upload):
         f'<h2>您选中了目录 <code>{escape(current_dir_label)}</code></h2>',
         f'<p>{escape(helper_text)}</p>',
         f'<p class="directory-upload-hint">{escape(upload_text)}</p>',
-        '</div>',
     ]
+
+    if can_upload:
+        sections.append('''
+        <div class="directory-hero-actions">
+            <button type="button" class="btn btn-secondary" onclick="window.fileOperations?.createDirectory('{dirname}')">
+                <i data-lucide="folder-plus"></i> 新建目录
+            </button>
+            <button type="button" class="btn btn-primary" onclick="window.fileOperations?.createDocument('{dirname}')">
+                <i data-lucide="file-plus-2"></i> 新建文档
+            </button>
+        </div>
+        '''.format(dirname=escape(dirname or '')))
+
+    sections.append('</div>')
 
     if child_nodes:
         sections.extend([
