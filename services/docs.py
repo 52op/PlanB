@@ -503,7 +503,8 @@ def _extract_first_image(content):
 
 
 def _build_front_matter(raw_metadata, body_content, filename):
-    file_slug = _slugify(os.path.splitext(os.path.basename(filename))[0])
+    file_basename = os.path.splitext(os.path.basename(filename))[0]
+    file_slug = _slugify(file_basename)
     heading_title = _extract_first_heading(body_content)
     summary = str(raw_metadata.get('summary') or '').strip()
     if not summary:
@@ -514,7 +515,7 @@ def _build_front_matter(raw_metadata, body_content, filename):
         summary = plain_text[:140] + ('...' if len(plain_text) > 140 else '')
 
     metadata = dict(raw_metadata)
-    metadata['title'] = str(raw_metadata.get('title') or heading_title or file_slug.replace('-', ' ').replace('_', ' ')).strip()
+    metadata['title'] = str(raw_metadata.get('title') or heading_title or file_basename).strip()
     metadata['summary'] = summary
     
     # 保留原始的 cover 值
