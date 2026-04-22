@@ -6,6 +6,8 @@ from io import BytesIO
 from ipaddress import ip_address
 from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
+import ssl
+import certifi
 
 from bs4 import BeautifulSoup
 from markdownify import markdownify as html_to_markdown
@@ -155,7 +157,8 @@ def _fetch_bytes(url, max_bytes=MAX_HTML_BYTES, accept_html=False):
     request = Request(safe_url, headers=DEFAULT_HEADERS)
 
     try:
-        with urlopen(request, timeout=15) as response:
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        with urlopen(request, timeout=15, context=ssl_context) as response:
             final_url = response.geturl()
             _validate_public_url(final_url)
             content_type = (response.headers.get_content_type() or '').lower()
