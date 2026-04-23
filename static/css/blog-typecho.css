@@ -27,7 +27,7 @@
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 [data-theme="dark"] .article-content pre {
-    background: #444444; 
+    background: #444444;
 }
 
 * {
@@ -37,7 +37,9 @@
 }
 
 body {
-    font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-family:
+        "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB",
+        "Microsoft YaHei", sans-serif;
     font-size: 14px;
     line-height: 1.8;
     color: var(--text-color);
@@ -406,7 +408,10 @@ img {
     color: var(--text-color);
     text-decoration: none;
     font-size: 13px;
-    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    transition:
+        color 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease;
 }
 
 .posts-index-actions a:hover {
@@ -529,7 +534,10 @@ img {
     background: var(--bg-color);
     color: var(--text-color);
     font-size: calc(13px * var(--tag-scale, 1));
-    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    transition:
+        color 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease;
 }
 
 .tag-cloud-pill:hover {
@@ -623,10 +631,18 @@ img {
     line-height: 1.4;
 }
 
-.article-content h1 { font-size: 24px; }
-.article-content h2 { font-size: 22px; }
-.article-content h3 { font-size: 20px; }
-.article-content h4 { font-size: 18px; }
+.article-content h1 {
+    font-size: 24px;
+}
+.article-content h2 {
+    font-size: 22px;
+}
+.article-content h3 {
+    font-size: 20px;
+}
+.article-content h4 {
+    font-size: 18px;
+}
 
 .article-content p {
     margin-bottom: 1.2em;
@@ -1091,7 +1107,6 @@ img {
     }
 }
 
-
 /* User Avatar and Dropdown */
 .header-user-dropdown {
     position: relative;
@@ -1397,7 +1412,7 @@ html {
     .toc-nav {
         max-height: 400px;
     }
-    
+
     .toc-toggle-btn {
         width: 100%;
         justify-content: center;
@@ -1408,6 +1423,9 @@ html {
 .code-block-wrapper {
     position: relative;
     margin: 1.5em 0;
+    content-visibility: auto;
+    contain-intrinsic-size: 320px 720px;
+    overflow: visible;
 }
 
 .code-block-wrapper pre {
@@ -1428,6 +1446,15 @@ html {
     align-items: center;
     gap: 8px;
     max-width: calc(100% - 16px);
+}
+
+.large-code-toolbar {
+    position: static;
+    margin-bottom: 10px;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 8px;
 }
 
 .code-language-badge {
@@ -1487,12 +1514,68 @@ html {
     border-color: #28a745;
 }
 
+.large-code-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.large-code-expand-btn {
+    opacity: 1;
+}
+
+.large-code-expand-btn[disabled] {
+    cursor: not-allowed;
+    opacity: 0.68;
+}
+
 .code-copy-btn svg {
     flex-shrink: 0;
 }
 
 .code-copy-btn .copy-text {
     white-space: nowrap;
+}
+
+.large-code-block {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    background: var(--bg-gray);
+    overflow: visible;
+}
+
+.large-code-block pre {
+    margin: 0;
+    max-height: min(70vh, 960px);
+    overflow-x: auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.large-code-block code {
+    display: block;
+    white-space: pre;
+}
+
+.large-code-meta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--text-color);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .large-code-meta {
+    background: rgba(30, 30, 46, 0.92);
 }
 
 .reading-progress {
@@ -1532,6 +1615,17 @@ html {
         gap: 6px;
     }
 
+    .large-code-toolbar {
+        margin-bottom: 8px;
+        gap: 6px;
+    }
+
+    .large-code-actions {
+        width: 100%;
+        justify-content: flex-start;
+        margin-left: 0;
+    }
+
     .code-copy-btn {
         opacity: 1;
         padding: 4px 8px;
@@ -1543,7 +1637,7 @@ html {
         padding: 0 8px;
         font-size: 10px;
     }
-    
+
     .code-copy-btn .copy-text {
         display: none;
     }
