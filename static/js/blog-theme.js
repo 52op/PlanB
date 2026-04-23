@@ -511,270 +511,8 @@
   }
 
   // ==================== Large Code Blocks ====================
-  function initLargeCodeBlocks() {
-    const blocks = document.querySelectorAll(".large-code-block");
-    if (!blocks.length) return;
-
-    injectLargeCodePatchStyles();
-
-    blocks.forEach(function (block) {
-      const toolbar = block.querySelector(".large-code-toolbar");
-      const pre = block.querySelector("pre");
-      const code = pre ? pre.querySelector("code") : null;
-      if (!toolbar || !pre || !code) return;
-
-      if (block.dataset.largeCodePatched !== "true") {
-        block.style.overflow = "visible";
-        pre.style.maxHeight = "none";
-        pre.style.overflowX = "auto";
-        pre.style.overflowY = "hidden";
-        pre.style.overscrollBehavior = "auto";
-        code.style.display = "block";
-        code.style.whiteSpace = "pre";
-        code.style.overflow = "visible";
-        block.dataset.largeCodePatched = "true";
-      }
-
-      if (!toolbar.querySelector(".large-code-actions")) {
-        const actions = document.createElement("div");
-        actions.className = "large-code-actions";
-
-        const copyBtn = document.createElement("button");
-        copyBtn.type = "button";
-        copyBtn.className = "code-copy-btn";
-        copyBtn.title = "复制代码";
-        copyBtn.innerHTML = `
-          <svg class="copy-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-          </svg>
-          <svg class="check-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-          </svg>
-          <span class="copy-text">复制</span>
-        `;
-        copyBtn.addEventListener("click", function () {
-          const text = code.textContent || "";
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard
-              .writeText(text)
-              .then(function () {
-                showCopySuccess(copyBtn);
-              })
-              .catch(function () {
-                fallbackCopy(text, copyBtn);
-              });
-          } else {
-            fallbackCopy(text, copyBtn);
-          }
-        });
-
-        const expandBtn = document.createElement("button");
-        expandBtn.type = "button";
-        expandBtn.className = "code-copy-btn large-code-expand-btn";
-        expandBtn.title = "展开全文";
-        expandBtn.innerHTML = `
-          <span class="copy-text">展开全文</span>
-        `;
-
-        const updateBlockViewState = function () {
-          const isExpanded = block.classList.contains("is-expanded");
-          const textNode = expandBtn.querySelector(".copy-text");
-          if (!textNode) return;
-          textNode.textContent = isExpanded ? "收起代码" : "展开全文";
-          expandBtn.title = isExpanded ? "收起代码" : "展开全文";
-          if (isExpanded) {
-            pre.style.overflowY = "visible";
-          } else {
-            pre.style.overflowY = "hidden";
-            pre.scrollTop = 0;
-            if (typeof block.scrollIntoView === "function") {
-              block.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          }
-        };
-
-        const collapseBottomBtn = document.createElement("button");
-        collapseBottomBtn.type = "button";
-        collapseBottomBtn.className =
-          "code-copy-btn large-code-collapse-bottom-btn";
-        collapseBottomBtn.title = "收起代码";
-        collapseBottomBtn.innerHTML = `
-          <span class="copy-text">收起代码</span>
-        `;
-        collapseBottomBtn.addEventListener("click", function () {
-          block.classList.remove("is-expanded");
-          updateBlockViewState();
-        });
-
-        if (!block.querySelector(".large-code-bottom-actions")) {
-          const bottomActions = document.createElement("div");
-          bottomActions.className = "large-code-bottom-actions";
-          bottomActions.appendChild(collapseBottomBtn);
-          block.appendChild(bottomActions);
-        }
-
-        expandBtn.addEventListener("click", function () {
-          if (block.dataset.fullLoaded === "true") {
-            block.classList.toggle("is-expanded");
-            updateBlockViewState();
-            return;
-          }
-
-          const sourceFile = block.dataset.sourceFile || "";
-          const blockIndex = block.dataset.codeBlockIndex || "";
-          if (!sourceFile || !blockIndex) {
-            expandBtn.disabled = true;
-            expandBtn.querySelector(".copy-text").textContent = "不可展开";
-            return;
-          }
-
-          expandBtn.disabled = true;
-          expandBtn.querySelector(".copy-text").textContent = "加载中...";
-
-          const url =
-            "/api/code_block_full?filename=" +
-            encodeURIComponent(sourceFile) +
-            "&block_index=" +
-            encodeURIComponent(blockIndex);
-
-          fetch(url, { credentials: "same-origin" })
-            .then(function (res) {
-              if (!res.ok) throw new Error("请求失败");
-              return res.json();
-            })
-            .then(function (data) {
-              if (!data || typeof data.content !== "string") {
-                throw new Error("数据无效");
-              }
-              code.textContent = data.content;
-              block.dataset.fullLoaded = "true";
-              block.classList.add("is-expanded");
-              updateBlockViewState();
-            })
-            .catch(function () {
-              expandBtn.disabled = false;
-              expandBtn.querySelector(".copy-text").textContent = "重试展开";
-            })
-            .finally(function () {
-              if (block.dataset.fullLoaded === "true") {
-                expandBtn.disabled = false;
-              }
-            });
-        });
-
-        updateBlockViewState();
-
-        actions.appendChild(copyBtn);
-        actions.appendChild(expandBtn);
-        toolbar.appendChild(actions);
-      }
-    });
-  }
-
-  function injectLargeCodePatchStyles() {
-    if (document.getElementById("largeCodePatchStyles")) return;
-    const style = document.createElement("style");
-    style.id = "largeCodePatchStyles";
-    style.textContent = `
-      .large-code-block .large-code-toolbar {
-        position: static !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        gap: 8px !important;
-        flex-wrap: wrap !important;
-        margin-bottom: 10px !important;
-      }
-      .large-code-block {
-        position: relative !important;
-      }
-      .large-code-block .large-code-bottom-actions {
-        display: none !important;
-        margin-top: 10px !important;
-        justify-content: flex-end !important;
-      }
-      .large-code-block.is-expanded .large-code-bottom-actions {
-        display: flex !important;
-      }
-      .large-code-block .large-code-collapse-bottom-btn {
-        opacity: 1 !important;
-      }
-      .large-code-block pre {
-        position: relative !important;
-        max-height: none !important;
-        min-height: 220px !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-      }
-      .large-code-block.is-truncated:not(.is-expanded) pre {
-        height: min(52vh, 560px) !important;
-      }
-      .large-code-block.is-expanded pre {
-        max-height: none !important;
-        height: auto !important;
-        overflow-y: visible !important;
-      }
-      .large-code-block.is-truncated:not(.is-expanded) pre::after {
-        content: "" !important;
-        position: absolute !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        height: 96px !important;
-        pointer-events: none !important;
-        background: linear-gradient(to bottom, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.92)) !important;
-      }
-      [data-theme="light"] .large-code-block.is-truncated:not(.is-expanded) pre::after,
-      :root:not([data-theme="dark"]) .large-code-block.is-truncated:not(.is-expanded) pre::after {
-        background: linear-gradient(to bottom, rgba(248, 250, 252, 0), rgba(248, 250, 252, 0.96)) !important;
-      }
-      .large-code-block .large-code-actions {
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        margin-left: auto !important;
-        flex-wrap: wrap !important;
-      }
-      .large-code-block .large-code-expand-btn {
-        opacity: 1 !important;
-      }
-      .large-code-block .large-code-expand-btn[disabled] {
-        opacity: 0.68 !important;
-        cursor: not-allowed !important;
-      }
-      @media (max-width: 768px) {
-        .large-code-block.is-truncated:not(.is-expanded) pre {
-          height: min(46vh, 460px) !important;
-          min-height: 180px !important;
-        }
-        .large-code-block .large-code-actions {
-          width: auto !important;
-          margin-left: auto !important;
-          justify-content: flex-end !important;
-          flex-wrap: nowrap !important;
-          gap: 6px !important;
-        }
-        .large-code-block .large-code-bottom-actions {
-          justify-content: flex-end !important;
-        }
-        .large-code-block .large-code-actions .code-copy-btn {
-          min-width: 36px !important;
-          height: 30px !important;
-          padding: 0 10px !important;
-          opacity: 1 !important;
-        }
-        .large-code-block .large-code-actions .large-code-expand-btn {
-          min-width: 72px !important;
-        }
-        .large-code-block .large-code-actions .copy-text {
-          display: inline !important;
-          white-space: nowrap !important;
-          font-size: 11px !important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-  }
+  // Large code blocks functionality has been moved to modules/large-code-blocks.js
+  // This allows reuse across blog, docs, and share pages
 
   // ==================== Initialize ====================
   if (document.readyState === "loading") {
@@ -783,7 +521,10 @@
       initBackToTop();
       initReadingProgress();
       initCodeCopyButtons();
-      initLargeCodeBlocks();
+      // Large code blocks are now initialized by the separate module
+      if (typeof window.initLargeCodeBlocks === "function") {
+        window.initLargeCodeBlocks({ context: "blog" });
+      }
       initThemeSwitcher();
     });
   } else {
@@ -791,7 +532,10 @@
     initBackToTop();
     initReadingProgress();
     initCodeCopyButtons();
-    initLargeCodeBlocks();
+    // Large code blocks are now initialized by the separate module
+    if (typeof window.initLargeCodeBlocks === "function") {
+      window.initLargeCodeBlocks({ context: "blog" });
+    }
     initThemeSwitcher();
   }
 

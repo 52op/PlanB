@@ -174,6 +174,15 @@ class PlanningApp {
             }
         }
 
+        // 初始化大代码块功能
+        if (typeof window.initLargeCodeBlocks === 'function') {
+            try {
+                window.initLargeCodeBlocks({ context: 'docs' });
+            } catch (error) {
+                console.warn('Failed to initialize large code blocks:', error);
+            }
+        }
+
         // 设置焦点管理
         this.setupFocusManagement();
 

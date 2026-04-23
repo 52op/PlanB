@@ -386,5 +386,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.lucide) {
         window.lucide.createIcons();
     }
+    
+    // Initialize large code blocks for share page
+    if (typeof window.initLargeCodeBlocks === 'function') {
+        try {
+            window.initLargeCodeBlocks({ context: 'share' });
+        } catch (error) {
+            console.warn('Failed to initialize large code blocks:', error);
+        }
+    }
+    
     new ShareViewPage();
 });
