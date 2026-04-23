@@ -1698,68 +1698,11 @@ img {
     text-transform: uppercase;
 }
 
-.large-code-block {
-    margin: 1.5em 0;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.large-code-block pre {
-    margin: 0;
-    max-height: 68vh;
-    overflow-y: auto;
-    overflow-x: auto;
-}
-
-.large-code-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.large-code-actions {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.large-code-expand-btn {
-    opacity: 1;
-}
-
-.large-code-expand-btn[disabled] {
-    opacity: 0.68;
-    cursor: not-allowed;
-}
-
-.large-code-meta {
-    display: inline-flex;
-    align-items: center;
-    min-height: 28px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(45, 45, 45, 0.72);
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-}
-
+/* Large code block styles - most styles are handled by JavaScript */
 .code-block-wrapper.large-code-block pre,
 .article-content .large-code-block pre {
     content-visibility: auto;
     contain-intrinsic-size: 420px 960px;
-}
-
-.large-code-block.is-truncated pre {
-    max-height: min(62vh, 960px);
-    overflow-y: auto;
-    overflow-x: auto;
 }
 
 .code-copy-btn {

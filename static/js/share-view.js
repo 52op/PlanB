@@ -165,7 +165,15 @@ class ShareViewPage {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'share-code-copy-btn';
-            button.textContent = '复制';
+            button.innerHTML = `
+                <svg class="copy-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+                <svg class="check-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span class="copy-text">复制</span>
+            `;
             button.addEventListener('click', async () => {
                 const copied = await window.shareUtils?.copyText(codeText);
                 if (!copied) {
@@ -174,9 +182,16 @@ class ShareViewPage {
                 }
 
                 this.showToast('代码已复制', 'success');
-                button.textContent = '已复制';
+                const copyIcon = button.querySelector('.copy-icon');
+                const checkIcon = button.querySelector('.check-icon');
+                const copyText = button.querySelector('.copy-text');
+                copyIcon.style.display = 'none';
+                checkIcon.style.display = 'block';
+                copyText.textContent = '已复制';
                 window.setTimeout(() => {
-                    button.textContent = '复制';
+                    copyIcon.style.display = 'block';
+                    checkIcon.style.display = 'none';
+                    copyText.textContent = '复制';
                 }, 1200);
             });
 

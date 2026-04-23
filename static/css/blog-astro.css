@@ -2030,38 +2030,13 @@ textarea:focus {
     color: white;
 }
 
-.large-code-block {
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 12px;
-    padding: 12px;
-    background: rgba(15, 23, 42, 0.35);
-}
-
-.large-code-block pre {
-    margin: 0;
-    max-height: 60vh;
-    overflow-x: auto;
-    overflow-y: auto;
-}
-
+/* Large code block styles - most styles are handled by JavaScript */
 .large-code-block code {
     display: block;
     white-space: pre;
     overflow: visible;
 }
 
-.large-code-meta {
-    display: inline-flex;
-    align-items: center;
-    min-height: 28px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(15, 23, 42, 0.64);
-    color: #cbd5e1;
-    font-size: 11px;
-    font-weight: 600;
-}
 
 @media (max-width: 768px) {
     .code-block-wrapper.has-code-toolbar pre,

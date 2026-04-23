@@ -174,6 +174,9 @@ class PlanningApp {
             }
         }
 
+        // 初始化普通代码块复制按钮
+        this.initCodeCopyButtons();
+
         // 初始化大代码块功能
         if (typeof window.initLargeCodeBlocks === 'function') {
             try {
@@ -532,6 +535,173 @@ class PlanningApp {
         if (commentForm) {
             // 评论表单相关逻辑可以在这里添加
         }
+    }
+
+    initCodeCopyButtons() {
+        // 为普通代码块添加复制按钮
+        const codeBlocks = document.querySelectorAll('pre');
+        if (!codeBlocks.length) return;
+
+        codeBlocks.forEach((pre) => {
+            // 跳过大代码块和已处理的代码块
+            if (
+                pre.closest('.large-code-block') ||
+                pre.dataset.copyBtnAdded === 'true'
+            ) {
+                return;
+            }
+
+            const code = pre.querySelector('code');
+            if (!code) return;
+
+            // 标记为已处理
+            pre.dataset.copyBtnAdded = 'true';
+            pre.style.position = 'relative';
+
+            // 创建复制按钮
+            const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.className = 'code-copy-btn';
+            copyBtn.title = '复制代码';
+            copyBtn.innerHTML = `
+                <svg class="copy-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+                <svg class="check-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span class="copy-text">复制</span>
+            `;
+
+            // 添加复制功能
+            copyBtn.addEventListener('click', () => {
+                const text = code.textContent || '';
+                
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard
+                        .writeText(text)
+                        .then(() => {
+                            this.showCopySuccess(copyBtn);
+                        })
+                        .catch(() => {
+                            this.fallbackCopy(text, copyBtn);
+                        });
+                } else {
+                    this.fallbackCopy(text, copyBtn);
+                }
+            });
+
+            // 将按钮添加到代码块内
+            pre.appendChild(copyBtn);
+        });
+
+        // 注入样式
+        this.injectCodeCopyStyles();
+    }
+
+    showCopySuccess(button) {
+        const copyIcon = button.querySelector('.copy-icon');
+        const checkIcon = button.querySelector('.check-icon');
+        const copyText = button.querySelector('.copy-text');
+
+        copyIcon.style.display = 'none';
+        checkIcon.style.display = 'block';
+        copyText.textContent = '已复制';
+        button.classList.add('copied');
+
+        setTimeout(() => {
+            copyIcon.style.display = 'block';
+            checkIcon.style.display = 'none';
+            copyText.textContent = '复制';
+            button.classList.remove('copied');
+        }, 2000);
+    }
+
+    fallbackCopy(text, button) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        try {
+            document.execCommand('copy');
+            this.showCopySuccess(button);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+            const copyText = button.querySelector('.copy-text');
+            copyText.textContent = '复制失败';
+            setTimeout(() => {
+                copyText.textContent = '复制';
+            }, 2000);
+        }
+
+        document.body.removeChild(textarea);
+    }
+
+    injectCodeCopyStyles() {
+        if (document.getElementById('codeCopyStyles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'codeCopyStyles';
+        style.textContent = `
+            pre:not(.large-code-block pre) {
+                position: relative !important;
+            }
+            pre:not(.large-code-block pre) .code-copy-btn {
+                position: absolute !important;
+                top: 8px !important;
+                right: 8px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                padding: 6px 12px !important;
+                border-radius: 8px !important;
+                border: 1px solid rgba(148, 163, 184, 0.3) !important;
+                background: rgba(255, 255, 255, 0.9) !important;
+                color: #334155 !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                cursor: pointer !important;
+                transition: all 0.2s ease !important;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+                z-index: 10 !important;
+                opacity: 0 !important;
+            }
+            [data-theme="dark"] pre:not(.large-code-block pre) .code-copy-btn {
+                background: rgba(30, 41, 59, 0.9) !important;
+                color: #e2e8f0 !important;
+                border-color: rgba(148, 163, 184, 0.2) !important;
+            }
+            pre:not(.large-code-block pre):hover .code-copy-btn {
+                opacity: 1 !important;
+            }
+            pre:not(.large-code-block pre) .code-copy-btn:hover {
+                background: rgba(59, 130, 246, 0.9) !important;
+                color: white !important;
+                border-color: rgba(59, 130, 246, 0.5) !important;
+                transform: translateY(-1px) !important;
+                opacity: 1 !important;
+            }
+            pre:not(.large-code-block pre) .code-copy-btn.copied {
+                background: rgba(16, 185, 129, 0.9) !important;
+                color: white !important;
+                border-color: rgba(16, 185, 129, 0.5) !important;
+                opacity: 1 !important;
+            }
+            pre:not(.large-code-block pre) .code-copy-btn svg {
+                width: 16px !important;
+                height: 16px !important;
+                flex-shrink: 0 !important;
+            }
+            @media (max-width: 768px) {
+                pre:not(.large-code-block pre) .code-copy-btn {
+                    opacity: 1 !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     // 公共工具方法

@@ -200,38 +200,27 @@
     const style = document.createElement("style");
     style.id = "largeCodePatchStyles";
     style.textContent = `
-      .large-code-block .large-code-toolbar {
-        position: static !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        gap: 8px !important;
-        flex-wrap: wrap !important;
-        margin-bottom: 10px !important;
-      }
       .large-code-block {
         position: relative !important;
+        background: transparent !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 1.5em 0 !important;
       }
-      .large-code-block .large-code-bottom-actions {
+      .large-code-block .large-code-toolbar {
         display: none !important;
-        margin-top: 10px !important;
-        justify-content: flex-end !important;
-      }
-      .large-code-block.is-expanded .large-code-bottom-actions {
-        display: flex !important;
-      }
-      .large-code-block .large-code-collapse-bottom-btn {
-        opacity: 1 !important;
       }
       .large-code-block pre {
         position: relative !important;
         max-height: none !important;
-        min-height: 220px !important;
+        min-height: 300px !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
+        margin: 0 !important;
       }
       .large-code-block.is-truncated:not(.is-expanded) pre {
-        height: min(52vh, 560px) !important;
+        height: min(65vh, 720px) !important;
       }
       .large-code-block.is-expanded pre {
         max-height: none !important;
@@ -253,11 +242,59 @@
         background: linear-gradient(to bottom, rgba(248, 250, 252, 0), rgba(248, 250, 252, 0.96)) !important;
       }
       .large-code-block .large-code-actions {
-        display: inline-flex !important;
+        position: absolute !important;
+        top: 8px !important;
+        right: 8px !important;
+        display: flex !important;
         align-items: center !important;
         gap: 8px !important;
-        margin-left: auto !important;
-        flex-wrap: wrap !important;
+        z-index: 10 !important;
+      }
+      .large-code-block .code-copy-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        padding: 6px 12px !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(148, 163, 184, 0.3) !important;
+        background: rgba(255, 255, 255, 0.9) !important;
+        color: #334155 !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+      }
+      [data-theme="dark"] .large-code-block .code-copy-btn {
+        background: rgba(30, 41, 59, 0.9) !important;
+        color: #e2e8f0 !important;
+        border-color: rgba(148, 163, 184, 0.2) !important;
+      }
+      .large-code-block .code-copy-btn:hover {
+        background: rgba(59, 130, 246, 0.9) !important;
+        color: white !important;
+        border-color: rgba(59, 130, 246, 0.5) !important;
+        transform: translateY(-1px) !important;
+      }
+      .large-code-block .code-copy-btn.copied {
+        background: rgba(16, 185, 129, 0.9) !important;
+        color: white !important;
+        border-color: rgba(16, 185, 129, 0.5) !important;
+      }
+      .large-code-block .code-copy-btn svg {
+        width: 16px !important;
+        height: 16px !important;
+        flex-shrink: 0 !important;
+      }
+      .large-code-block .large-code-bottom-actions {
+        position: absolute !important;
+        bottom: 8px !important;
+        right: 8px !important;
+        display: none !important;
+        z-index: 10 !important;
+      }
+      .large-code-block.is-expanded .large-code-bottom-actions {
+        display: flex !important;
       }
       .large-code-block .large-code-expand-btn {
         opacity: 1 !important;
@@ -268,29 +305,22 @@
       }
       @media (max-width: 768px) {
         .large-code-block.is-truncated:not(.is-expanded) pre {
-          height: min(46vh, 460px) !important;
-          min-height: 180px !important;
+          height: min(55vh, 520px) !important;
+          min-height: 240px !important;
         }
         .large-code-block .large-code-actions {
-          width: auto !important;
-          margin-left: auto !important;
-          justify-content: flex-end !important;
-          flex-wrap: nowrap !important;
           gap: 6px !important;
         }
-        .large-code-block .large-code-bottom-actions {
-          justify-content: flex-end !important;
-        }
-        .large-code-block .large-code-actions .code-copy-btn {
+        .large-code-block .code-copy-btn {
           min-width: 36px !important;
           height: 30px !important;
           padding: 0 10px !important;
           opacity: 1 !important;
         }
-        .large-code-block .large-code-actions .large-code-expand-btn {
+        .large-code-block .large-code-expand-btn {
           min-width: 72px !important;
         }
-        .large-code-block .large-code-actions .copy-text {
+        .large-code-block .code-copy-btn .copy-text {
           display: inline !important;
           white-space: nowrap !important;
           font-size: 11px !important;
@@ -318,10 +348,9 @@
     injectLargeCodePatchStyles();
 
     blocks.forEach(function (block) {
-      const toolbar = block.querySelector(".large-code-toolbar");
       const pre = block.querySelector("pre");
       const code = pre ? pre.querySelector("code") : null;
-      if (!toolbar || !pre || !code) return;
+      if (!pre || !code) return;
 
       if (block.dataset.largeCodePatched !== "true") {
         block.style.overflow = "visible";
@@ -335,7 +364,7 @@
         block.dataset.largeCodePatched = "true";
       }
 
-      if (!toolbar.querySelector(".large-code-actions")) {
+      if (!pre.querySelector(".large-code-actions")) {
         const actions = document.createElement("div");
         actions.className = "large-code-actions";
 
@@ -373,15 +402,32 @@
         expandBtn.className = "code-copy-btn large-code-expand-btn";
         expandBtn.title = "展开全文";
         expandBtn.innerHTML = `
-          <span class="copy-text">展开全文</span>
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+          <span class="copy-text">展开</span>
         `;
 
         const updateBlockViewState = function (shouldScroll) {
           const isExpanded = block.classList.contains("is-expanded");
           const textNode = expandBtn.querySelector(".copy-text");
+          const iconSvg = expandBtn.querySelector("svg");
           if (!textNode) return;
-          textNode.textContent = isExpanded ? "收起代码" : "展开全文";
-          expandBtn.title = isExpanded ? "收起代码" : "展开全文";
+          
+          if (isExpanded) {
+            textNode.textContent = "收起";
+            expandBtn.title = "收起代码";
+            if (iconSvg) {
+              iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>';
+            }
+          } else {
+            textNode.textContent = "展开";
+            expandBtn.title = "展开全文";
+            if (iconSvg) {
+              iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>';
+            }
+          }
+          
           if (isExpanded) {
             pre.style.overflowY = "visible";
           } else {
@@ -400,18 +446,21 @@
           "code-copy-btn large-code-collapse-bottom-btn";
         collapseBottomBtn.title = "收起代码";
         collapseBottomBtn.innerHTML = `
-          <span class="copy-text">收起代码</span>
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+          </svg>
+          <span class="copy-text">收起</span>
         `;
         collapseBottomBtn.addEventListener("click", function () {
           block.classList.remove("is-expanded");
           updateBlockViewState(true); // Pass true to enable scrolling when user clicks collapse
         });
 
-        if (!block.querySelector(".large-code-bottom-actions")) {
+        if (!pre.querySelector(".large-code-bottom-actions")) {
           const bottomActions = document.createElement("div");
           bottomActions.className = "large-code-bottom-actions";
           bottomActions.appendChild(collapseBottomBtn);
-          block.appendChild(bottomActions);
+          pre.appendChild(bottomActions);
         }
 
         expandBtn.addEventListener("click", function () {
@@ -467,7 +516,7 @@
 
         actions.appendChild(copyBtn);
         actions.appendChild(expandBtn);
-        toolbar.appendChild(actions);
+        pre.appendChild(actions);
       }
     });
   }

@@ -1539,44 +1539,12 @@ html {
     white-space: nowrap;
 }
 
-.large-code-block {
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 10px;
-    background: var(--bg-gray);
-    overflow: visible;
-}
-
-.large-code-block pre {
-    margin: 0;
-    max-height: min(70vh, 960px);
-    overflow-x: auto;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-}
-
+/* Large code block styles - most styles are handled by JavaScript */
 .large-code-block code {
     display: block;
     white-space: pre;
 }
 
-.large-code-meta {
-    display: inline-flex;
-    align-items: center;
-    min-height: 28px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid var(--border-color);
-    background: rgba(255, 255, 255, 0.92);
-    color: var(--text-color);
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-[data-theme="dark"] .large-code-meta {
-    background: rgba(30, 30, 46, 0.92);
-}
 
 .reading-progress {
     position: fixed;

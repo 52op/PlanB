@@ -1396,68 +1396,17 @@ html[data-theme="dark"] .article-body pre {
     background: rgba(15, 118, 110, 0.84);
 }
 
-.large-code-block {
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 16px;
-    padding: 12px;
-    background: rgba(15, 23, 42, 0.26);
-    overflow: visible;
-}
-
-.large-code-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-    flex-wrap: wrap;
-}
-
-.large-code-expand-btn {
-    opacity: 1;
-}
-
-.large-code-expand-btn[disabled] {
-    cursor: not-allowed;
-    opacity: 0.68;
-}
-
-.large-code-block pre {
-    margin: 0;
-    max-height: min(70vh, 960px);
-    overflow-x: auto;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-}
-
+/* Large code block styles - most styles are handled by JavaScript */
 .large-code-block code {
     display: block;
     white-space: pre;
     overflow: visible;
 }
 
-.large-code-meta {
-    display: inline-flex;
-    align-items: center;
-    min-height: 28px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(15, 23, 42, 0.74);
-    color: #cbd5e1;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-}
-
 .code-block-wrapper.large-code-block pre,
 .article-body .large-code-block pre {
     content-visibility: auto;
     contain-intrinsic-size: 420px 1040px;
-}
-
-.large-code-block.is-truncated pre {
-    max-height: 72vh;
-    overflow: auto;
 }
 @media (max-width: 768px) {
     .code-block-wrapper.has-code-toolbar pre,
