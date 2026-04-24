@@ -620,6 +620,7 @@
                 <a href="{{ url_for('admin.admin_users') }}" class="{% if request.endpoint in ['admin.admin_users', 'admin.admin_user_detail_page'] %}active{% endif %}">用户管理</a>
                 <a href="{{ url_for('admin.image_management') }}" class="{% if request.endpoint == 'admin.image_management' %}active{% endif %}">图片管理</a>
                 <a href="{{ url_for('admin.notification_logs') }}" class="{% if request.endpoint == 'admin.notification_logs' %}active{% endif %}">通知日志</a>
+                <a href="{{ url_for('admin.admin_backup_config') }}" class="{% if request.endpoint in ['admin.admin_backup_config', 'admin.admin_backup_history', 'admin.admin_backup_restore', 'admin.admin_backup_storage'] %}active{% endif %}">备份管理</a>
             </nav>
         </div>
         <div class="header-right">

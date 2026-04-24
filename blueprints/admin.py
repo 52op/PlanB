@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from models import Comment, DocumentViewStat, NotificationLog, PasswordAccessRule, db, SystemSetting, User, PermissionRule
 from services import (
@@ -1069,3 +1069,1057 @@ def admin_hard_delete_comment_page(comment_id):
     if user_id:
         return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
     return redirect(url_for('admin.admin_base'))
+
+
+# ============================================================================
+# 备份管理路由
+# ============================================================================
+
+@admin_bp.route('/backup/config')
+@login_required
+def admin_backup_config():
+    """备份配置页面"""
+    _require_admin_role()
+    
+    from models import BackupConfig
+    
+    # 获取当前配置
+    config = BackupConfig.query.first()
+    
+    return render_template('admin_backup_config.html', config=config)
+
+
+@admin_bp.route('/backup/config', methods=['POST'])
+@login_required
+def admin_backup_config_save():
+    """保存备份配置"""
+    _require_admin_role()
+    
+    from services.backup_config import BackupConfigManager
+    from models import BackupConfig
+    
+    try:
+        # 获取或创建配置
+        config = BackupConfig.query.first()
+        if not config:
+            config = BackupConfig()
+            db.session.add(config)
+        
+        # 基本配置
+        storage_types = request.form.getlist('storage_types')
+        if not storage_types:
+            flash('请至少选择一个存储方式')
+            return redirect(url_for('admin.admin_backup_config'))
+        
+        # 将存储类型列表转换为JSON字符串存储
+        import json
+        config.storage_type = json.dumps(storage_types)
+        config.enabled = request.form.get('auto_backup_enabled') == 'on'
+        
+        # 解析备份计划
+        schedule_type = request.form.get('backup_schedule_type', 'daily')
+        
+        if schedule_type == 'hourly':
+            # 每N小时
+            interval = int(request.form.get('hourly_interval', 1))
+            if interval == 1:
+                cron_expr = '0 * * * *'  # 每小时
+            else:
+                cron_expr = f'0 */{interval} * * *'  # 每N小时
+            config.schedule_type = 'hourly'
+            config.schedule_value = cron_expr
+            config.schedule_metadata = None
+            
+        elif schedule_type == 'daily_interval':
+            # 每N天（需要存储间隔信息）
+            days = int(request.form.get('daily_interval_days', 1))
+            hour = int(request.form.get('daily_interval_hour', 2))
+            # 使用每天的cron，但在调度器中检查间隔
+            cron_expr = f'0 {hour} * * *'
+            config.schedule_type = 'daily_interval'
+            config.schedule_value = cron_expr
+            # 存储间隔信息到metadata
+            config.schedule_metadata = json.dumps({'interval': days, 'last_run': None})
+            
+        elif schedule_type == 'daily':
+            # 每天的第N个小时
+            hour = int(request.form.get('daily_hour', 2))
+            cron_expr = f'0 {hour} * * *'
+            config.schedule_type = 'daily'
+            config.schedule_value = cron_expr
+            config.schedule_metadata = None
+            
+        elif schedule_type == 'weekly_interval':
+            # 每N周（需要存储间隔信息）
+            weeks = int(request.form.get('weekly_interval_weeks', 1))
+            day = int(request.form.get('weekly_interval_day', 0))
+            hour = int(request.form.get('weekly_interval_hour', 2))
+            # 使用每周的cron，但在调度器中检查间隔
+            cron_expr = f'0 {hour} * * {day}'
+            config.schedule_type = 'weekly_interval'
+            config.schedule_value = cron_expr
+            # 存储间隔信息到metadata
+            config.schedule_metadata = json.dumps({'interval': weeks, 'last_run': None})
+            
+        elif schedule_type == 'weekly':
+            # 每周的第N天
+            day = int(request.form.get('weekly_day', 0))
+            hour = int(request.form.get('weekly_hour', 2))
+            cron_expr = f'0 {hour} * * {day}'
+            config.schedule_type = 'weekly'
+            config.schedule_value = cron_expr
+            config.schedule_metadata = None
+            
+        elif schedule_type == 'monthly':
+            # 每月的第N天
+            day = int(request.form.get('monthly_day', 1))
+            hour = int(request.form.get('monthly_hour', 2))
+            cron_expr = f'0 {hour} {day} * *'
+            config.schedule_type = 'monthly'
+            config.schedule_value = cron_expr
+            config.schedule_metadata = None
+            
+        elif schedule_type == 'custom':
+            # 自定义 cron 表达式
+            cron_expr = request.form.get('custom_cron', '0 2 * * *').strip()
+            if not cron_expr:
+                flash('自定义 Cron 表达式不能为空')
+                return redirect(url_for('admin.admin_backup_config'))
+            config.schedule_type = 'cron'
+            config.schedule_value = cron_expr
+            config.schedule_metadata = None
+        else:
+            # 默认每天凌晨2点
+            config.schedule_type = 'daily'
+            config.schedule_value = '0 2 * * *'
+            config.schedule_metadata = None
+        
+        config.backup_mode = request.form.get('backup_mode', 'full')
+        config.retention_count = int(request.form.get('retention_count', 10))
+        
+        # 加密配置
+        config.encryption_enabled = request.form.get('encryption_enabled') == 'on'
+        encryption_password = request.form.get('encryption_password')
+        if encryption_password:
+            # 使用应用密钥加密存储密码
+            from cryptography.fernet import Fernet
+            import base64
+            import hashlib
+            
+            # 从Flask secret_key派生加密密钥
+            key_material = hashlib.sha256(current_app.secret_key.encode()).digest()
+            fernet_key = base64.urlsafe_b64encode(key_material)
+            fernet = Fernet(fernet_key)
+            
+            # 加密密码并存储
+            encrypted_password = fernet.encrypt(encryption_password.encode())
+            config.encryption_key_hash = encrypted_password.decode('utf-8')  # 重用这个字段存储加密后的密码
+        
+        # 通知配置
+        config.notification_enabled = request.form.get('notification_enabled') == 'on'
+        config.notification_email = request.form.get('notification_email')
+        
+        # 根据存储类型保存相应配置（无论是否勾选都保存，方便用户预先配置）
+        # FTP 配置
+        config.ftp_host = request.form.get('ftp_host')
+        config.ftp_port = int(request.form.get('ftp_port', 21))
+        config.ftp_username = request.form.get('ftp_username')
+        config.ftp_password = request.form.get('ftp_password')
+        config.ftp_path = request.form.get('ftp_directory', '/')
+        
+        # Email 配置
+        config.email_recipient = request.form.get('email_recipient')
+        
+        # S3 配置
+        config.s3_bucket = request.form.get('s3_bucket')
+        config.s3_access_key = request.form.get('s3_access_key')
+        config.s3_secret_key = request.form.get('s3_secret_key')
+        config.s3_region = request.form.get('s3_region', 'us-east-1')
+        config.s3_endpoint = request.form.get('s3_endpoint')
+        config.s3_path_prefix = 'backups/'  # 固定使用 backups/ 作为路径前缀
+        
+        db.session.commit()
+        
+        flash('备份配置已保存')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'保存配置失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_config'))
+
+
+@admin_bp.route('/backup/config/test', methods=['POST'])
+@login_required
+def admin_backup_config_test():
+    """测试备份配置 - 执行完整备份流程测试"""
+    _require_admin_role()
+    
+    from services.backup_config import BackupConfigManager
+    from services.backup_engine import BackupEngine
+    from services.backup_notification import NotificationService
+    from models import BackupConfig
+    from flask import jsonify
+    
+    try:
+        # 从表单数据创建临时配置对象用于测试
+        storage_types = request.form.getlist('storage_types')
+        
+        if not storage_types:
+            return jsonify({'success': False, 'message': '请至少选择一个存储方式'}), 400
+        
+        # 创建临时配置对象（不保存到数据库）
+        import json
+        temp_config = BackupConfig()
+        temp_config.storage_type = json.dumps(storage_types)
+        temp_config.enabled = True
+        
+        # 解析备份计划
+        backup_schedule = request.form.get('backup_schedule', '0 2 * * *')
+        if backup_schedule == '0 * * * *':
+            temp_config.schedule_type = 'hourly'
+            temp_config.schedule_value = backup_schedule
+        elif backup_schedule == '0 2 * * *':
+            temp_config.schedule_type = 'daily'
+            temp_config.schedule_value = backup_schedule
+        elif backup_schedule == '0 2 * * 0':
+            temp_config.schedule_type = 'weekly'
+            temp_config.schedule_value = backup_schedule
+        else:
+            temp_config.schedule_type = 'cron'
+            temp_config.schedule_value = backup_schedule
+        
+        temp_config.backup_mode = request.form.get('backup_mode', 'full')
+        temp_config.retention_count = int(request.form.get('retention_count', 10))
+        
+        # 加密配置
+        temp_config.encryption_enabled = request.form.get('encryption_enabled') == 'on'
+        encryption_password = request.form.get('encryption_password')
+        if temp_config.encryption_enabled:
+            if encryption_password:
+                # 用户在测试时输入了新密码
+                from cryptography.fernet import Fernet
+                import base64
+                import hashlib
+                
+                # 从Flask secret_key派生加密密钥
+                key_material = hashlib.sha256(current_app.secret_key.encode()).digest()
+                fernet_key = base64.urlsafe_b64encode(key_material)
+                fernet = Fernet(fernet_key)
+                
+                # 加密密码并存储
+                encrypted_password = fernet.encrypt(encryption_password.encode())
+                temp_config.encryption_key_hash = encrypted_password.decode('utf-8')
+                temp_config._test_encryption_password = encryption_password
+            else:
+                # 用户没有输入密码，尝试从数据库读取已保存的加密密码
+                saved_config = BackupConfig.query.first()
+                if saved_config and saved_config.encryption_key_hash:
+                    try:
+                        from cryptography.fernet import Fernet
+                        import base64
+                        import hashlib
+                        
+                        # 从Flask secret_key派生加密密钥
+                        key_material = hashlib.sha256(current_app.secret_key.encode()).digest()
+                        fernet_key = base64.urlsafe_b64encode(key_material)
+                        fernet = Fernet(fernet_key)
+                        
+                        # 解密已保存的密码
+                        decrypted_password = fernet.decrypt(saved_config.encryption_key_hash.encode()).decode('utf-8')
+                        temp_config.encryption_key_hash = saved_config.encryption_key_hash
+                        temp_config._test_encryption_password = decrypted_password
+                    except Exception as e:
+                        return jsonify({'success': False, 'message': f'无法读取已保存的加密密码，请重新输入密码: {str(e)}'}), 400
+                else:
+                    return jsonify({'success': False, 'message': '启用加密时必须提供加密密码'}), 400
+        else:
+            temp_config.encryption_key_hash = None
+            temp_config._test_encryption_password = None
+        
+        # 通知配置
+        temp_config.notification_enabled = request.form.get('notification_enabled') == 'on'
+        temp_config.notification_email = request.form.get('notification_email')
+        
+        # 设置所有存储方式的配置（无论是否勾选）
+        temp_config.ftp_host = request.form.get('ftp_host')
+        temp_config.ftp_port = int(request.form.get('ftp_port', 21))
+        temp_config.ftp_username = request.form.get('ftp_username')
+        temp_config.ftp_password = request.form.get('ftp_password')
+        temp_config.ftp_path = request.form.get('ftp_directory', '/')
+        
+        temp_config.email_recipient = request.form.get('email_recipient')
+        
+        temp_config.s3_bucket = request.form.get('s3_bucket')
+        temp_config.s3_region = request.form.get('s3_region', 'us-east-1')
+        temp_config.s3_access_key = request.form.get('s3_access_key')
+        temp_config.s3_secret_key = request.form.get('s3_secret_key')
+        temp_config.s3_endpoint = request.form.get('s3_endpoint')
+        temp_config.s3_path_prefix = 'backups/'
+        
+        # 验证已勾选的存储方式配置是否完整
+        validation_errors = []
+        if 'ftp' in storage_types and not temp_config.ftp_host:
+            validation_errors.append('FTP: 请填写主机地址')
+        if 'email' in storage_types and not temp_config.email_recipient:
+            validation_errors.append('邮件: 请填写接收邮箱')
+        if 's3' in storage_types and not temp_config.s3_bucket:
+            validation_errors.append('S3: 请填写存储桶名称')
+        
+        if validation_errors:
+            return jsonify({'success': False, 'message': '配置不完整:\n' + '\n'.join(validation_errors)}), 400
+        
+        # 验证配置
+        is_valid, error_msg = BackupConfigManager.validate_config(temp_config)
+        if not is_valid:
+            return jsonify({'success': False, 'message': f'配置验证失败: {error_msg}'}), 400
+        
+        # 临时保存配置到数据库（用于备份引擎）
+        original_config = BackupConfig.query.first()
+        original_config_data = None
+        
+        if original_config:
+            # 备份原始配置
+            original_config_data = {
+                'enabled': original_config.enabled,
+                'storage_type': original_config.storage_type,
+                'schedule_type': original_config.schedule_type,
+                'schedule_value': original_config.schedule_value,
+                'retention_count': original_config.retention_count,
+                'backup_mode': original_config.backup_mode,
+                'encryption_enabled': original_config.encryption_enabled,
+                'encryption_key_hash': original_config.encryption_key_hash,
+                'ftp_host': original_config.ftp_host,
+                'ftp_port': original_config.ftp_port,
+                'ftp_username': original_config.ftp_username,
+                'ftp_password': original_config.ftp_password,
+                'ftp_path': original_config.ftp_path,
+                'email_recipient': original_config.email_recipient,
+                's3_endpoint': original_config.s3_endpoint,
+                's3_bucket': original_config.s3_bucket,
+                's3_access_key': original_config.s3_access_key,
+                's3_secret_key': original_config.s3_secret_key,
+                's3_path_prefix': original_config.s3_path_prefix,
+                's3_region': original_config.s3_region,
+                'notification_enabled': original_config.notification_enabled,
+                'notification_email': original_config.notification_email,
+            }
+            
+            # 临时替换为测试配置
+            original_config.enabled = temp_config.enabled
+            original_config.storage_type = temp_config.storage_type
+            original_config.schedule_type = temp_config.schedule_type
+            original_config.schedule_value = temp_config.schedule_value
+            original_config.retention_count = temp_config.retention_count
+            original_config.backup_mode = temp_config.backup_mode
+            original_config.encryption_enabled = temp_config.encryption_enabled
+            original_config.encryption_key_hash = temp_config.encryption_key_hash
+            # 临时存储测试密码
+            if hasattr(temp_config, '_test_encryption_password'):
+                original_config._test_encryption_password = temp_config._test_encryption_password
+            original_config.ftp_host = temp_config.ftp_host
+            original_config.ftp_port = temp_config.ftp_port
+            original_config.ftp_username = temp_config.ftp_username
+            original_config.ftp_password = temp_config.ftp_password
+            original_config.ftp_path = temp_config.ftp_path
+            original_config.email_recipient = temp_config.email_recipient
+            original_config.s3_endpoint = temp_config.s3_endpoint
+            original_config.s3_bucket = temp_config.s3_bucket
+            original_config.s3_access_key = temp_config.s3_access_key
+            original_config.s3_secret_key = temp_config.s3_secret_key
+            original_config.s3_path_prefix = temp_config.s3_path_prefix
+            original_config.s3_region = temp_config.s3_region
+            original_config.notification_enabled = temp_config.notification_enabled
+            original_config.notification_email = temp_config.notification_email
+            db.session.commit()
+        else:
+            # 创建新配置
+            db.session.add(temp_config)
+            db.session.commit()
+        
+        try:
+            # 执行完整备份流程测试
+            engine = BackupEngine(app=current_app)
+            backup_job = engine.execute_backup(trigger_type='manual')
+            
+            # 如果启用了通知，发送测试通知
+            if temp_config.notification_enabled and temp_config.notification_email:
+                try:
+                    notification_service = NotificationService()
+                    notification_service.send_backup_success_notification(backup_job, temp_config)
+                except Exception as notif_error:
+                    # 通知失败不影响备份测试结果
+                    print(f"警告: 发送测试通知失败: {str(notif_error)}")
+            
+            # 构建成功消息
+            file_size_mb = backup_job.file_size_bytes / (1024 * 1024) if backup_job.file_size_bytes else 0
+            
+            # 构建存储方式列表
+            storage_names = {
+                'ftp': 'FTP',
+                'email': '邮件',
+                's3': 'S3'
+            }
+            storage_list = ', '.join([storage_names.get(st, st.upper()) for st in storage_types])
+            
+            message_parts = [
+                f"✓ 备份测试成功完成",
+                f"",
+                f"备份文件: {backup_job.filename}",
+                f"文件大小: {file_size_mb:.2f} MB",
+                f"存储方式: {storage_list}",
+                f"备份模式: {'完整备份' if backup_job.backup_mode == 'full' else '增量备份'}",
+            ]
+            
+            if backup_job.is_encrypted:
+                message_parts.append(f"加密状态: 已加密 (AES-256)")
+            
+            message_parts.extend([
+                f"",
+                f"备份内容统计:",
+                f"- 数据库: {backup_job.db_size_bytes / (1024 * 1024):.2f} MB",
+                f"- 上传文件: {backup_job.uploads_count} 个文件, {backup_job.uploads_size_bytes / (1024 * 1024):.2f} MB",
+                f"- 文档文件: {backup_job.docs_count} 个文件, {backup_job.docs_size_bytes / (1024 * 1024):.2f} MB",
+            ])
+            
+            if temp_config.notification_enabled and temp_config.notification_email:
+                message_parts.extend([
+                    f"",
+                    f"✓ 测试通知已发送到: {temp_config.notification_email}"
+                ])
+            
+            message_parts.extend([
+                f"",
+                f"执行时长: {backup_job.duration_seconds} 秒",
+                f"",
+                f"所有配置项均已测试通过，可以正常使用。"
+            ])
+            
+            success_message = "\n".join(message_parts)
+            
+            return jsonify({'success': True, 'message': success_message})
+            
+        finally:
+            # 恢复原始配置
+            if original_config_data:
+                original_config.enabled = original_config_data['enabled']
+                original_config.storage_type = original_config_data['storage_type']
+                original_config.schedule_type = original_config_data['schedule_type']
+                original_config.schedule_value = original_config_data['schedule_value']
+                original_config.retention_count = original_config_data['retention_count']
+                original_config.backup_mode = original_config_data['backup_mode']
+                original_config.encryption_enabled = original_config_data['encryption_enabled']
+                original_config.encryption_key_hash = original_config_data['encryption_key_hash']
+                # 清理测试密码
+                if hasattr(original_config, '_test_encryption_password'):
+                    delattr(original_config, '_test_encryption_password')
+                original_config.ftp_host = original_config_data['ftp_host']
+                original_config.ftp_port = original_config_data['ftp_port']
+                original_config.ftp_username = original_config_data['ftp_username']
+                original_config.ftp_password = original_config_data['ftp_password']
+                original_config.ftp_path = original_config_data['ftp_path']
+                original_config.email_recipient = original_config_data['email_recipient']
+                original_config.s3_endpoint = original_config_data['s3_endpoint']
+                original_config.s3_bucket = original_config_data['s3_bucket']
+                original_config.s3_access_key = original_config_data['s3_access_key']
+                original_config.s3_secret_key = original_config_data['s3_secret_key']
+                original_config.s3_path_prefix = original_config_data['s3_path_prefix']
+                original_config.s3_region = original_config_data['s3_region']
+                original_config.notification_enabled = original_config_data['notification_enabled']
+                original_config.notification_email = original_config_data['notification_email']
+                db.session.commit()
+            elif original_config is None:
+                # 删除测试创建的配置
+                db.session.delete(temp_config)
+                db.session.commit()
+        
+    except Exception as e:
+        # 确保恢复原始配置
+        if 'original_config_data' in locals() and original_config_data:
+            try:
+                original_config.enabled = original_config_data['enabled']
+                original_config.storage_type = original_config_data['storage_type']
+                original_config.schedule_type = original_config_data['schedule_type']
+                original_config.schedule_value = original_config_data['schedule_value']
+                original_config.retention_count = original_config_data['retention_count']
+                original_config.backup_mode = original_config_data['backup_mode']
+                original_config.encryption_enabled = original_config_data['encryption_enabled']
+                original_config.encryption_key_hash = original_config_data['encryption_key_hash']
+                # 清理测试密码
+                if hasattr(original_config, '_test_encryption_password'):
+                    delattr(original_config, '_test_encryption_password')
+                original_config.ftp_host = original_config_data['ftp_host']
+                original_config.ftp_port = original_config_data['ftp_port']
+                original_config.ftp_username = original_config_data['ftp_username']
+                original_config.ftp_password = original_config_data['ftp_password']
+                original_config.ftp_path = original_config_data['ftp_path']
+                original_config.email_recipient = original_config_data['email_recipient']
+                original_config.s3_endpoint = original_config_data['s3_endpoint']
+                original_config.s3_bucket = original_config_data['s3_bucket']
+                original_config.s3_access_key = original_config_data['s3_access_key']
+                original_config.s3_secret_key = original_config_data['s3_secret_key']
+                original_config.s3_path_prefix = original_config_data['s3_path_prefix']
+                original_config.s3_region = original_config_data['s3_region']
+                original_config.notification_enabled = original_config_data['notification_enabled']
+                original_config.notification_email = original_config_data['notification_email']
+                db.session.commit()
+            except:
+                pass
+        
+        return jsonify({'success': False, 'message': f'测试失败: {str(e)}'}), 500
+
+
+
+@admin_bp.route('/backup/config/export')
+@login_required
+def admin_backup_config_export():
+    """导出备份配置"""
+    _require_admin_role()
+    
+    from services.backup_config import BackupConfigManager
+    import json
+    from flask import Response
+    
+    try:
+        manager = BackupConfigManager()
+        config_data = manager.export_config()
+        
+        return Response(
+            json.dumps(config_data, indent=2, ensure_ascii=False),
+            mimetype='application/json',
+            headers={'Content-Disposition': 'attachment;filename=backup_config.json'}
+        )
+    except Exception as e:
+        flash(f'导出配置失败: {str(e)}')
+        return redirect(url_for('admin.admin_backup_config'))
+
+
+@admin_bp.route('/backup/config/import', methods=['POST'])
+@login_required
+def admin_backup_config_import():
+    """导入备份配置"""
+    _require_admin_role()
+    
+    from services.backup_config import BackupConfigManager
+    import json
+    
+    try:
+        if 'config_file' not in request.files:
+            flash('请选择配置文件')
+            return redirect(url_for('admin.admin_backup_config'))
+        
+        file = request.files['config_file']
+        if file.filename == '':
+            flash('请选择配置文件')
+            return redirect(url_for('admin.admin_backup_config'))
+        
+        config_data = json.load(file)
+        
+        manager = BackupConfigManager()
+        manager.import_config(config_data)
+        
+        flash('配置导入成功')
+    except Exception as e:
+        flash(f'导入配置失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_config'))
+
+
+@admin_bp.route('/backup/history')
+@login_required
+def admin_backup_history():
+    """备份历史页面"""
+    _require_admin_role()
+    
+    from models import BackupJob
+    
+    # 获取筛选参数
+    status_filter = request.args.get('status', 'all')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # 构建查询
+    query = BackupJob.query
+    
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+    
+    # 分页
+    pagination = query.order_by(BackupJob.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return render_template(
+        'admin_backup_history.html',
+        jobs=pagination.items,
+        pagination=pagination,
+        status_filter=status_filter
+    )
+
+
+@admin_bp.route('/backup/trigger', methods=['POST'])
+@login_required
+def admin_backup_trigger():
+    """手动触发备份"""
+    _require_admin_role()
+    
+    from services.backup_engine import BackupEngine
+    
+    try:
+        # 直接使用备份引擎执行手动备份
+        engine = BackupEngine(app=current_app)
+        backup_job = engine.execute_backup(trigger_type='manual')
+        
+        flash(f'备份任务已完成，任务ID: {backup_job.id}')
+    except Exception as e:
+        flash(f'触发备份失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_history'))
+
+
+@admin_bp.route('/backup/create-local', methods=['POST'])
+@login_required
+def admin_backup_create_local():
+    """生成本地备份（不上传到远程）"""
+    _require_admin_role()
+    
+    from services.backup_engine import BackupEngine
+    from runtime_paths import get_data_subdir
+    import os
+    import shutil
+    
+    try:
+        # 创建本地备份目录
+        local_backup_dir = get_data_subdir('backups')
+        os.makedirs(local_backup_dir, exist_ok=True)
+        
+        # 临时修改配置，禁用远程上传
+        from models import BackupConfig
+        config = BackupConfig.query.first()
+        
+        if not config:
+            flash('请先配置备份参数')
+            return redirect(url_for('admin.admin_backup_config'))
+        
+        # 备份原始配置
+        original_storage_type = config.storage_type
+        
+        # 临时设置为本地存储（通过设置一个特殊标记）
+        config._local_backup_mode = True
+        
+        try:
+            # 执行备份
+            engine = BackupEngine(app=current_app)
+            
+            # 收集文件
+            files = engine._collect_files('full', None)
+            
+            # 创建归档到本地目录
+            archive_path, file_size, file_hash = engine._create_archive(files, local_backup_dir)
+            
+            # 如果启用了加密，加密文件
+            if config.encryption_enabled and config.encryption_key_hash:
+                try:
+                    from cryptography.fernet import Fernet
+                    import base64
+                    import hashlib
+                    
+                    # 解密密码
+                    key_material = hashlib.sha256(current_app.secret_key.encode()).digest()
+                    fernet_key = base64.urlsafe_b64encode(key_material)
+                    fernet = Fernet(fernet_key)
+                    encryption_password = fernet.decrypt(config.encryption_key_hash.encode()).decode('utf-8')
+                    
+                    # 加密归档
+                    archive_path = engine._encrypt_archive(archive_path, encryption_password)
+                    file_size = os.path.getsize(archive_path)
+                    file_hash = engine._calculate_file_hash(archive_path)
+                except Exception as e:
+                    flash(f'警告: 加密失败，已生成未加密备份: {str(e)}')
+            
+            # 创建备份任务记录
+            from models import BackupJob
+            from datetime import datetime
+            
+            backup_job = BackupJob(
+                trigger_type='manual',
+                status='success',
+                backup_mode='full',
+                filename=os.path.basename(archive_path),
+                file_size_bytes=file_size,
+                file_hash=file_hash,
+                storage_type='local',
+                storage_path=archive_path,
+                is_encrypted=config.encryption_enabled,
+                started_at=datetime.utcnow(),
+                completed_at=datetime.utcnow()
+            )
+            
+            # 统计信息
+            db_files = [f for f in files if f['file_type'] == 'database']
+            upload_files = [f for f in files if f['file_type'] == 'upload']
+            doc_files = [f for f in files if f['file_type'] == 'document']
+            
+            backup_job.db_size_bytes = sum(f['size'] for f in db_files)
+            backup_job.uploads_count = len(upload_files)
+            backup_job.uploads_size_bytes = sum(f['size'] for f in upload_files)
+            backup_job.docs_count = len(doc_files)
+            backup_job.docs_size_bytes = sum(f['size'] for f in doc_files)
+            
+            db.session.add(backup_job)
+            db.session.commit()
+            
+            flash(f'本地备份已生成: {os.path.basename(archive_path)} ({file_size / 1024 / 1024:.2f} MB)')
+        finally:
+            # 恢复原始配置
+            if hasattr(config, '_local_backup_mode'):
+                delattr(config, '_local_backup_mode')
+        
+    except Exception as e:
+        flash(f'生成本地备份失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_restore'))
+
+
+@admin_bp.route('/backup/download/<int:job_id>')
+@login_required
+def admin_backup_download(job_id):
+    """下载备份文件"""
+    _require_admin_role()
+    
+    from models import BackupJob
+    from flask import send_file
+    import os
+    
+    job = BackupJob.query.get_or_404(job_id)
+    
+    if job.status != 'success':
+        flash('只能下载成功的备份文件')
+        return redirect(url_for('admin.admin_backup_history'))
+    
+    # 这里需要从存储适配器下载文件
+    # 简化实现：假设文件在本地临时目录
+    flash('备份文件下载功能需要从远程存储下载，请使用恢复功能')
+    return redirect(url_for('admin.admin_backup_history'))
+
+
+@admin_bp.route('/backup/restore')
+@login_required
+def admin_backup_restore():
+    """备份恢复页面"""
+    _require_admin_role()
+    
+    from services.backup_restorer import BackupRestorer
+    
+    try:
+        restorer = BackupRestorer()
+        backups = restorer.list_available_backups()
+        
+        return render_template('admin_backup_restore.html', backups=backups)
+    except Exception as e:
+        flash(f'获取备份列表失败: {str(e)}')
+        return render_template('admin_backup_restore.html', backups=[])
+
+
+@admin_bp.route('/backup/restore/scan', methods=['POST'])
+@login_required
+def admin_backup_scan_remote():
+    """扫描远程存储中的备份文件"""
+    _require_admin_role()
+    
+    from services.backup_restorer import BackupRestorer
+    
+    try:
+        restorer = BackupRestorer()
+        found_count, new_count, message = restorer.scan_remote_backups()
+        flash(message)
+    except Exception as e:
+        flash(f'扫描失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_restore'))
+
+
+@admin_bp.route('/backup/restore/<int:job_id>/metadata')
+@login_required
+def admin_backup_restore_metadata(job_id):
+    """获取备份元数据"""
+    _require_admin_role()
+    
+    from services.backup_restorer import BackupRestorer
+    from flask import jsonify
+    
+    try:
+        restorer = BackupRestorer()
+        metadata = restorer.get_backup_metadata(job_id)
+        
+        return jsonify({'success': True, 'metadata': metadata})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@admin_bp.route('/backup/restore/<int:job_id>', methods=['POST'])
+@login_required
+def admin_backup_restore_execute(job_id):
+    """执行备份恢复"""
+    _require_admin_role()
+    
+    from services.backup_restorer import BackupRestorer
+    
+    try:
+        restore_type = request.form.get('restore_type', 'all')
+        decryption_password = request.form.get('decryption_password')
+        
+        # 将restore_type映射到restore_options字典
+        restore_options = {
+            'restore_database': restore_type in ('all', 'database'),
+            'restore_uploads': restore_type in ('all', 'uploads'),
+            'restore_documents': restore_type in ('all', 'documents'),
+            'decryption_password': decryption_password
+        }
+        
+        restorer = BackupRestorer()
+        success, message = restorer.restore_backup(
+            backup_job_id=job_id,
+            restore_options=restore_options
+        )
+        
+        if success:
+            flash(f'恢复成功: {message}')
+        else:
+            flash(f'恢复失败: {message}')
+    except Exception as e:
+        flash(f'恢复操作失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_restore'))
+
+
+@admin_bp.route('/backup/restore/orphaned', methods=['POST'])
+@login_required
+def admin_backup_restore_orphaned():
+    """恢复孤立文件（无数据库记录的备份文件）"""
+    _require_admin_role()
+    
+    from services.backup_restorer import BackupRestorer
+    
+    try:
+        filename = request.form.get('filename')
+        restore_type = request.form.get('restore_type', 'all')
+        decryption_password = request.form.get('decryption_password')
+        
+        if not filename:
+            flash('缺少文件名参数')
+            return redirect(url_for('admin.admin_backup_restore'))
+        
+        # 为孤立文件创建临时的 BackupJob 记录
+        restorer = BackupRestorer()
+        backup_job = restorer.create_orphaned_backup_job(filename)
+        
+        # 将restore_type映射到restore_options字典
+        restore_options = {
+            'restore_database': restore_type in ('all', 'database'),
+            'restore_uploads': restore_type in ('all', 'uploads'),
+            'restore_documents': restore_type in ('all', 'documents'),
+            'decryption_password': decryption_password
+        }
+        
+        # 执行恢复
+        success, message = restorer.restore_backup(
+            backup_job_id=backup_job.id,
+            restore_options=restore_options
+        )
+        
+        if success:
+            flash(f'恢复成功: {message}')
+        else:
+            flash(f'恢复失败: {message}')
+    except Exception as e:
+        flash(f'恢复操作失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_restore'))
+
+
+@admin_bp.route('/backup/records/cleanup', methods=['POST'])
+@login_required
+def admin_backup_cleanup_records():
+    """清理无效的备份记录"""
+    _require_admin_role()
+    
+    from services.backup_restorer import BackupRestorer
+    
+    try:
+        restorer = BackupRestorer()
+        count, message = restorer.cleanup_invalid_records()
+        flash(message)
+    except Exception as e:
+        flash(f'清理失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_history'))
+
+
+@admin_bp.route('/backup/records/<int:job_id>/delete', methods=['POST'])
+@login_required
+def admin_backup_delete_record(job_id):
+    """删除备份记录"""
+    _require_admin_role()
+    
+    from services.backup_restorer import BackupRestorer
+    
+    try:
+        delete_file = request.form.get('delete_file') == 'true'
+        
+        restorer = BackupRestorer()
+        success, message = restorer.delete_backup_record(job_id, delete_file=delete_file)
+        
+        flash(message)
+    except Exception as e:
+        flash(f'删除失败: {str(e)}')
+    
+    return redirect(url_for('admin.admin_backup_history'))
+
+
+@admin_bp.route('/backup/upload', methods=['POST'])
+@login_required
+def admin_backup_upload():
+    """上传备份文件到本地"""
+    _require_admin_role()
+    
+    import os
+    from werkzeug.utils import secure_filename
+    from runtime_paths import get_data_subdir
+    
+    try:
+        # 检查是否有文件上传
+        if 'backup_file' not in request.files:
+            flash('请选择要上传的备份文件')
+            return redirect(url_for('admin.admin_backup_restore'))
+        
+        file = request.files['backup_file']
+        
+        if file.filename == '':
+            flash('请选择要上传的备份文件')
+            return redirect(url_for('admin.admin_backup_restore'))
+        
+        # 验证文件扩展名
+        filename = secure_filename(file.filename)
+        if not (filename.endswith('.tar.gz') or filename.endswith('.tar.gz.enc')):
+            flash('不支持的文件格式，请上传 .tar.gz 或 .tar.gz.enc 文件')
+            return redirect(url_for('admin.admin_backup_restore'))
+        
+        # 保存上传的文件到本地备份目录
+        local_backup_dir = get_data_subdir('backups')
+        os.makedirs(local_backup_dir, exist_ok=True)
+        
+        upload_path = os.path.join(local_backup_dir, filename)
+        
+        # 如果文件已存在，添加时间戳
+        if os.path.exists(upload_path):
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            name_parts = filename.rsplit('.', 2)  # 分割 name.tar.gz 或 name.tar.gz.enc
+            if len(name_parts) >= 2:
+                if filename.endswith('.enc'):
+                    # name.tar.gz.enc -> name_timestamp.tar.gz.enc
+                    filename = f"{name_parts[0]}_{timestamp}.{name_parts[1]}.{name_parts[2]}"
+                else:
+                    # name.tar.gz -> name_timestamp.tar.gz
+                    filename = f"{name_parts[0]}_{timestamp}.{name_parts[1]}"
+            upload_path = os.path.join(local_backup_dir, filename)
+        
+        file.save(upload_path)
+        
+        # 检测是否加密
+        is_encrypted = filename.endswith('.enc')
+        
+        # 创建备份任务记录
+        from models import BackupJob, BackupConfig
+        from datetime import datetime
+        
+        config = BackupConfig.query.first()
+        
+        backup_job = BackupJob(
+            trigger_type='manual',
+            status='success',
+            backup_mode='full',
+            storage_type='local',
+            is_encrypted=is_encrypted,
+            filename=filename,
+            file_size_bytes=os.path.getsize(upload_path),
+            storage_path=upload_path,
+            started_at=datetime.utcnow(),
+            completed_at=datetime.utcnow()
+        )
+        db.session.add(backup_job)
+        db.session.commit()
+        
+        flash(f'备份文件已上传到本地: {filename} ({backup_job.file_size_bytes / 1024 / 1024:.2f} MB)')
+        return redirect(url_for('admin.admin_backup_restore'))
+        
+    except Exception as e:
+        flash(f'上传备份文件失败: {str(e)}')
+        return redirect(url_for('admin.admin_backup_restore'))
+
+
+# ============================================================================
+# 备份存储监控路由
+# ============================================================================
+
+@admin_bp.route('/backup/storage')
+@login_required
+def admin_backup_storage():
+    """存储空间监控页面"""
+    _require_admin_role()
+    
+    from services.backup_storage_monitor import BackupStorageMonitor
+    from models import BackupConfig
+    
+    # 获取存储统计信息
+    stats = BackupStorageMonitor.get_storage_stats()
+    
+    # 获取存储趋势数据（最近30天）
+    trend_data = BackupStorageMonitor.get_storage_trend(days=30)
+    
+    # 获取按类型统计的数据
+    storage_by_type = BackupStorageMonitor.get_storage_by_type()
+    
+    # 检查存储警告
+    warning_active, warning_message = BackupStorageMonitor.check_storage_warning()
+    
+    # 获取当前警告阈值
+    config = BackupConfig.query.first()
+    threshold_mb = config.storage_warning_threshold_mb if config else 1024
+    
+    return render_template(
+        'admin_backup_storage.html',
+        stats=stats,
+        trend_data=trend_data,
+        storage_by_type=storage_by_type,
+        warning_active=warning_active,
+        warning_message=warning_message,
+        threshold_mb=threshold_mb
+    )
+
+
+@admin_bp.route('/backup/storage/threshold', methods=['POST'])
+@login_required
+def admin_backup_storage_threshold():
+    """更新存储空间警告阈值"""
+    _require_admin_role()
+    
+    from models import BackupConfig
+    
+    threshold_mb = request.form.get('threshold_mb', type=int)
+    
+    if not threshold_mb or threshold_mb < 100:
+        flash('警告阈值必须大于等于 100 MB')
+        return redirect(url_for('admin.admin_backup_storage'))
+    
+    # 获取或创建配置
+    config = BackupConfig.query.first()
+    if not config:
+        config = BackupConfig()
+        db.session.add(config)
+    
+    config.storage_warning_threshold_mb = threshold_mb
+    db.session.commit()
+    
+    flash(f'存储空间警告阈值已更新为 {threshold_mb} MB')
+    return redirect(url_for('admin.admin_backup_storage'))

@@ -54,6 +54,8 @@ from .docs import (
 )
 from .media import delete_media_file, get_all_images_with_status, get_local_images, update_all_image_references, upload_media_file
 from .mailer import mailer_is_configured, notification_allowed, record_notification, render_mail_layout, send_logged_mail, send_mail
+from .backup_notification import NotificationService
+from .backup_restorer import BackupRestorer
 from .paths import InvalidPathError, get_docs_root, normalize_relative_path, resolve_docs_path
 from .permissions import check_permission, get_matched_permission_rule, has_explicit_permission
 from .rate_limit import (
@@ -143,6 +145,8 @@ __all__ = [
     'normalize_local_media_references_in_text',
     'normalize_local_media_url',
     'normalize_password_access_target',
+    'NotificationService',
+    'BackupRestorer',
     'notification_allowed',
     'normalize_relative_path',
     'read_markdown_file',

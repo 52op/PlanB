@@ -163,6 +163,12 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_bp)
 
+    # 初始化备份调度器
+    from services.backup_scheduler import BackupScheduler
+    backup_scheduler = BackupScheduler(app)
+    backup_scheduler.start()
+    app.config['BACKUP_SCHEDULER'] = backup_scheduler
+
     return app, config
 
 if __name__ == '__main__':

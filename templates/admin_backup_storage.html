@@ -1,0 +1,598 @@
+{% extends "admin.html" %}
+
+{% block head %}
+<style>
+    .backup-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #e2e8f0;
+        overflow-x: auto;
+    }
+    
+    .backup-tab {
+        padding: 14px 24px;
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    
+    .backup-tab:hover {
+        color: #2563eb;
+        background: #f8fafc;
+    }
+    
+    .backup-tab.active {
+        color: #2563eb;
+        border-bottom-color: #2563eb;
+    }
+    
+    @media (max-width: 768px) {
+        .backup-tabs {
+            gap: 0;
+        }
+        
+        .backup-tab {
+            padding: 12px 16px;
+            font-size: 14px;
+        }
+    }
+    
+    .storage-hero {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+        margin-bottom: 24px;
+    }
+    
+    .storage-stat-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .storage-stat-card::after {
+        content: "";
+        position: absolute;
+        inset: auto -36px -36px auto;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        opacity: 0.1;
+    }
+    
+    .storage-stat-card:nth-child(1)::after {
+        background: #2563eb;
+    }
+    
+    .storage-stat-card:nth-child(2)::after {
+        background: #10b981;
+    }
+    
+    .storage-stat-card:nth-child(3)::after {
+        background: #f59e0b;
+    }
+    
+    .storage-stat-card:nth-child(4)::after {
+        background: #8b5cf6;
+    }
+    
+    .storage-stat-label {
+        font-size: 14px;
+        color: #64748b;
+        margin-bottom: 8px;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .storage-stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 4px;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .storage-stat-unit {
+        font-size: 16px;
+        color: #94a3b8;
+        font-weight: 500;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .storage-progress-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .storage-progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    
+    .storage-progress-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+    
+    .storage-progress-percent {
+        font-size: 24px;
+        font-weight: 700;
+        color: #2563eb;
+    }
+    
+    .storage-progress-bar-container {
+        width: 100%;
+        height: 32px;
+        background: #f1f5f9;
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 12px;
+    }
+    
+    .storage-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #2563eb, #3b82f6);
+        border-radius: 16px;
+        transition: width 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 12px;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    .storage-progress-bar.warning {
+        background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    }
+    
+    .storage-progress-bar.danger {
+        background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+    
+    .storage-progress-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        color: #64748b;
+    }
+    
+    .storage-warning-card {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        border: 2px solid #fbbf24;
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 24px;
+        display: none;
+    }
+    
+    .storage-warning-card.show {
+        display: block;
+    }
+    
+    .storage-warning-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .storage-warning-icon {
+        width: 32px;
+        height: 32px;
+        background: #f59e0b;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+    }
+    
+    .storage-warning-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #92400e;
+    }
+    
+    .storage-warning-message {
+        color: #78350f;
+        line-height: 1.6;
+    }
+    
+    .storage-threshold-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .storage-threshold-form {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    .storage-threshold-form .form-group {
+        flex: 1;
+        min-width: 200px;
+        margin-bottom: 0;
+    }
+    
+    .chart-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .chart-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+    
+    .chart-subtitle {
+        font-size: 13px;
+        color: #64748b;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 320px;
+    }
+    
+    @media (max-width: 768px) {
+        .storage-hero {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .storage-stat-card {
+            padding: 16px;
+        }
+        
+        .storage-stat-value {
+            font-size: 24px;
+        }
+        
+        .storage-progress-card,
+        .storage-threshold-card,
+        .chart-card {
+            padding: 18px;
+        }
+        
+        .storage-threshold-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .storage-threshold-form .form-group {
+            min-width: 0;
+        }
+        
+        .chart-container {
+            height: 260px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .storage-hero {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- TAB 导航 -->
+<div class="backup-tabs">
+    <a href="{{ url_for('admin.admin_backup_config') }}" class="backup-tab">备份配置</a>
+    <a href="{{ url_for('admin.admin_backup_history') }}" class="backup-tab">备份历史</a>
+    <a href="{{ url_for('admin.admin_backup_restore') }}" class="backup-tab">备份恢复</a>
+    <a href="{{ url_for('admin.admin_backup_storage') }}" class="backup-tab active">存储监控</a>
+</div>
+
+<div class="card">
+    <div class="card-header">存储空间监控</div>
+    <div class="card-body">
+        <p style="color: #64748b; margin-bottom: 0;">实时监控备份文件的存储空间使用情况，查看趋势图表，配置空间警告阈值。</p>
+    </div>
+</div>
+
+<!-- 存储空间警告 -->
+<div class="storage-warning-card {% if warning_active %}show{% endif %}" id="storageWarning">
+    <div class="storage-warning-header">
+        <div class="storage-warning-icon">!</div>
+        <div class="storage-warning-title">存储空间警告</div>
+    </div>
+    <div class="storage-warning-message" id="warningMessage">
+        {{ warning_message or '存储空间不足，请及时清理旧备份或调整保留策略。' }}
+    </div>
+</div>
+
+<!-- 存储统计卡片 -->
+<div class="storage-hero">
+    <div class="storage-stat-card">
+        <div class="storage-stat-label">总存储空间</div>
+        <div class="storage-stat-value">{{ stats.total_size_gb }}</div>
+        <div class="storage-stat-unit">GB</div>
+    </div>
+    
+    <div class="storage-stat-card">
+        <div class="storage-stat-label">可用空间</div>
+        <div class="storage-stat-value">{{ stats.available_gb }}</div>
+        <div class="storage-stat-unit">GB</div>
+    </div>
+    
+    <div class="storage-stat-card">
+        <div class="storage-stat-label">备份文件数量</div>
+        <div class="storage-stat-value">{{ stats.backup_count }}</div>
+        <div class="storage-stat-unit">个</div>
+    </div>
+    
+    <div class="storage-stat-card">
+        <div class="storage-stat-label">平均备份大小</div>
+        <div class="storage-stat-value">{{ stats.avg_size_mb }}</div>
+        <div class="storage-stat-unit">MB</div>
+    </div>
+</div>
+
+<!-- 存储使用进度 -->
+<div class="storage-progress-card">
+    <div class="storage-progress-header">
+        <div class="storage-progress-title">存储空间使用率</div>
+        <div class="storage-progress-percent">{{ stats.usage_percent }}%</div>
+    </div>
+    <div class="storage-progress-bar-container">
+        <div class="storage-progress-bar {% if stats.usage_percent >= 90 %}danger{% elif stats.usage_percent >= 75 %}warning{% endif %}" 
+             style="width: {{ stats.usage_percent }}%;">
+            {% if stats.usage_percent >= 20 %}{{ stats.usage_percent }}%{% endif %}
+        </div>
+    </div>
+    <div class="storage-progress-info">
+        <span>已使用: {{ stats.total_size_gb }} GB</span>
+        <span>预估最大: {{ stats.estimated_max_size_gb }} GB</span>
+    </div>
+</div>
+
+<!-- 空间警告阈值配置 -->
+<div class="storage-threshold-card">
+    <div class="card-header" style="padding: 0; margin-bottom: 16px;">空间警告阈值配置</div>
+    <form method="POST" action="{{ url_for('admin.admin_backup_storage_threshold') }}" class="storage-threshold-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label>警告阈值 (MB)</label>
+            <input type="number" name="threshold_mb" value="{{ threshold_mb }}" min="100" step="100" required class="form-control">
+            <small style="color: #64748b;">当可用空间低于此值时发送警告通知</small>
+        </div>
+        <button type="submit" class="btn">保存阈值</button>
+    </form>
+</div>
+
+<!-- 按类型统计 -->
+<div class="card">
+    <div class="card-header">按备份类型统计</div>
+    <div class="card-body">
+        <table>
+            <thead>
+                <tr>
+                    <th>备份类型</th>
+                    <th>文件数量</th>
+                    <th>占用空间</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>完整备份</td>
+                    <td>{{ storage_by_type.full.count }}</td>
+                    <td>{{ storage_by_type.full.size_gb }} GB ({{ storage_by_type.full.size_mb }} MB)</td>
+                </tr>
+                <tr>
+                    <td>增量备份</td>
+                    <td>{{ storage_by_type.incremental.count }}</td>
+                    <td>{{ storage_by_type.incremental.size_gb }} GB ({{ storage_by_type.incremental.size_mb }} MB)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 存储空间趋势图表 -->
+<div class="chart-card">
+    <div class="chart-header">
+        <div>
+            <div class="chart-title">存储空间使用趋势</div>
+            <div class="chart-subtitle">最近 30 天的累计存储空间变化</div>
+        </div>
+    </div>
+    <div class="chart-container">
+        <canvas id="storageTrendChart"></canvas>
+    </div>
+</div>
+
+<!-- 备份数量趋势图表 -->
+<div class="chart-card">
+    <div class="chart-header">
+        <div>
+            <div class="chart-title">备份数量趋势</div>
+            <div class="chart-subtitle">最近 30 天的每日备份数量</div>
+        </div>
+    </div>
+    <div class="chart-container">
+        <canvas id="backupCountChart"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 存储空间趋势图表
+    const storageTrendCanvas = document.getElementById('storageTrendChart');
+    if (storageTrendCanvas && window.Chart) {
+        const trendData = {{ trend_data | tojson }};
+        const labels = trendData.map(item => item.date);
+        const cumulativeSizes = trendData.map(item => item.cumulative_size_gb);
+        
+        new Chart(storageTrendCanvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '累计存储空间 (GB)',
+                    data: cumulativeSizes,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' GB';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '日期'
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '存储空间 (GB)'
+                        },
+                        beginAtZero: true
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    }
+    
+    // 备份数量趋势图表
+    const backupCountCanvas = document.getElementById('backupCountChart');
+    if (backupCountCanvas && window.Chart) {
+        const trendData = {{ trend_data | tojson }};
+        const labels = trendData.map(item => item.date);
+        const counts = trendData.map(item => item.count);
+        
+        new Chart(backupCountCanvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '备份数量',
+                    data: counts,
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderColor: '#10b981',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y + ' 个';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '日期'
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '备份数量'
+                        },
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

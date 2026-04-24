@@ -1,0 +1,420 @@
+{% extends "admin.html" %}
+
+{% block head %}
+<style>
+    .backup-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #e2e8f0;
+        overflow-x: auto;
+    }
+    
+    .backup-tab {
+        padding: 14px 24px;
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    
+    .backup-tab:hover {
+        color: #2563eb;
+        background: #f8fafc;
+    }
+    
+    .backup-tab.active {
+        color: #2563eb;
+        border-bottom-color: #2563eb;
+    }
+    
+    @media (max-width: 768px) {
+        .backup-tabs {
+            gap: 0;
+        }
+        
+        .backup-tab {
+            padding: 12px 16px;
+            font-size: 14px;
+        }
+    }
+    
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .filter-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    .status-badge.success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-badge.failed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-badge.running {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .status-badge.missing {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .file-status-icon {
+        font-size: 18px;
+        margin-right: 4px;
+    }
+    
+    .record-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .delete-btn {
+        padding: 6px 12px;
+        background: #dc2626;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.2s;
+    }
+    
+    .delete-btn:hover {
+        background: #b91c1c;
+    }
+    
+    .delete-btn.secondary {
+        background: #64748b;
+    }
+    
+    .delete-btn.secondary:hover {
+        background: #475569;
+    }
+    
+    .cleanup-toolbar {
+        background: #fef3c7;
+        border: 2px solid #fbbf24;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .cleanup-toolbar-text {
+        color: #92400e;
+        font-weight: 600;
+    }
+    
+    .job-details {
+        display: none;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 8px;
+        margin-top: 8px;
+    }
+    
+    .job-details.show {
+        display: block;
+    }
+    
+    .expand-btn {
+        cursor: pointer;
+        color: #2563eb;
+        text-decoration: underline;
+    }
+    
+    @media (max-width: 768px) {
+        .history-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .filter-bar select,
+        .filter-bar .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- TAB 导航 -->
+<div class="backup-tabs">
+    <a href="{{ url_for('admin.admin_backup_config') }}" class="backup-tab">备份配置</a>
+    <a href="{{ url_for('admin.admin_backup_history') }}" class="backup-tab active">备份历史</a>
+    <a href="{{ url_for('admin.admin_backup_restore') }}" class="backup-tab">备份恢复</a>
+    <a href="{{ url_for('admin.admin_backup_storage') }}" class="backup-tab">存储监控</a>
+</div>
+
+<div class="card">
+    <div class="card-header">备份历史</div>
+    <div class="card-body">
+        <p style="color: #64748b; margin-bottom: 0;">查看所有备份任务的执行历史和状态。可以管理数据库记录，清理无效记录。</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <!-- 清理工具栏 -->
+        <div class="cleanup-toolbar">
+            <div>
+                <div class="cleanup-toolbar-text">🧹 数据库记录管理</div>
+                <div style="color: #92400e; font-size: 13px; margin-top: 4px;">
+                    清理文件不存在的本地备份记录，保持数据库整洁
+                </div>
+            </div>
+            <form method="POST" action="{{ url_for('admin.admin_backup_cleanup_records') }}" style="margin: 0;" onsubmit="return confirm('确定要清理所有无效记录吗？\n\n这将删除所有文件不存在的本地备份记录。');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn" style="background: #f59e0b; white-space: nowrap;">清理无效记录</button>
+            </form>
+        </div>
+        
+        <div class="history-header">
+            <div class="filter-bar">
+                <select id="statusFilter" class="form-control" style="width: auto;">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>全部状态</option>
+                    <option value="success" {% if status_filter == 'success' %}selected{% endif %}>成功</option>
+                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>失败</option>
+                    <option value="running" {% if status_filter == 'running' %}selected{% endif %}>运行中</option>
+                </select>
+            </div>
+        </div>
+        
+        {% if jobs %}
+        <table>
+            <thead>
+                <tr>
+                    <th>状态</th>
+                    <th>任务ID</th>
+                    <th>触发方式</th>
+                    <th>备份模式</th>
+                    <th>开始时间</th>
+                    <th>任务状态</th>
+                    <th>文件大小</th>
+                    <th>执行时长</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr>
+                    <td>
+                        {% if job.storage_type == 'local' %}
+                            {% set local_path = 'data/backups/' + (job.filename or '') %}
+                            {% if job.filename %}
+                                <span class="file-status-icon" title="本地文件">📁</span>
+                            {% else %}
+                                <span class="file-status-icon" title="文件缺失">⚠️</span>
+                            {% endif %}
+                        {% elif job.storage_type in ['ftp', 's3'] %}
+                            <span class="file-status-icon" title="远程存储">☁️</span>
+                        {% elif job.storage_type == 'email' %}
+                            <span class="file-status-icon" title="邮件附件">📧</span>
+                        {% else %}
+                            <span class="file-status-icon">-</span>
+                        {% endif %}
+                    </td>
+                    <td>#{{ job.id }}</td>
+                    <td>{{ '手动' if job.trigger_type == 'manual' else '自动' }}</td>
+                    <td>{{ '完整' if job.backup_mode == 'full' else '增量' }}</td>
+                    <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>
+                        <span class="status-badge {{ job.status }}">
+                            {% if job.status == 'success' %}成功
+                            {% elif job.status == 'failed' %}失败
+                            {% elif job.status == 'running' %}运行中
+                            {% else %}{{ job.status }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if job.file_size_bytes %}
+                            {{ (job.file_size_bytes / 1024 / 1024) | round(2) }} MB
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if job.completed_at and job.created_at %}
+                            {{ ((job.completed_at - job.created_at).total_seconds()) | round(1) }}秒
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="record-actions">
+                            <span class="expand-btn" onclick="toggleDetails({{ job.id }})">详情</span>
+                            
+                            {% if job.status == 'success' %}
+                                <!-- 成功的备份：可以删除记录，或删除记录+文件 -->
+                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="仅删除数据库记录">🗑️ 记录</button>
+                                {% if job.storage_type == 'local' and job.filename %}
+                                <button class="delete-btn" onclick="deleteRecord({{ job.id }}, true)" title="删除记录和文件">🗑️ 全部</button>
+                                {% endif %}
+                            {% elif job.status == 'failed' %}
+                                <!-- 失败的备份：只能删除记录 -->
+                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="删除失败的备份记录">🗑️ 删除</button>
+                            {% elif job.status == 'running' %}
+                                <!-- 运行中的备份：可以删除记录（清理卡住的任务） -->
+                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="删除运行中的备份记录">🗑️ 删除</button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="9" style="padding: 0; border: none;">
+                        <div class="job-details" id="details-{{ job.id }}">
+                            <div><strong>文件名:</strong> {{ job.filename or '-' }}</div>
+                            <div><strong>存储类型:</strong> 
+                                {% if job.storage_type == 'ftp' %}FTP 服务器
+                                {% elif job.storage_type == 'email' %}邮件附件
+                                {% elif job.storage_type == 's3' %}S3 存储
+                                {% elif job.storage_type == 'local' %}本地存储
+                                {% else %}{{ job.storage_type or '-' }}
+                                {% endif %}
+                            </div>
+                            <div><strong>存储路径:</strong> {{ job.storage_path or '远程存储' }}</div>
+                            <div><strong>加密状态:</strong> {{ '已加密 (AES-256)' if job.is_encrypted else '未加密' }}</div>
+                            <div><strong>SHA256:</strong> {{ job.file_hash or '-' }}</div>
+                            {% if job.error_message %}
+                            <div style="color: #dc2626;"><strong>错误信息:</strong> {{ job.error_message }}</div>
+                            {% endif %}
+                            {% if job.base_backup_id %}
+                            <div><strong>基准备份:</strong> #{{ job.base_backup_id }}</div>
+                            {% endif %}
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                                <strong>备份内容统计:</strong>
+                                <div style="margin-left: 16px; margin-top: 4px;">
+                                    <div>数据库: {{ (job.db_size_bytes / 1024 / 1024) | round(2) if job.db_size_bytes else 0 }} MB</div>
+                                    <div>上传文件: {{ job.uploads_count or 0 }} 个, {{ (job.uploads_size_bytes / 1024 / 1024) | round(2) if job.uploads_size_bytes else 0 }} MB</div>
+                                    <div>文档文件: {{ job.docs_count or 0 }} 个, {{ (job.docs_size_bytes / 1024 / 1024) | round(2) if job.docs_size_bytes else 0 }} MB</div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        {% if pagination and pagination.pages > 1 %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+            <a href="?page={{ pagination.prev_num }}&status={{ status_filter }}" class="btn btn-sm">上一页</a>
+            {% endif %}
+            
+            <span>第 {{ pagination.page }} / {{ pagination.pages }} 页</span>
+            
+            {% if pagination.has_next %}
+            <a href="?page={{ pagination.next_num }}&status={{ status_filter }}" class="btn btn-sm">下一页</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <p>暂无备份记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div style="margin-top: 20px;">
+    <a href="{{ url_for('admin.admin_base') }}" class="btn" style="background: #64748b;">返回管理后台</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusFilter = document.getElementById('statusFilter');
+    
+    statusFilter.addEventListener('change', function() {
+        window.location.href = '?status=' + this.value;
+    });
+});
+
+function toggleDetails(jobId) {
+    const details = document.getElementById('details-' + jobId);
+    details.classList.toggle('show');
+}
+
+function deleteRecord(jobId, deleteFile) {
+    // 构建确认消息
+    let confirmMessage = '';
+    if (deleteFile) {
+        confirmMessage = '确定要删除这条备份记录和备份文件吗？\n\n这将：\n1. 从数据库中删除记录\n2. 从磁盘中删除备份文件\n\n此操作不可恢复！';
+    } else {
+        confirmMessage = '确定要删除这条备份记录吗？\n\n这将从数据库中删除记录。\n\n此操作不可恢复！';
+    }
+    
+    // 显示确认对话框
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    // 创建表单并提交
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("admin.admin_backup_delete_record", job_id=0) }}'.replace('/0', '/' + jobId);
+    
+    // 添加 CSRF token
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrf_token';
+    csrfInput.value = '{{ csrf_token() }}';
+    form.appendChild(csrfInput);
+    
+    // 添加 delete_file 参数
+    const deleteFileInput = document.createElement('input');
+    deleteFileInput.type = 'hidden';
+    deleteFileInput.name = 'delete_file';
+    deleteFileInput.value = deleteFile ? 'true' : 'false';
+    form.appendChild(deleteFileInput);
+    
+    // 提交表单
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}

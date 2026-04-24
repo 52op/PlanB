@@ -194,6 +194,119 @@ class NotificationLog(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 
+class BackupConfig(db.Model):
+    """备份配置表"""
+    __tablename__ = 'backup_configs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # 基本配置
+    enabled = db.Column(db.Boolean, default=False, nullable=False)
+    storage_type = db.Column(db.String(200), nullable=False)  # JSON数组: ["ftp", "email", "s3"]
+    schedule_type = db.Column(db.String(20), nullable=False)  # hourly, daily, weekly, cron, daily_interval, weekly_interval
+    schedule_value = db.Column(db.String(100), nullable=True)  # cron表达式
+    schedule_metadata = db.Column(db.Text, nullable=True)  # JSON格式的额外调度信息（如间隔天数、周数）
+    retention_count = db.Column(db.Integer, default=10, nullable=False)
+    
+    # 备份模式
+    backup_mode = db.Column(db.String(20), default='full', nullable=False)  # full, incremental
+    
+    # 加密配置
+    encryption_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    encryption_key_hash = db.Column(db.String(255), nullable=True)  # 加密密钥的哈希
+    
+    # FTP配置
+    ftp_host = db.Column(db.String(255), nullable=True)
+    ftp_port = db.Column(db.Integer, default=21, nullable=True)
+    ftp_username = db.Column(db.String(100), nullable=True)
+    ftp_password = db.Column(db.String(255), nullable=True)
+    ftp_path = db.Column(db.String(255), default='/', nullable=True)
+    
+    # 邮件配置
+    email_recipient = db.Column(db.String(255), nullable=True)
+    
+    # S3配置
+    s3_endpoint = db.Column(db.String(255), nullable=True)
+    s3_bucket = db.Column(db.String(100), nullable=True)
+    s3_access_key = db.Column(db.String(100), nullable=True)
+    s3_secret_key = db.Column(db.String(255), nullable=True)
+    s3_path_prefix = db.Column(db.String(255), default='backups/', nullable=True)
+    s3_region = db.Column(db.String(50), nullable=True)
+    
+    # 通知配置
+    notification_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    notification_email = db.Column(db.String(255), nullable=True)
+    
+    # 存储监控
+    storage_warning_threshold_mb = db.Column(db.Integer, default=1024, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), 
+                          onupdate=db.func.current_timestamp())
+
+
+class BackupJob(db.Model):
+    """备份任务记录表"""
+    __tablename__ = 'backup_jobs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # 任务信息
+    trigger_type = db.Column(db.String(20), nullable=False)  # auto, manual
+    status = db.Column(db.String(20), nullable=False)  # running, success, failed
+    backup_mode = db.Column(db.String(20), nullable=False)  # full, incremental
+    
+    # 备份文件信息
+    filename = db.Column(db.String(255), nullable=True)
+    file_size_bytes = db.Column(db.BigInteger, nullable=True)
+    file_hash = db.Column(db.String(64), nullable=True)  # SHA256
+    storage_type = db.Column(db.String(20), nullable=True)
+    storage_path = db.Column(db.String(500), nullable=True)
+    
+    # 备份内容统计
+    db_size_bytes = db.Column(db.BigInteger, nullable=True)
+    uploads_count = db.Column(db.Integer, nullable=True)
+    uploads_size_bytes = db.Column(db.BigInteger, nullable=True)
+    docs_count = db.Column(db.Integer, nullable=True)
+    docs_size_bytes = db.Column(db.BigInteger, nullable=True)
+    
+    # 加密信息
+    is_encrypted = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # 增量备份信息
+    base_backup_id = db.Column(db.Integer, db.ForeignKey('backup_jobs.id'), nullable=True)
+    
+    # 时间信息
+    started_at = db.Column(db.DateTime, nullable=False)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    duration_seconds = db.Column(db.Integer, nullable=True)
+    
+    # 错误信息
+    error_message = db.Column(db.Text, nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    
+    # 关系
+    base_backup = db.relationship('BackupJob', remote_side=[id], backref='incremental_backups')
+
+
+class BackupFileTracker(db.Model):
+    """文件变更追踪表 - 用于增量备份"""
+    __tablename__ = 'backup_file_trackers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    file_path = db.Column(db.String(500), nullable=False, unique=True, index=True)
+    file_type = db.Column(db.String(20), nullable=False)  # database, upload, document
+    last_modified = db.Column(db.DateTime, nullable=False)
+    file_size_bytes = db.Column(db.BigInteger, nullable=False)
+    file_hash = db.Column(db.String(64), nullable=False)  # SHA256
+    last_backup_id = db.Column(db.Integer, db.ForeignKey('backup_jobs.id'), nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), 
+                          onupdate=db.func.current_timestamp())
+
+
 def _ensure_column(app, table_name, column_name, column_sql):
     inspector = db.inspect(db.engine)
     column_names = {column['name'] for column in inspector.get_columns(table_name)}

@@ -1,0 +1,533 @@
+{% extends "admin.html" %}
+
+{% block head %}
+<style>
+    .card {
+        max-width: 100%;
+    }
+    
+    .backup-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #e2e8f0;
+        overflow-x: auto;
+    }
+    
+    .backup-tab {
+        padding: 14px 24px;
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    
+    .backup-tab:hover {
+        color: #2563eb;
+        background: #f8fafc;
+    }
+    
+    .backup-tab.active {
+        color: #2563eb;
+        border-bottom-color: #2563eb;
+    }
+    
+    @media (max-width: 768px) {
+        .backup-tabs {
+            gap: 0;
+        }
+        
+        .backup-tab {
+            padding: 12px 16px;
+            font-size: 14px;
+        }
+    }
+    
+    .backup-list {
+        display: grid;
+        gap: 16px;
+        width: 100%;
+        max-width: 100%;
+        grid-template-columns: minmax(0, 1fr);
+    }
+    
+    .backup-item {
+        background: #fff;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s;
+        overflow: hidden;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .backup-item:hover {
+        border-color: #2563eb;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+    }
+    
+    .backup-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .backup-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+    
+    .backup-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .backup-meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        flex: 1 1 150px;
+        overflow: hidden;
+    }
+    
+    .backup-meta-label {
+        font-size: 13px;
+        color: #64748b;
+    }
+    
+    .backup-meta-value {
+        font-weight: 600;
+        color: #0f172a;
+        word-break: break-all;
+        overflow-wrap: break-word;
+    }
+    
+    .restore-btn {
+        padding: 10px 20px;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+    
+    .restore-btn:hover {
+        background: #1d4ed8;
+    }
+    
+    .restore-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+    
+    .restore-modal.show {
+        display: flex;
+    }
+    
+    .restore-dialog {
+        background: #fff;
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 500px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .restore-dialog-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #0f172a;
+    }
+    
+    .warning-box {
+        background: #fef3c7;
+        border: 2px solid #fbbf24;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .warning-box strong {
+        color: #92400e;
+    }
+    
+    .restore-options {
+        margin-bottom: 20px;
+    }
+    
+    .restore-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+    }
+    
+    .restore-option:hover {
+        background: #f8fafc;
+    }
+    
+    .restore-option input[type="radio"] {
+        margin: 0;
+    }
+    
+    .dialog-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+    
+    @media (max-width: 768px) {
+        .backup-meta {
+            grid-template-columns: 1fr;
+        }
+        
+        .restore-dialog {
+            padding: 20px;
+        }
+        
+        .dialog-actions {
+            flex-direction: column;
+        }
+        
+        .dialog-actions button {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- TAB 导航 -->
+<div class="backup-tabs">
+    <a href="{{ url_for('admin.admin_backup_config') }}" class="backup-tab">备份配置</a>
+    <a href="{{ url_for('admin.admin_backup_history') }}" class="backup-tab">备份历史</a>
+    <a href="{{ url_for('admin.admin_backup_restore') }}" class="backup-tab active">备份恢复</a>
+    <a href="{{ url_for('admin.admin_backup_storage') }}" class="backup-tab">存储监控</a>
+</div>
+
+<div class="card">
+    <div class="card-header">备份恢复</div>
+    <div class="card-body">
+        <p style="color: #64748b; margin-bottom: 16px;">从可用备份中选择一个进行恢复，或立即生成新的本地备份。恢复操作将覆盖当前数据，请谨慎操作。</p>
+        
+        <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 16px; margin-bottom: 20px; border-radius: 8px;">
+            <strong style="color: #1e40af;">💡 关于备份来源</strong>
+            <p style="color: #1e40af; margin: 8px 0 0 0; font-size: 14px;">
+                此页面显示所有可恢复的备份：本地备份、远程备份（FTP/S3）和孤立文件（本地存在但无数据库记录）。远程备份恢复时会自动下载到本地。
+            </p>
+        </div>
+        
+        <!-- 立即生成本地备份 -->
+        <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #166534;">立即生成本地备份</h3>
+            <p style="color: #166534; font-size: 14px; margin-bottom: 12px;">生成一个完整备份并保存到服务器本地（data/backups/），不上传到远程存储。</p>
+            <form method="POST" action="{{ url_for('admin.admin_backup_create_local') }}" style="margin: 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn" style="background: #16a34a;">生成本地备份</button>
+            </form>
+        </div>
+        
+        <!-- 上传备份文件 -->
+        <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">上传备份文件</h3>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 12px;">如果您有从远程下载的备份文件，可以上传到本地进行恢复。</p>
+            <form method="POST" action="{{ url_for('admin.admin_backup_upload') }}" enctype="multipart/form-data" style="margin: 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <input type="file" name="backup_file" accept=".tar.gz,.enc" required class="form-control" style="flex: 1; min-width: 200px;">
+                    <button type="submit" class="btn">上传</button>
+                </div>
+                <small style="color: #64748b; display: block; margin-top: 8px;">支持的文件格式: .tar.gz (未加密) 或 .tar.gz.enc (已加密)</small>
+            </form>
+        </div>
+        
+        <!-- 可用备份列表标题和扫描按钮 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; max-width: 100%;">
+            <h3 style="margin: 0; font-size: 16px; font-weight: 600; min-width: 0;">可用备份列表</h3>
+            <form method="POST" action="{{ url_for('admin.admin_backup_scan_remote') }}" style="margin: 0; flex-shrink: 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn" style="background: #0ea5e9; white-space: nowrap;" title="扫描远程存储（FTP/S3）中的备份文件">
+                    🔍 扫描远程备份
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if backups %}
+        <div class="backup-list">
+            {% for backup in backups %}
+            <div class="backup-item">
+                <div class="backup-header">
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <!-- 备份来源图标 -->
+                        {% if backup.source == 'local' %}
+                            <span style="font-size: 24px;" title="本地备份（有数据库记录）">🏠</span>
+                        {% elif backup.source == 'local_orphaned' %}
+                            <span style="font-size: 24px;" title="本地孤立文件（无数据库记录）">📁</span>
+                        {% elif backup.source == 'ftp' %}
+                            <span style="font-size: 24px;" title="FTP 远程备份">☁️</span>
+                        {% elif backup.source == 's3' %}
+                            <span style="font-size: 24px;" title="S3 远程备份">☁️</span>
+                        {% endif %}
+                        
+                        <div class="backup-title">
+                            {% if backup.job %}
+                                备份 #{{ backup.job.id }}
+                            {% else %}
+                                {{ backup.filename }}
+                            {% endif %}
+                        </div>
+                        
+                        <!-- 来源标签 -->
+                        {% if backup.source == 'local' %}
+                            <span style="background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">本地</span>
+                        {% elif backup.source == 'local_orphaned' %}
+                            <span style="background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">孤立文件</span>
+                        {% elif backup.source == 'ftp' %}
+                            <span style="background: #e0e7ff; color: #3730a3; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">FTP 远程</span>
+                        {% elif backup.source == 's3' %}
+                            <span style="background: #ddd6fe; color: #5b21b6; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">S3 远程</span>
+                        {% endif %}
+                    </div>
+                    
+                    <button class="restore-btn" onclick="showRestoreDialog(
+                        {% if backup.job %}{{ backup.job.id }}{% else %}null{% endif %}, 
+                        '{{ backup.filename }}', 
+                        {% if backup.is_encrypted %}true{% else %}false{% endif %},
+                        '{{ backup.source }}'
+                    )">
+                        恢复此备份
+                    </button>
+                </div>
+                
+                <div class="backup-meta">
+                    <div class="backup-meta-item">
+                        <div class="backup-meta-label">备份时间</div>
+                        <div class="backup-meta-value">
+                            {% if backup.created_at %}
+                                {{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% else %}
+                                未知
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if backup.job %}
+                    <div class="backup-meta-item">
+                        <div class="backup-meta-label">备份模式</div>
+                        <div class="backup-meta-value">{{ '完整备份' if backup.job.backup_mode == 'full' else '增量备份' }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="backup-meta-item">
+                        <div class="backup-meta-label">文件大小</div>
+                        <div class="backup-meta-value">
+                            {% if backup.file_size_bytes %}
+                                {{ (backup.file_size_bytes / 1024 / 1024) | round(2) }} MB
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="backup-meta-item">
+                        <div class="backup-meta-label">加密状态</div>
+                        <div class="backup-meta-value">{{ '已加密' if backup.is_encrypted else '未加密' }}</div>
+                    </div>
+                    
+                    <div class="backup-meta-item">
+                        <div class="backup-meta-label">存储位置</div>
+                        <div class="backup-meta-value">
+                            {% if backup.source == 'local' %}
+                                本地（有记录）
+                            {% elif backup.source == 'local_orphaned' %}
+                                本地（孤立文件）
+                            {% elif backup.source == 'ftp' %}
+                                FTP 服务器
+                            {% elif backup.source == 's3' %}
+                                S3 存储
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="font-size: 13px; color: #64748b; margin-bottom: 8px; word-break: break-all; overflow-wrap: break-word; max-width: 100%;">
+                    文件名: {{ backup.filename }}
+                </div>
+                
+                {% if backup.source in ['ftp', 's3'] %}
+                <div style="font-size: 13px; color: #64748b; margin-bottom: 8px; word-break: break-all; overflow-wrap: break-word; max-width: 100%;">
+                    远程路径: {{ backup.storage_path }}
+                </div>
+                <div style="background: #fef3c7; border-left: 3px solid #fbbf24; padding: 12px; border-radius: 6px; font-size: 13px; color: #92400e;">
+                    ℹ️ 此备份存储在远程，恢复时将自动下载到本地
+                </div>
+                {% endif %}
+                
+                {% if backup.source == 'local_orphaned' %}
+                <div style="background: #fef3c7; border-left: 3px solid #fbbf24; padding: 12px; border-radius: 6px; font-size: 13px; color: #92400e;">
+                    ⚠️ 此文件在本地存在但数据库中无记录，恢复时将自动创建记录
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>暂无可用备份</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div style="margin-top: 20px;">
+    <a href="{{ url_for('admin.admin_base') }}" class="btn" style="background: #64748b;">返回管理后台</a>
+</div>
+
+<!-- 恢复确认对话框 -->
+<div class="restore-modal" id="restoreModal">
+    <div class="restore-dialog">
+        <div class="restore-dialog-title">确认恢复备份</div>
+        
+        <div class="warning-box">
+            <strong>⚠️ 警告</strong><br>
+            恢复操作将覆盖当前的数据库和文件。此操作不可撤销，请确保您了解此操作的后果。
+        </div>
+        
+        <form method="POST" id="restoreForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="filename" id="restoreFilename">
+            
+            <div class="form-group">
+                <label style="font-weight: 600; margin-bottom: 12px;">恢复内容</label>
+                <div class="restore-options">
+                    <label class="restore-option">
+                        <input type="radio" name="restore_type" value="all" checked>
+                        <span>全部恢复（数据库 + 文件）</span>
+                    </label>
+                    <label class="restore-option">
+                        <input type="radio" name="restore_type" value="database">
+                        <span>仅恢复数据库</span>
+                    </label>
+                    <label class="restore-option">
+                        <input type="radio" name="restore_type" value="uploads">
+                        <span>仅恢复上传文件</span>
+                    </label>
+                    <label class="restore-option">
+                        <input type="radio" name="restore_type" value="documents">
+                        <span>仅恢复文档文件</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group" id="decryptionPasswordField" style="display: none;">
+                <label>解密密码</label>
+                <input type="password" name="decryption_password" class="form-control" placeholder="此备份已加密，请输入解密密码">
+            </div>
+            
+            <div class="dialog-actions">
+                <button type="button" class="btn" style="background: #64748b;" onclick="hideRestoreDialog()">取消</button>
+                <button type="submit" class="btn btn-danger">确认恢复</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const restoreModal = document.getElementById('restoreModal');
+const restoreForm = document.getElementById('restoreForm');
+const decryptionPasswordField = document.getElementById('decryptionPasswordField');
+const restoreFilenameInput = document.getElementById('restoreFilename');
+
+function showRestoreDialog(jobId, fileName, encrypted, source) {
+    // 根据备份来源设置表单 action
+    if (source === 'local_orphaned') {
+        // 孤立文件使用专门的路由
+        restoreForm.action = '{{ url_for("admin.admin_backup_restore_orphaned") }}';
+        restoreFilenameInput.value = fileName;
+    } else if (jobId) {
+        // 有数据库记录的备份（本地或远程）
+        restoreForm.action = '{{ url_for("admin.admin_backup_restore_execute", job_id=0) }}'.replace('0', jobId);
+        restoreFilenameInput.value = '';
+    } else {
+        alert('无效的备份记录');
+        return;
+    }
+    
+    // 显示或隐藏解密密码字段
+    if (encrypted) {
+        decryptionPasswordField.style.display = 'block';
+    } else {
+        decryptionPasswordField.style.display = 'none';
+    }
+    
+    restoreModal.classList.add('show');
+}
+
+function hideRestoreDialog() {
+    restoreModal.classList.remove('show');
+}
+
+// 点击背景关闭对话框
+restoreModal.addEventListener('click', function(e) {
+    if (e.target === restoreModal) {
+        hideRestoreDialog();
+    }
+});
+
+// 表单提交前确认
+restoreForm.addEventListener('submit', function(e) {
+    const restoreType = document.querySelector('input[name="restore_type"]:checked').value;
+    let confirmMessage = '您确定要执行恢复操作吗？此操作将覆盖当前数据且不可撤销！\n\n';
+    
+    if (restoreType === 'all') {
+        confirmMessage += '恢复内容：数据库 + 上传文件 + 文档文件';
+    } else if (restoreType === 'database') {
+        confirmMessage += '恢复内容：仅数据库\n\n⚠️ 如果数据库被锁定，请先关闭其他使用数据库的程序，或重启应用后再试。';
+    } else if (restoreType === 'uploads') {
+        confirmMessage += '恢复内容：仅上传文件';
+    } else if (restoreType === 'documents') {
+        confirmMessage += '恢复内容：仅文档文件';
+    }
+    
+    if (!confirm(confirmMessage)) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}
