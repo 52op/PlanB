@@ -324,41 +324,45 @@
 </div>
 
 <div class="card">
-    <div class="card-header">存储空间监控</div>
+    <div class="card-header">备份存储概览</div>
     <div class="card-body">
-        <p style="color: #64748b; margin-bottom: 0;">实时监控备份文件的存储空间使用情况，查看趋势图表，配置空间警告阈值。</p>
+        <p style="color: #64748b; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="bar-chart-3" style="width: 18px; height: 18px;"></i>
+            以下数据基于本地备份记录统计，仅供参考
+        </p>
+        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 0;">监控备份文件数量和存储占用情况，查看趋势图表</p>
     </div>
 </div>
 
-<!-- 存储空间警告 -->
+<!-- 备份数量警告 -->
 <div class="storage-warning-card {% if warning_active %}show{% endif %}" id="storageWarning">
     <div class="storage-warning-header">
         <div class="storage-warning-icon">!</div>
-        <div class="storage-warning-title">存储空间警告</div>
+        <div class="storage-warning-title">备份数量警告</div>
     </div>
     <div class="storage-warning-message" id="warningMessage">
-        {{ warning_message or '存储空间不足，请及时清理旧备份或调整保留策略。' }}
+        {{ warning_message or '备份数量接近保留上限，请及时清理旧备份或调整保留策略。' }}
     </div>
 </div>
 
 <!-- 存储统计卡片 -->
 <div class="storage-hero">
     <div class="storage-stat-card">
-        <div class="storage-stat-label">总存储空间</div>
+        <div class="storage-stat-label">备份文件数量</div>
+        <div class="storage-stat-value">{{ stats.backup_count }}</div>
+        <div class="storage-stat-unit">个</div>
+    </div>
+    
+    <div class="storage-stat-card">
+        <div class="storage-stat-label">占用空间（估算）</div>
         <div class="storage-stat-value">{{ stats.total_size_gb }}</div>
         <div class="storage-stat-unit">GB</div>
     </div>
     
     <div class="storage-stat-card">
-        <div class="storage-stat-label">可用空间</div>
-        <div class="storage-stat-value">{{ stats.available_gb }}</div>
-        <div class="storage-stat-unit">GB</div>
-    </div>
-    
-    <div class="storage-stat-card">
-        <div class="storage-stat-label">备份文件数量</div>
-        <div class="storage-stat-value">{{ stats.backup_count }}</div>
-        <div class="storage-stat-unit">个</div>
+        <div class="storage-stat-label">保留策略</div>
+        <div class="storage-stat-value">{{ stats.retention_count }}</div>
+        <div class="storage-stat-unit">个上限</div>
     </div>
     
     <div class="storage-stat-card">
@@ -368,10 +372,10 @@
     </div>
 </div>
 
-<!-- 存储使用进度 -->
+<!-- 备份数量使用进度 -->
 <div class="storage-progress-card">
     <div class="storage-progress-header">
-        <div class="storage-progress-title">存储空间使用率</div>
+        <div class="storage-progress-title">备份数量使用率</div>
         <div class="storage-progress-percent">{{ stats.usage_percent }}%</div>
     </div>
     <div class="storage-progress-bar-container">
@@ -381,23 +385,27 @@
         </div>
     </div>
     <div class="storage-progress-info">
-        <span>已使用: {{ stats.total_size_gb }} GB</span>
-        <span>预估最大: {{ stats.estimated_max_size_gb }} GB</span>
+        <span>当前备份: {{ stats.backup_count }} 个</span>
+        <span>保留上限: {{ stats.retention_count }} 个</span>
     </div>
 </div>
 
-<!-- 空间警告阈值配置 -->
+<!-- 备份数量监控配置 -->
 <div class="storage-threshold-card">
-    <div class="card-header" style="padding: 0; margin-bottom: 16px;">空间警告阈值配置</div>
-    <form method="POST" action="{{ url_for('admin.admin_backup_storage_threshold') }}" class="storage-threshold-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-            <label>警告阈值 (MB)</label>
-            <input type="number" name="threshold_mb" value="{{ threshold_mb }}" min="100" step="100" required class="form-control">
-            <small style="color: #64748b;">当可用空间低于此值时发送警告通知</small>
-        </div>
-        <button type="submit" class="btn">保存阈值</button>
-    </form>
+    <div class="card-header" style="padding: 0; margin-bottom: 16px;">备份数量监控</div>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
+        当备份数量接近保留上限时发送提醒（建议设置为保留数量的 80%）
+    </p>
+    <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border-left: 4px solid #2563eb;">
+        <p style="margin: 0; color: #475569; font-size: 14px;">
+            <strong>当前设置：</strong>保留最多 {{ stats.retention_count }} 个备份，
+            当达到 {{ stats.warning_threshold }} 个时将发送警告通知
+        </p>
+    </div>
+    <p style="color: #94a3b8; font-size: 13px; margin-top: 12px; margin-bottom: 0; display: flex; align-items: center; gap: 6px;">
+        <i data-lucide="lightbulb" style="width: 16px; height: 16px;"></i>
+        提示：可在"备份配置"页面调整保留数量上限
+    </p>
 </div>
 
 <!-- 按类型统计 -->
@@ -432,8 +440,8 @@
 <div class="chart-card">
     <div class="chart-header">
         <div>
-            <div class="chart-title">存储空间使用趋势</div>
-            <div class="chart-subtitle">最近 30 天的累计存储空间变化</div>
+            <div class="chart-title">存储空间累计趋势</div>
+            <div class="chart-subtitle">最近 30 天的累计存储空间变化（基于本地记录估算）</div>
         </div>
     </div>
     <div class="chart-container">
@@ -457,6 +465,13 @@
 
 {% block scripts %}
 <script>
+// 初始化 Lucide 图标
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     // 存储空间趋势图表
     const storageTrendCanvas = document.getElementById('storageTrendChart');

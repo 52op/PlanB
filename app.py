@@ -172,6 +172,76 @@ def create_app():
     return app, config
 
 if __name__ == '__main__':
+    import argparse
+    
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(
+        description='Planning 文档&博客系统',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python app.py                    # 正常启动应用
+  python app.py --update-db        # 检查并同步数据库结构
+  python app.py --update-db --yes  # 自动同步（不询问确认）
+        """
+    )
+    parser.add_argument('--update-db', action='store_true',
+                       help='检查并同步数据库结构（对比 models.py 和现有数据库）')
+    parser.add_argument('--yes', '-y', action='store_true',
+                       help='自动确认所有操作（与 --update-db 配合使用）')
+    
+    args = parser.parse_args()
+    
+    # 如果指定了 --update-db，执行数据库同步
+    if args.update_db:
+        from db_sync import (
+            get_model_tables, 
+            get_database_tables, 
+            compare_structures,
+            print_differences,
+            generate_sync_sql,
+            execute_sync
+        )
+        
+        print("\n🔍 正在分析数据库结构...\n")
+        app, config = create_app()
+        
+        with app.app_context():
+            # 获取模型和数据库结构
+            model_tables = get_model_tables()
+            db_tables = get_database_tables(db.engine)
+            
+            # 对比差异
+            differences = compare_structures(model_tables, db_tables)
+            
+            # 打印差异报告
+            has_diff = print_differences(differences)
+            
+            if not has_diff:
+                sys.exit(0)
+            
+            # 生成同步 SQL
+            sql_statements = generate_sync_sql(differences)
+            
+            # 预览 SQL
+            print("="*60)
+            print("将要执行的 SQL 语句")
+            print("="*60 + "\n")
+            for sql in sql_statements:
+                print(sql)
+            
+            # 确认执行
+            if not args.yes:
+                confirm = input("\n⚠️  确定要执行数据库同步吗？建议先备份数据库。(yes/no): ")
+                if confirm.lower() not in ['yes', 'y']:
+                    print("❌ 已取消同步操作。\n")
+                    sys.exit(1)
+            
+            # 执行同步
+            success = execute_sync(app, sql_statements)
+            sys.exit(0 if success else 1)
+    
+    # 正常启动应用
     app, config = create_app()
     port = config.get('port', 5000)
     debug_enabled = _coerce_bool(config.get('debug', True), default=True)

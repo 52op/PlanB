@@ -16,7 +16,7 @@ class BackupStorageMonitor:
     @staticmethod
     def get_storage_stats() -> Dict:
         """
-        获取存储空间使用统计
+        获取存储空间使用统计（简化版 - 基于本地记录）
         
         Returns:
             包含存储统计信息的字典
@@ -40,9 +40,12 @@ class BackupStorageMonitor:
         # 计算平均备份大小
         avg_size_bytes = total_size_bytes / backup_count if backup_count > 0 else 0
         
-        # 估算可用空间（基于保留策略）
-        estimated_max_size = avg_size_bytes * retention_count
-        available_bytes = max(0, estimated_max_size - total_size_bytes)
+        # 计算使用率（基于备份数量）
+        usage_percent = round((backup_count / retention_count * 100), 2) if retention_count > 0 else 0
+        
+        # 警告阈值（保留数量的80%）
+        warning_threshold = int(retention_count * 0.8)
+        needs_attention = backup_count >= warning_threshold
         
         return {
             'total_size_bytes': total_size_bytes,
@@ -52,11 +55,9 @@ class BackupStorageMonitor:
             'avg_size_bytes': avg_size_bytes,
             'avg_size_mb': round(avg_size_bytes / (1024 * 1024), 2),
             'retention_count': retention_count,
-            'estimated_max_size_bytes': estimated_max_size,
-            'estimated_max_size_gb': round(estimated_max_size / (1024 * 1024 * 1024), 2),
-            'available_bytes': available_bytes,
-            'available_gb': round(available_bytes / (1024 * 1024 * 1024), 2),
-            'usage_percent': round((total_size_bytes / estimated_max_size * 100), 2) if estimated_max_size > 0 else 0,
+            'usage_percent': usage_percent,
+            'warning_threshold': warning_threshold,
+            'needs_attention': needs_attention,
             'latest_backup_date': latest_backup.completed_at.isoformat() if latest_backup and latest_backup.completed_at else None,
             'latest_backup_size_mb': round((latest_backup.file_size_bytes or 0) / (1024 * 1024), 2) if latest_backup else 0
         }
@@ -64,13 +65,13 @@ class BackupStorageMonitor:
     @staticmethod
     def get_storage_trend(days: int = 30) -> List[Dict]:
         """
-        获取存储空间使用趋势
+        获取备份趋势数据（简化版）
         
         Args:
             days: 统计天数，默认30天
             
         Returns:
-            趋势数据列表，每个元素包含日期和累计大小
+            趋势数据列表，每个元素包含日期、备份数量和大小
         """
         start_date = datetime.now() - timedelta(days=days)
         
@@ -82,49 +83,44 @@ class BackupStorageMonitor:
         
         # 按日期分组统计
         daily_stats = {}
-        cumulative_size = 0
         
         for job in jobs:
             if job.completed_at:
                 date_key = job.completed_at.strftime('%Y-%m-%d')
                 if date_key not in daily_stats:
                     daily_stats[date_key] = {
-                        'date': date_key,
                         'count': 0,
-                        'size_bytes': 0,
-                        'cumulative_size_bytes': 0
+                        'size_bytes': 0
                     }
                 
                 daily_stats[date_key]['count'] += 1
                 daily_stats[date_key]['size_bytes'] += job.file_size_bytes or 0
-                cumulative_size += job.file_size_bytes or 0
-                daily_stats[date_key]['cumulative_size_bytes'] = cumulative_size
         
         # 填充没有备份的日期（保持连续性）
         result = []
         current_date = start_date.date()
         end_date = datetime.now().date()
-        last_cumulative = 0
+        cumulative_size = 0
         
         while current_date <= end_date:
             date_key = current_date.strftime('%Y-%m-%d')
             if date_key in daily_stats:
-                last_cumulative = daily_stats[date_key]['cumulative_size_bytes']
+                cumulative_size += daily_stats[date_key]['size_bytes']
                 result.append({
                     'date': date_key,
                     'count': daily_stats[date_key]['count'],
                     'size_mb': round(daily_stats[date_key]['size_bytes'] / (1024 * 1024), 2),
-                    'cumulative_size_mb': round(last_cumulative / (1024 * 1024), 2),
-                    'cumulative_size_gb': round(last_cumulative / (1024 * 1024 * 1024), 2)
+                    'cumulative_size_mb': round(cumulative_size / (1024 * 1024), 2),
+                    'cumulative_size_gb': round(cumulative_size / (1024 * 1024 * 1024), 2)
                 })
             else:
-                # 没有备份的日期，使用上一个累计值
+                # 没有备份的日期
                 result.append({
                     'date': date_key,
                     'count': 0,
                     'size_mb': 0,
-                    'cumulative_size_mb': round(last_cumulative / (1024 * 1024), 2),
-                    'cumulative_size_gb': round(last_cumulative / (1024 * 1024 * 1024), 2)
+                    'cumulative_size_mb': round(cumulative_size / (1024 * 1024), 2),
+                    'cumulative_size_gb': round(cumulative_size / (1024 * 1024 * 1024), 2)
                 })
             
             current_date += timedelta(days=1)
@@ -134,7 +130,7 @@ class BackupStorageMonitor:
     @staticmethod
     def check_storage_warning() -> Tuple[bool, Optional[str]]:
         """
-        检查存储空间是否低于警告阈值
+        检查备份数量是否接近保留上限
         
         Returns:
             (是否需要警告, 警告消息)
@@ -143,13 +139,15 @@ class BackupStorageMonitor:
         if not config:
             return False, None
         
-        threshold_mb = config.storage_warning_threshold_mb or 1024
-        stats = BackupStorageMonitor.get_storage_stats()
+        # 获取成功的备份数量
+        backup_count = BackupJob.query.filter_by(status='success').count()
+        retention_count = config.retention_count or 10
         
-        available_mb = stats['available_gb'] * 1024
+        # 警告阈值为保留数量的 80%
+        warning_threshold = int(retention_count * 0.8)
         
-        if available_mb < threshold_mb:
-            message = f"备份存储空间不足！可用空间仅剩 {stats['available_gb']:.2f} GB，低于警告阈值 {threshold_mb / 1024:.2f} GB"
+        if backup_count >= warning_threshold:
+            message = f"备份数量已达 {backup_count} 个，接近保留上限 {retention_count} 个。建议检查备份策略或清理旧备份。"
             return True, message
         
         return False, None

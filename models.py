@@ -354,6 +354,52 @@ def _handle_admin_password_reset_signal():
     except OSError as exc:
         print(f"[planning] 警告：无法删除 .changepassword 文件，请手动删除。原因: {exc}")
 
+
+def _ensure_backup_config():
+    """
+    确保备份功能的初始化配置
+    注意：表结构由 db.create_all() 或 --update-db 自动创建
+    这个函数只负责：
+    1. 插入默认配置数据（如果不存在）
+    2. 创建必要的目录
+    """
+    try:
+        # 插入默认配置（如果不存在）
+        if BackupConfig.query.first() is None:
+            print("[planning] 初始化备份默认配置...")
+            default_config = BackupConfig(
+                enabled=False,
+                schedule_type='manual',
+                retention_days=7,
+                retention_count=10,
+                compress=True,
+                encrypt=False,
+                storage_local=True,
+                storage_ftp=False,
+                storage_email=False,
+                storage_s3=False,
+                notification_enabled=True,
+                notification_on_success=False,
+                notification_on_failure=True
+            )
+            db.session.add(default_config)
+            db.session.commit()
+            print("[planning] ✓ 备份默认配置已创建")
+        
+        # 确保备份目录存在
+        backup_dir = get_data_subdir('backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+    except Exception as e:
+        # 如果表还不存在（比如首次运行且未执行 --update-db），静默跳过
+        # 下次启动或执行 --update-db 后会自动创建
+        if 'no such table' in str(e).lower():
+            pass  # 表还不存在，等待 db.create_all() 或 --update-db 创建
+        else:
+            print(f"[planning] 警告：初始化备份配置失败: {e}")
+
+
+
 def init_db(app):
     db.init_app(app)
     with app.app_context():
@@ -476,3 +522,6 @@ def init_db(app):
         # 建立默认管理员，并支持通过 .changepassword 文件强制重置密码
         _ensure_admin_account()
         _handle_admin_password_reset_signal()
+        
+        # 初始化备份功能的默认配置
+        _ensure_backup_config()

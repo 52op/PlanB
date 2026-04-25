@@ -1809,10 +1809,37 @@ def admin_backup_restore():
     _require_admin_role()
     
     from services.backup_restorer import BackupRestorer
+    from datetime import datetime
     
     try:
         restorer = BackupRestorer()
         backups = restorer.list_available_backups()
+        
+        # 获取筛选参数
+        source_filter = request.args.get('source', '')
+        start_date_str = request.args.get('start_date', '')
+        end_date_str = request.args.get('end_date', '')
+        
+        # 应用筛选
+        if source_filter:
+            backups = [b for b in backups if b.get('source') == source_filter]
+        
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+                backups = [b for b in backups if b.get('created_at') and b['created_at'] >= start_date]
+            except ValueError:
+                pass
+        
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+                # 结束日期包含当天的23:59:59
+                from datetime import timedelta
+                end_date = end_date + timedelta(days=1) - timedelta(seconds=1)
+                backups = [b for b in backups if b.get('created_at') and b['created_at'] <= end_date]
+            except ValueError:
+                pass
         
         return render_template('admin_backup_restore.html', backups=backups)
     except Exception as e:
@@ -2065,11 +2092,10 @@ def admin_backup_upload():
 @admin_bp.route('/backup/storage')
 @login_required
 def admin_backup_storage():
-    """存储空间监控页面"""
+    """备份存储监控页面"""
     _require_admin_role()
     
     from services.backup_storage_monitor import BackupStorageMonitor
-    from models import BackupConfig
     
     # 获取存储统计信息
     stats = BackupStorageMonitor.get_storage_stats()
@@ -2080,12 +2106,8 @@ def admin_backup_storage():
     # 获取按类型统计的数据
     storage_by_type = BackupStorageMonitor.get_storage_by_type()
     
-    # 检查存储警告
+    # 检查备份数量警告
     warning_active, warning_message = BackupStorageMonitor.check_storage_warning()
-    
-    # 获取当前警告阈值
-    config = BackupConfig.query.first()
-    threshold_mb = config.storage_warning_threshold_mb if config else 1024
     
     return render_template(
         'admin_backup_storage.html',
@@ -2093,33 +2115,14 @@ def admin_backup_storage():
         trend_data=trend_data,
         storage_by_type=storage_by_type,
         warning_active=warning_active,
-        warning_message=warning_message,
-        threshold_mb=threshold_mb
+        warning_message=warning_message
     )
 
 
-@admin_bp.route('/backup/storage/threshold', methods=['POST'])
-@login_required
-def admin_backup_storage_threshold():
-    """更新存储空间警告阈值"""
-    _require_admin_role()
-    
-    from models import BackupConfig
-    
-    threshold_mb = request.form.get('threshold_mb', type=int)
-    
-    if not threshold_mb or threshold_mb < 100:
-        flash('警告阈值必须大于等于 100 MB')
-        return redirect(url_for('admin.admin_backup_storage'))
-    
-    # 获取或创建配置
-    config = BackupConfig.query.first()
-    if not config:
-        config = BackupConfig()
-        db.session.add(config)
-    
-    config.storage_warning_threshold_mb = threshold_mb
-    db.session.commit()
-    
-    flash(f'存储空间警告阈值已更新为 {threshold_mb} MB')
-    return redirect(url_for('admin.admin_backup_storage'))
+# 注意：存储警告阈值现在自动计算（保留数量的80%），不再需要手动配置
+# 以下路由已废弃，保留以防需要恢复
+# @admin_bp.route('/backup/storage/threshold', methods=['POST'])
+# @login_required
+# def admin_backup_storage_threshold():
+#     """更新存储空间警告阈值（已废弃）"""
+#     pass

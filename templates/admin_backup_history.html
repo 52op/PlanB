@@ -89,7 +89,11 @@
     }
     
     .file-status-icon {
-        font-size: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
         margin-right: 4px;
     }
     
@@ -97,6 +101,28 @@
         display: flex;
         gap: 8px;
         align-items: center;
+    }
+    
+    .delete-btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .delete-btn.secondary {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+    
+    .delete-btn.secondary:hover {
+        background: #e2e8f0;
     }
     
     .delete-btn {
@@ -116,10 +142,12 @@
     
     .delete-btn.secondary {
         background: #64748b;
+        color: #fff;
     }
     
     .delete-btn.secondary:hover {
         background: #475569;
+        color: #fff;
     }
     
     .cleanup-toolbar {
@@ -198,14 +226,20 @@
         <!-- 清理工具栏 -->
         <div class="cleanup-toolbar">
             <div>
-                <div class="cleanup-toolbar-text">🧹 数据库记录管理</div>
+                <div class="cleanup-toolbar-text" style="display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+                    数据库记录管理
+                </div>
                 <div style="color: #92400e; font-size: 13px; margin-top: 4px;">
                     清理文件不存在的本地备份记录，保持数据库整洁
                 </div>
             </div>
             <form method="POST" action="{{ url_for('admin.admin_backup_cleanup_records') }}" style="margin: 0;" onsubmit="return confirm('确定要清理所有无效记录吗？\n\n这将删除所有文件不存在的本地备份记录。');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn" style="background: #f59e0b; white-space: nowrap;">清理无效记录</button>
+                <button type="submit" class="btn" style="background: #f59e0b; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="broom" style="width: 18px; height: 18px;"></i>
+                    清理无效记录
+                </button>
             </form>
         </div>
         
@@ -242,14 +276,22 @@
                         {% if job.storage_type == 'local' %}
                             {% set local_path = 'data/backups/' + (job.filename or '') %}
                             {% if job.filename %}
-                                <span class="file-status-icon" title="本地文件">📁</span>
+                                <span class="file-status-icon" title="本地文件">
+                                    <i data-lucide="hard-drive" style="width: 18px; height: 18px; color: #2563eb;"></i>
+                                </span>
                             {% else %}
-                                <span class="file-status-icon" title="文件缺失">⚠️</span>
+                                <span class="file-status-icon" title="文件缺失">
+                                    <i data-lucide="alert-triangle" style="width: 18px; height: 18px; color: #f59e0b;"></i>
+                                </span>
                             {% endif %}
                         {% elif job.storage_type in ['ftp', 's3'] %}
-                            <span class="file-status-icon" title="远程存储">☁️</span>
+                            <span class="file-status-icon" title="远程存储">
+                                <i data-lucide="cloud" style="width: 18px; height: 18px; color: #8b5cf6;"></i>
+                            </span>
                         {% elif job.storage_type == 'email' %}
-                            <span class="file-status-icon" title="邮件附件">📧</span>
+                            <span class="file-status-icon" title="邮件附件">
+                                <i data-lucide="mail" style="width: 18px; height: 18px; color: #10b981;"></i>
+                            </span>
                         {% else %}
                             <span class="file-status-icon">-</span>
                         {% endif %}
@@ -287,16 +329,28 @@
                             
                             {% if job.status == 'success' %}
                                 <!-- 成功的备份：可以删除记录，或删除记录+文件 -->
-                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="仅删除数据库记录">🗑️ 记录</button>
+                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="仅删除数据库记录">
+                                    <i data-lucide="file-minus" style="width: 16px; height: 16px;"></i>
+                                    记录
+                                </button>
                                 {% if job.storage_type == 'local' and job.filename %}
-                                <button class="delete-btn" onclick="deleteRecord({{ job.id }}, true)" title="删除记录和文件">🗑️ 全部</button>
+                                <button class="delete-btn" onclick="deleteRecord({{ job.id }}, true)" title="删除记录和文件">
+                                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                    全部
+                                </button>
                                 {% endif %}
                             {% elif job.status == 'failed' %}
                                 <!-- 失败的备份：只能删除记录 -->
-                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="删除失败的备份记录">🗑️ 删除</button>
+                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="删除失败的备份记录">
+                                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                    删除
+                                </button>
                             {% elif job.status == 'running' %}
                                 <!-- 运行中的备份：可以删除记录（清理卡住的任务） -->
-                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="删除运行中的备份记录">🗑️ 删除</button>
+                                <button class="delete-btn secondary" onclick="deleteRecord({{ job.id }}, false)" title="删除运行中的备份记录">
+                                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                    删除
+                                </button>
                             {% endif %}
                         </div>
                     </td>
@@ -360,12 +414,19 @@
 </div>
 
 <div style="margin-top: 20px;">
-    <a href="{{ url_for('admin.admin_base') }}" class="btn" style="background: #64748b;">返回管理后台</a>
+    <a href="{{ url_for('admin.admin_base') }}" class="btn" style="background: #64748b; color: #fff;">返回管理后台</a>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// 初始化 Lucide 图标
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     const statusFilter = document.getElementById('statusFilter');
     

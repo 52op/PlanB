@@ -268,7 +268,9 @@
                 <label class="storage-checkbox-label">
                     <input type="checkbox" name="storage_types" value="ftp" 
                            {% if not config or 'ftp' in (config.storage_type if config else '') %}checked{% endif %}>
-                    <span class="storage-icon">📁</span>
+                    <span class="storage-icon">
+                        <i data-lucide="server" style="width: 20px; height: 20px;"></i>
+                    </span>
                     <span class="storage-name">FTP 服务器</span>
                 </label>
                 <button type="button" class="storage-test-btn" onclick="testSingleStorage('ftp')">测试连接</button>
@@ -308,7 +310,9 @@
                 <label class="storage-checkbox-label">
                     <input type="checkbox" name="storage_types" value="email"
                            {% if config and 'email' in config.storage_type %}checked{% endif %}>
-                    <span class="storage-icon">📧</span>
+                    <span class="storage-icon">
+                        <i data-lucide="mail" style="width: 20px; height: 20px;"></i>
+                    </span>
                     <span class="storage-name">邮件附件</span>
                 </label>
                 <button type="button" class="storage-test-btn" onclick="testSingleStorage('email')">测试连接</button>
@@ -329,7 +333,9 @@
                 <label class="storage-checkbox-label">
                     <input type="checkbox" name="storage_types" value="s3"
                            {% if config and 's3' in config.storage_type %}checked{% endif %}>
-                    <span class="storage-icon">☁️</span>
+                    <span class="storage-icon">
+                        <i data-lucide="cloud" style="width: 20px; height: 20px;"></i>
+                    </span>
                     <span class="storage-name">S3 存储</span>
                 </label>
                 <button type="button" class="storage-test-btn" onclick="testSingleStorage('s3')">测试连接</button>
@@ -568,6 +574,13 @@
 
 {% block scripts %}
 <script>
+// 初始化 Lucide 图标
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     // 加密设置切换
     const encryptionEnabled = document.getElementById('encryption_enabled');
