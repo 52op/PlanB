@@ -180,31 +180,15 @@ class BackupScheduler:
         根据调度类型和值创建APScheduler触发器。
         
         Args:
-            schedule_type: 调度类型（hourly, daily, weekly, cron）
-            schedule_value: 调度值（cron表达式，仅当schedule_type为cron时使用）
+            schedule_type: 调度类型（hourly, daily, weekly, cron等）
+            schedule_value: 调度值（cron表达式）
             
         Returns:
             触发器对象，如果创建失败则返回None
         """
         try:
-            if schedule_type == 'hourly':
-                # 每小时执行一次（在每小时的第0分钟）
-                return CronTrigger(minute=0)
-            
-            elif schedule_type == 'daily':
-                # 每天执行一次（在凌晨2点）
-                return CronTrigger(hour=2, minute=0)
-            
-            elif schedule_type == 'weekly':
-                # 每周执行一次（在周日凌晨2点）
-                return CronTrigger(day_of_week='sun', hour=2, minute=0)
-            
-            elif schedule_type == 'cron':
-                # 自定义cron表达式
-                if not schedule_value:
-                    print("[BackupScheduler] cron调度类型需要提供cron表达式")
-                    return None
-                
+            # 如果提供了 schedule_value（cron表达式），优先使用
+            if schedule_value:
                 # 解析cron表达式
                 # APScheduler的CronTrigger支持标准cron格式
                 # 格式：分 时 日 月 周 或 秒 分 时 日 月 周
@@ -231,7 +215,26 @@ class BackupScheduler:
                     )
                 else:
                     print(f"[BackupScheduler] 无效的cron表达式格式: {schedule_value}")
-                    return None
+                    # 继续尝试使用默认规则
+            
+            # 如果没有 schedule_value 或解析失败，使用默认规则
+            if schedule_type == 'hourly':
+                # 每小时执行一次（在每小时的第0分钟）
+                return CronTrigger(minute=0)
+            
+            elif schedule_type == 'daily':
+                # 每天执行一次（默认凌晨2点，但应该从schedule_value读取）
+                # 如果没有schedule_value，使用默认值
+                return CronTrigger(hour=2, minute=0)
+            
+            elif schedule_type == 'weekly':
+                # 每周执行一次（默认周日凌晨2点）
+                return CronTrigger(day_of_week='sun', hour=2, minute=0)
+            
+            elif schedule_type == 'cron':
+                # 自定义cron表达式（已在上面处理）
+                print("[BackupScheduler] cron调度类型需要提供有效的cron表达式")
+                return None
             
             else:
                 print(f"[BackupScheduler] 不支持的调度类型: {schedule_type}")

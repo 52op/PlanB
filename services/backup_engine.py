@@ -222,6 +222,13 @@ class BackupEngine:
         # backup_job.docs_size_bytes = docs_size
         
         db.session.commit()
+        
+        # 发送成功通知
+        try:
+            from services.backup_notification import NotificationService
+            NotificationService.send_backup_success_notification(backup_job, config)
+        except Exception as e:
+            print(f"[BackupEngine] 发送成功通知失败: {str(e)}")
     
     def _update_backup_job_failure(self, backup_job: BackupJob, error_message: str):
         """
@@ -242,6 +249,16 @@ class BackupEngine:
             backup_job.duration_seconds = int(duration.total_seconds())
         
         db.session.commit()
+        
+        # 发送失败通知
+        try:
+            from services.backup_notification import NotificationService
+            from services.backup_config import BackupConfigManager
+            config = BackupConfigManager.get_config()
+            if config:
+                NotificationService.send_backup_failure_notification(backup_job, config)
+        except Exception as e:
+            print(f"[BackupEngine] 发送失败通知失败: {str(e)}")
     
     # 以下方法将在后续任务中实现
     
