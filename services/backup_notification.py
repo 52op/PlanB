@@ -250,9 +250,33 @@ class NotificationService:
         Returns:
             dict: 包含邮件各部分内容的字典
         """
-        # 格式化时间
-        started_at_str = backup_job.started_at.strftime('%Y-%m-%d %H:%M:%S') if backup_job.started_at else '未知'
-        completed_at_str = backup_job.completed_at.strftime('%Y-%m-%d %H:%M:%S') if backup_job.completed_at else '未完成'
+        from flask import current_app
+        from datetime import timezone
+        from zoneinfo import ZoneInfo
+        
+        # 获取配置的时区
+        try:
+            tz_name = current_app.config.get('APP_TIMEZONE', 'Asia/Shanghai')
+            local_tz = ZoneInfo(tz_name)
+        except Exception:
+            # 如果时区配置无效，使用 Asia/Shanghai
+            local_tz = ZoneInfo('Asia/Shanghai')
+        
+        # 格式化时间（将 UTC 时间转换为本地时区）
+        if backup_job.started_at:
+            # 假设数据库中的时间是 UTC（无时区信息）
+            started_at_utc = backup_job.started_at.replace(tzinfo=timezone.utc)
+            started_at_local = started_at_utc.astimezone(local_tz)
+            started_at_str = started_at_local.strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            started_at_str = '未知'
+        
+        if backup_job.completed_at:
+            completed_at_utc = backup_job.completed_at.replace(tzinfo=timezone.utc)
+            completed_at_local = completed_at_utc.astimezone(local_tz)
+            completed_at_str = completed_at_local.strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            completed_at_str = '未完成'
         
         # 格式化文件大小
         file_size_mb = backup_job.file_size_bytes / (1024 * 1024) if backup_job.file_size_bytes else 0
