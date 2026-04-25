@@ -49,7 +49,7 @@ if errorlevel 1 (
 
 echo.
 echo Build completed successfully.
-echo Output: dist\planning.exe
+echo Output: dist\PlanB.exe
 echo.
 echo Notes:
 echo   1. The exe will create a data\ folder next to itself on first run.

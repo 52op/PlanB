@@ -39,13 +39,13 @@ jobs:
         id: find-file
         shell: pwsh
         run: |
-          $filePath = Get-ChildItem -Path dist -Filter planning.exe -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          $filePath = Get-ChildItem -Path dist -Filter PlanB.exe -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($filePath) {
             $fullPath = $filePath.FullName
             echo "exe_path=$fullPath" >> $env:GITHUB_OUTPUT
             echo "找到文件: $fullPath"
           } else {
-            echo "错误: 未找到 planning.exe"
+            echo "错误: 未找到 PlanB.exe"
             exit 1
           }
 
