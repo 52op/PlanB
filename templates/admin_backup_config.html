@@ -540,7 +540,14 @@
         
         <div class="form-group" id="encryption_password_field" style="display: none;">
             <label>加密密码</label>
-            <input type="password" name="encryption_password" value="{{ config.encryption_password if config and config.encryption_password else '' }}" class="form-control">
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="password" name="encryption_password" id="encryption_password_input" value="{{ config.encryption_password if config and config.encryption_password else '' }}" class="form-control" style="flex: 1;">
+                {% if config and config.encryption_key_hash %}
+                <button type="button" class="btn btn-secondary" onclick="showEncryptionPassword()" style="white-space: nowrap;">
+                    <i class="fas fa-eye"></i> 显示密码
+                </button>
+                {% endif %}
+            </div>
             <small style="color: #64748b;">请妥善保管此密码，恢复备份时需要使用</small>
         </div>
     </div>
@@ -570,6 +577,40 @@
         <button type="button" class="btn" onclick="testAllStorages()">测试所有已勾选</button>
     </div>
 </form>
+
+<!-- 显示加密密码的模态框 -->
+<div id="showPasswordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <h3 style="margin: 0 0 16px; font-size: 18px; color: #1e293b;">验证管理员密码</h3>
+        <p style="color: #64748b; margin-bottom: 16px; font-size: 14px;">为了安全，查看加密密码需要验证您的管理员密码</p>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #334155;">管理员密码</label>
+            <input type="password" id="admin_password_input" class="form-control" placeholder="请输入您的管理员密码" style="width: 100%;">
+        </div>
+        
+        <div id="decrypted_password_display" style="display: none; margin-top: 20px;">
+            <label style="display: block; margin-bottom: 12px; font-weight: 600; color: #0f172a; font-size: 15px;">加密密码</label>
+            <div style="position: relative; padding: 16px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <input type="text" id="decrypted_password_text" readonly style="flex: 1; background: rgba(255, 255, 255, 0.95); border: none; padding: 12px 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 16px; font-weight: 600; color: #1e293b; letter-spacing: 1px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                    <button type="button" onclick="copyPassword()" style="padding: 12px 20px; background: rgba(255, 255, 255, 0.95); border: none; border-radius: 8px; color: #667eea; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='white'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.15)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.95)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0, 0, 0, 0.1)';">
+                        <i class="fas fa-copy"></i> 复制
+                    </button>
+                </div>
+                <div style="margin-top: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.15); border-radius: 6px; font-size: 12px; color: rgba(255, 255, 255, 0.95); display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>请妥善保管此密码，恢复备份时需要使用</span>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" onclick="closePasswordModal()">取消</button>
+            <button type="button" class="btn btn-primary" id="verify_password_btn" onclick="verifyAndDecrypt()">验证并显示</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -891,5 +932,105 @@ function testAllStorages() {
         alert('✗ 测试失败\n\n' + error.message);
     });
 }
+
+// 显示加密密码相关函数
+function showEncryptionPassword() {
+    const modal = document.getElementById('showPasswordModal');
+    modal.style.display = 'flex';
+    document.getElementById('admin_password_input').value = '';
+    document.getElementById('decrypted_password_display').style.display = 'none';
+    document.getElementById('verify_password_btn').style.display = 'inline-block';
+}
+
+function closePasswordModal() {
+    const modal = document.getElementById('showPasswordModal');
+    modal.style.display = 'none';
+    document.getElementById('admin_password_input').value = '';
+    document.getElementById('decrypted_password_text').value = '';
+}
+
+async function verifyAndDecrypt() {
+    const adminPassword = document.getElementById('admin_password_input').value.trim();
+    
+    if (!adminPassword) {
+        alert('请输入管理员密码');
+        return;
+    }
+    
+    const btn = document.getElementById('verify_password_btn');
+    const originalText = btn.textContent;
+    btn.textContent = '验证中...';
+    btn.disabled = true;
+    
+    try {
+        const formData = new FormData();
+        formData.append('admin_password', adminPassword);
+        
+        const response = await fetch('{{ url_for("admin.admin_backup_decrypt_password") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 显示解密后的密码
+            document.getElementById('decrypted_password_text').value = data.password;
+            document.getElementById('decrypted_password_display').style.display = 'block';
+            document.getElementById('verify_password_btn').style.display = 'none';
+            
+            // 清空管理员密码输入框
+            document.getElementById('admin_password_input').value = '';
+        } else {
+            alert('验证失败：' + data.message);
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        alert('验证失败：' + error.message);
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+function copyPassword() {
+    const passwordInput = document.getElementById('decrypted_password_text');
+    passwordInput.select();
+    document.execCommand('copy');
+    
+    // 显示复制成功提示
+    const btn = event.target.closest('button');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    
+    setTimeout(() => {
+        btn.innerHTML = originalHTML;
+    }, 2000);
+}
+
+// 点击模态框外部关闭
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('showPasswordModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePasswordModal();
+            }
+        });
+    }
+});
+
+// ESC 键关闭模态框
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('showPasswordModal');
+        if (modal && modal.style.display === 'flex') {
+            closePasswordModal();
+        }
+    }
+});
 </script>
 {% endblock %}

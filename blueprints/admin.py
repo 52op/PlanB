@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify, current_app
 from flask_login import login_required, current_user
-from models import Comment, DocumentViewStat, NotificationLog, PasswordAccessRule, db, SystemSetting, User, PermissionRule
+from models import Comment, DocumentViewStat, NotificationLog, PasswordAccessRule, db, SystemSetting, User, PermissionRule, BackupConfig
 from services import (
     annotate_comment_descendant_counts,
     clear_comment_approval_token,
@@ -1622,6 +1622,53 @@ def admin_backup_config_import():
         flash(f'导入配置失败: {str(e)}')
     
     return redirect(url_for('admin.admin_backup_config'))
+
+
+@admin_bp.route('/backup/config/decrypt-password', methods=['POST'])
+@login_required
+def admin_backup_decrypt_password():
+    """
+    解密备份加密密码
+    需要验证管理员密码
+    """
+    _require_admin_role()
+    
+    try:
+        # 获取管理员密码
+        admin_password = request.form.get('admin_password', '').strip()
+        if not admin_password:
+            return jsonify({'success': False, 'message': '请输入管理员密码'}), 400
+        
+        # 验证管理员密码
+        from werkzeug.security import check_password_hash
+        if not check_password_hash(current_user.password_hash, admin_password):
+            return jsonify({'success': False, 'message': '管理员密码错误'}), 403
+        
+        # 获取备份配置
+        config = BackupConfig.query.first()
+        if not config or not config.encryption_key_hash:
+            return jsonify({'success': False, 'message': '未配置加密密码'}), 404
+        
+        # 解密密码
+        from cryptography.fernet import Fernet
+        import base64
+        import hashlib
+        
+        # 从Flask secret_key派生加密密钥
+        key_material = hashlib.sha256(current_app.secret_key.encode()).digest()
+        fernet_key = base64.urlsafe_b64encode(key_material)
+        fernet = Fernet(fernet_key)
+        
+        # 解密
+        decrypted_password = fernet.decrypt(config.encryption_key_hash.encode()).decode('utf-8')
+        
+        return jsonify({
+            'success': True,
+            'password': decrypted_password
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'解密失败: {str(e)}'}), 500
 
 
 @admin_bp.route('/backup/history')
