@@ -369,18 +369,13 @@ def _ensure_backup_config():
             print("[planning] 初始化备份默认配置...")
             default_config = BackupConfig(
                 enabled=False,
+                storage_type='[]',  # 空的 JSON 数组
                 schedule_type='manual',
-                retention_days=7,
                 retention_count=10,
-                compress=True,
-                encrypt=False,
-                storage_local=True,
-                storage_ftp=False,
-                storage_email=False,
-                storage_s3=False,
+                backup_mode='full',
+                encryption_enabled=False,
                 notification_enabled=True,
-                notification_on_success=False,
-                notification_on_failure=True
+                storage_warning_threshold_mb=1024
             )
             db.session.add(default_config)
             db.session.commit()
