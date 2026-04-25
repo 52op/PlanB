@@ -28,6 +28,9 @@ class PlanningApp {
         // 设置页面特定功能
         this.setupPageSpecificFeatures();
 
+        // 启动 CSRF token 自动刷新（每30分钟刷新一次）
+        this.startCSRFTokenRefresh();
+
         this.initialized = true;
 
         console.log('Planning App initialized successfully');
@@ -70,6 +73,67 @@ class PlanningApp {
         }
 
         return '';
+    }
+
+    /**
+     * 启动 CSRF token 自动刷新
+     * 每30分钟刷新一次，避免长时间停留页面后 token 过期
+     */
+    startCSRFTokenRefresh() {
+        // 每30分钟刷新一次（CSRF token 有效期为4小时，30分钟刷新足够安全）
+        const refreshInterval = 30 * 60 * 1000; // 30分钟
+
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/csrf-token');
+                if (!response.ok) {
+                    console.warn('Failed to refresh CSRF token:', response.status);
+                    return;
+                }
+
+                const data = await response.json();
+                if (data.success && data.token) {
+                    // 更新内存中的 token
+                    this.csrfToken = data.token;
+
+                    // 更新页面 meta 标签
+                    const meta = document.querySelector('meta[name="csrf-token"]');
+                    if (meta) {
+                        meta.setAttribute('content', data.token);
+                    }
+
+                    // 更新所有表单中的 CSRF token
+                    document.querySelectorAll('input[name="csrf_token"]').forEach(input => {
+                        input.value = data.token;
+                    });
+
+                    // 通知所有模块更新 token
+                    if (window.editorManager) {
+                        window.editorManager.setCSRFToken(data.token);
+                    }
+                    if (window.fileOperations) {
+                        window.fileOperations.setCSRFToken(data.token);
+                    }
+                    if (window.uploadManager) {
+                        window.uploadManager.setCSRFToken(data.token);
+                    }
+                    if (window.articleCrawler) {
+                        window.articleCrawler.setCSRFToken(data.token);
+                    }
+                    if (window.shareManager) {
+                        window.shareManager.setCSRFToken(data.token);
+                    }
+
+                    console.log('CSRF token refreshed successfully');
+                } else {
+                    console.warn('Invalid CSRF token response:', data);
+                }
+            } catch (error) {
+                console.error('Error refreshing CSRF token:', error);
+            }
+        }, refreshInterval);
+
+        console.log('CSRF token auto-refresh started (interval: 30 minutes)');
     }
 
     initializeModules() {

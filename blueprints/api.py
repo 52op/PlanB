@@ -1619,3 +1619,24 @@ def search_docs():
 
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@api_bp.route("/csrf-token", methods=["GET"])
+def get_csrf_token():
+    """
+    获取新的 CSRF token
+    用于前端自动刷新 token，避免长时间停留页面后 token 过期
+    """
+    from flask_wtf.csrf import generate_csrf
+    
+    try:
+        token = generate_csrf()
+        return jsonify({
+            "success": True,
+            "token": token
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500

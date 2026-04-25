@@ -110,7 +110,7 @@ def create_app():
         else:
             raise RuntimeError('生产环境必须配置 secret_key 或 PLANNING_SECRET_KEY')
     app.config['SECRET_KEY'] = secret_key
-    app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+    app.config['WTF_CSRF_TIME_LIMIT'] = 3600 * 4  # 4小时，平衡安全性和用户体验
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['REMEMBER_COOKIE_HTTPONLY'] = True
