@@ -196,6 +196,7 @@ class BackupScheduler:
                 
                 if len(parts) == 5:
                     # 5部分格式：分 时 日 月 周
+                    print(f"[BackupScheduler] 使用cron表达式: {schedule_value}")
                     return CronTrigger(
                         minute=parts[0],
                         hour=parts[1],
@@ -205,6 +206,7 @@ class BackupScheduler:
                     )
                 elif len(parts) == 6:
                     # 6部分格式：秒 分 时 日 月 周
+                    print(f"[BackupScheduler] 使用cron表达式（含秒）: {schedule_value}")
                     return CronTrigger(
                         second=parts[0],
                         minute=parts[1],
@@ -214,21 +216,26 @@ class BackupScheduler:
                         day_of_week=parts[5]
                     )
                 else:
-                    print(f"[BackupScheduler] 无效的cron表达式格式: {schedule_value}")
-                    # 继续尝试使用默认规则
+                    print(f"[BackupScheduler] 无效的cron表达式格式: {schedule_value}，部分数量: {len(parts)}")
+                    # 如果是cron类型但格式无效，返回None
+                    if schedule_type == 'cron':
+                        return None
             
             # 如果没有 schedule_value 或解析失败，使用默认规则
             if schedule_type == 'hourly':
                 # 每小时执行一次（在每小时的第0分钟）
+                print("[BackupScheduler] 使用默认hourly触发器")
                 return CronTrigger(minute=0)
             
             elif schedule_type == 'daily':
                 # 每天执行一次（默认凌晨2点，但应该从schedule_value读取）
                 # 如果没有schedule_value，使用默认值
+                print("[BackupScheduler] 使用默认daily触发器")
                 return CronTrigger(hour=2, minute=0)
             
             elif schedule_type == 'weekly':
                 # 每周执行一次（默认周日凌晨2点）
+                print("[BackupScheduler] 使用默认weekly触发器")
                 return CronTrigger(day_of_week='sun', hour=2, minute=0)
             
             elif schedule_type == 'cron':
@@ -242,4 +249,6 @@ class BackupScheduler:
         
         except Exception as e:
             print(f"[BackupScheduler] 创建触发器失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None

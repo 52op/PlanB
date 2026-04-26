@@ -497,7 +497,13 @@
         <!-- 自定义 Cron 表达式 -->
         <div class="form-group schedule-option" id="schedule_custom" style="display: none;">
             <label>Cron 表达式</label>
-            <input type="text" name="custom_cron" value="0 2 * * *" class="form-control" placeholder="0 2 * * *">
+            <input type="text" name="custom_cron" id="custom_cron_input" value="0 2 * * *" class="form-control" placeholder="0 2 * * *">
+            <div id="cron_parse_result" style="margin-top: 8px; padding: 10px 14px; background: #f0f9ff; border-left: 3px solid #0ea5e9; border-radius: 6px; display: none;">
+                <div style="display: flex; align-items: center; gap: 8px; color: #0369a1; font-weight: 500; font-size: 14px;">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="cron_parse_text"></span>
+                </div>
+            </div>
             <small style="color: #64748b;">
                 Cron 表达式格式：分 时 日 月 周<br>
                 示例：<br>
@@ -743,51 +749,242 @@ document.addEventListener('DOMContentLoaded', function() {
     updateScheduleOptions();
 });
 
+// Cron 表达式解析函数
+function parseCronExpression(cronExpr) {
+    if (!cronExpr || typeof cronExpr !== 'string') {
+        return null;
+    }
+    
+    const parts = cronExpr.trim().split(/\s+/);
+    if (parts.length !== 5) {
+        return '无效的 Cron 表达式（应为5个字段：分 时 日 月 周）';
+    }
+    
+    const [minute, hour, day, month, weekday] = parts;
+    
+    // 常见模式的友好描述
+    // 每小时
+    if (cronExpr === '0 * * * *') {
+        return '每小时整点执行';
+    }
+    
+    // 每N小时
+    if (cronExpr.match(/^0 \*\/(\d+) \* \* \*$/)) {
+        const interval = cronExpr.match(/^0 \*\/(\d+) \* \* \*$/)[1];
+        return `每${interval}小时执行一次`;
+    }
+    
+    // 每天固定时间
+    if (cronExpr.match(/^(\d+) (\d+) \* \* \*$/)) {
+        const m = cronExpr.match(/^(\d+) (\d+) \* \* \*$/)[1];
+        const h = cronExpr.match(/^(\d+) (\d+) \* \* \*$/)[2];
+        return `每天的${h}:${m.padStart(2, '0')}执行`;
+    }
+    
+    // 每周固定时间
+    if (cronExpr.match(/^(\d+) (\d+) \* \* (\d+)$/)) {
+        const m = cronExpr.match(/^(\d+) (\d+) \* \* (\d+)$/)[1];
+        const h = cronExpr.match(/^(\d+) (\d+) \* \* (\d+)$/)[2];
+        const w = cronExpr.match(/^(\d+) (\d+) \* \* (\d+)$/)[3];
+        const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        return `每${weekNames[parseInt(w)]}的${h}:${m.padStart(2, '0')}执行`;
+    }
+    
+    // 每月固定时间
+    if (cronExpr.match(/^(\d+) (\d+) (\d+) \* \*$/)) {
+        const m = cronExpr.match(/^(\d+) (\d+) (\d+) \* \*$/)[1];
+        const h = cronExpr.match(/^(\d+) (\d+) (\d+) \* \*$/)[2];
+        const d = cronExpr.match(/^(\d+) (\d+) (\d+) \* \*$/)[3];
+        return `每月${d}号的${h}:${m.padStart(2, '0')}执行`;
+    }
+    
+    // 每N分钟
+    if (cronExpr.match(/^\*\/(\d+) \* \* \* \*$/)) {
+        const interval = cronExpr.match(/^\*\/(\d+) \* \* \* \*$/)[1];
+        return `每${interval}分钟执行一次`;
+    }
+    
+    // 复杂表达式的通用解析
+    let description = '';
+    
+    // 解析分钟
+    if (minute === '*') {
+        description += '每分钟';
+    } else if (minute.includes('/')) {
+        const interval = minute.split('/')[1];
+        description += `每${interval}分钟`;
+    } else if (minute.includes(',')) {
+        description += `在第${minute.split(',').join('、')}分钟`;
+    } else {
+        description += `在第${minute}分钟`;
+    }
+    
+    // 解析小时
+    if (hour === '*') {
+        description += '，每小时';
+    } else if (hour.includes('/')) {
+        const interval = hour.split('/')[1];
+        description += `，每${interval}小时`;
+    } else if (hour.includes(',')) {
+        description += `，在${hour.split(',').join('、')}点`;
+    } else {
+        // 如果分钟不是*，组合成时间格式
+        if (minute !== '*' && !minute.includes('/') && !minute.includes(',')) {
+            description = `在${hour}:${minute.padStart(2, '0')}`;
+        } else {
+            description += `，在${hour}点`;
+        }
+    }
+    
+    // 解析日期
+    if (day !== '*') {
+        if (day.includes('/')) {
+            const interval = day.split('/')[1];
+            description += `，每${interval}天`;
+        } else if (day.includes(',')) {
+            description += `，每月${day.split(',').join('、')}号`;
+        } else if (day.includes('-')) {
+            const [start, end] = day.split('-');
+            description += `，每月${start}到${end}号`;
+        } else {
+            description += `，每月${day}号`;
+        }
+    } else {
+        description += '，每天';
+    }
+    
+    // 解析月份
+    if (month !== '*') {
+        const monthNames = ['', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        if (month.includes(',')) {
+            const months = month.split(',').map(m => monthNames[parseInt(m)]).join('、');
+            description += `，仅在${months}`;
+        } else if (month.includes('-')) {
+            const [start, end] = month.split('-');
+            description += `，仅在${monthNames[parseInt(start)]}到${monthNames[parseInt(end)]}`;
+        } else {
+            description += `，仅在${monthNames[parseInt(month)]}`;
+        }
+    }
+    
+    // 解析星期
+    if (weekday !== '*') {
+        const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        if (weekday.includes(',')) {
+            const weeks = weekday.split(',').map(w => weekNames[parseInt(w)]).join('、');
+            description += `，仅在${weeks}`;
+        } else if (weekday.includes('-')) {
+            const [start, end] = weekday.split('-');
+            description += `，仅在${weekNames[parseInt(start)]}到${weekNames[parseInt(end)]}`;
+        } else {
+            description += `，仅在${weekNames[parseInt(weekday)]}`;
+        }
+    }
+    
+    // 清理描述
+    description = description.replace(/^，/, ''); // 移除开头的逗号
+    description += '执行';
+    
+    return description;
+}
+
+// 监听 Cron 表达式输入变化
+document.addEventListener('DOMContentLoaded', function() {
+    const cronInput = document.getElementById('custom_cron_input');
+    const cronResult = document.getElementById('cron_parse_result');
+    const cronText = document.getElementById('cron_parse_text');
+    
+    if (cronInput && cronResult && cronText) {
+        const updateCronDescription = () => {
+            const cronValue = cronInput.value.trim();
+            if (cronValue) {
+                const description = parseCronExpression(cronValue);
+                if (description) {
+                    cronText.textContent = description;
+                    cronResult.style.display = 'block';
+                } else {
+                    cronResult.style.display = 'none';
+                }
+            } else {
+                cronResult.style.display = 'none';
+            }
+        };
+        
+        // 初始解析
+        updateCronDescription();
+        
+        // 监听输入变化
+        cronInput.addEventListener('input', updateCronDescription);
+        cronInput.addEventListener('change', updateCronDescription);
+    }
+});
+
+
 // 收集指定存储方式的配置数据
 function collectStorageConfig(storageType) {
     const formData = new FormData();
     formData.append('storage_types', storageType);
     
     // 添加必需的基础配置字段（后端验证需要）
-    formData.append('backup_schedule', document.querySelector('select[name="backup_schedule"]').value);
-    formData.append('backup_mode', document.querySelector('select[name="backup_mode"]').value);
-    formData.append('retention_count', document.querySelector('input[name="retention_count"]').value);
+    // 注意：这些字段可能不存在，需要安全处理
+    const backupModeEl = document.querySelector('select[name="backup_mode"]');
+    const retentionCountEl = document.querySelector('input[name="retention_count"]');
+    
+    if (backupModeEl) {
+        formData.append('backup_mode', backupModeEl.value);
+    }
+    if (retentionCountEl) {
+        formData.append('retention_count', retentionCountEl.value);
+    }
     
     // 收集加密配置
-    const encryptionEnabled = document.querySelector('input[name="encryption_enabled"]').checked;
-    if (encryptionEnabled) {
+    const encryptionEnabledEl = document.querySelector('input[name="encryption_enabled"]');
+    if (encryptionEnabledEl && encryptionEnabledEl.checked) {
         formData.append('encryption_enabled', 'on');
-        const encryptionPassword = document.querySelector('input[name="encryption_password"]').value;
-        if (encryptionPassword) {
-            formData.append('encryption_password', encryptionPassword);
+        const encryptionPasswordEl = document.querySelector('input[name="encryption_password"]');
+        if (encryptionPasswordEl && encryptionPasswordEl.value) {
+            formData.append('encryption_password', encryptionPasswordEl.value);
         }
     }
     
     // 收集通知配置
-    const notificationEnabled = document.querySelector('input[name="notification_enabled"]').checked;
-    if (notificationEnabled) {
+    const notificationEnabledEl = document.querySelector('input[name="notification_enabled"]');
+    if (notificationEnabledEl && notificationEnabledEl.checked) {
         formData.append('notification_enabled', 'on');
-        const notificationEmail = document.querySelector('input[name="notification_email"]').value;
-        if (notificationEmail) {
-            formData.append('notification_email', notificationEmail);
+        const notificationEmailEl = document.querySelector('input[name="notification_email"]');
+        if (notificationEmailEl && notificationEmailEl.value) {
+            formData.append('notification_email', notificationEmailEl.value);
         }
     }
     
     // 收集指定存储方式的配置
     if (storageType === 'ftp') {
-        formData.append('ftp_host', document.querySelector('input[name="ftp_host"]').value);
-        formData.append('ftp_port', document.querySelector('input[name="ftp_port"]').value);
-        formData.append('ftp_username', document.querySelector('input[name="ftp_username"]').value);
-        formData.append('ftp_password', document.querySelector('input[name="ftp_password"]').value);
-        formData.append('ftp_directory', document.querySelector('input[name="ftp_directory"]').value);
+        const ftpHostEl = document.querySelector('input[name="ftp_host"]');
+        const ftpPortEl = document.querySelector('input[name="ftp_port"]');
+        const ftpUsernameEl = document.querySelector('input[name="ftp_username"]');
+        const ftpPasswordEl = document.querySelector('input[name="ftp_password"]');
+        const ftpDirectoryEl = document.querySelector('input[name="ftp_directory"]');
+        
+        if (ftpHostEl) formData.append('ftp_host', ftpHostEl.value);
+        if (ftpPortEl) formData.append('ftp_port', ftpPortEl.value);
+        if (ftpUsernameEl) formData.append('ftp_username', ftpUsernameEl.value);
+        if (ftpPasswordEl) formData.append('ftp_password', ftpPasswordEl.value);
+        if (ftpDirectoryEl) formData.append('ftp_directory', ftpDirectoryEl.value);
     } else if (storageType === 'email') {
-        formData.append('email_recipient', document.querySelector('input[name="email_recipient"]').value);
+        const emailRecipientEl = document.querySelector('input[name="email_recipient"]');
+        if (emailRecipientEl) formData.append('email_recipient', emailRecipientEl.value);
     } else if (storageType === 's3') {
-        formData.append('s3_bucket', document.querySelector('input[name="s3_bucket"]').value);
-        formData.append('s3_region', document.querySelector('input[name="s3_region"]').value);
-        formData.append('s3_access_key', document.querySelector('input[name="s3_access_key"]').value);
-        formData.append('s3_secret_key', document.querySelector('input[name="s3_secret_key"]').value);
-        formData.append('s3_endpoint', document.querySelector('input[name="s3_endpoint"]').value);
+        const s3BucketEl = document.querySelector('input[name="s3_bucket"]');
+        const s3RegionEl = document.querySelector('input[name="s3_region"]');
+        const s3AccessKeyEl = document.querySelector('input[name="s3_access_key"]');
+        const s3SecretKeyEl = document.querySelector('input[name="s3_secret_key"]');
+        const s3EndpointEl = document.querySelector('input[name="s3_endpoint"]');
+        
+        if (s3BucketEl) formData.append('s3_bucket', s3BucketEl.value);
+        if (s3RegionEl) formData.append('s3_region', s3RegionEl.value);
+        if (s3AccessKeyEl) formData.append('s3_access_key', s3AccessKeyEl.value);
+        if (s3SecretKeyEl) formData.append('s3_secret_key', s3SecretKeyEl.value);
+        if (s3EndpointEl) formData.append('s3_endpoint', s3EndpointEl.value);
     }
     
     return formData;
@@ -854,48 +1051,67 @@ function testAllStorages() {
         formData.append('storage_types', type);
     });
     
-    // 收集备份计划配置
-    formData.append('backup_schedule', document.querySelector('select[name="backup_schedule"]').value);
-    formData.append('backup_mode', document.querySelector('select[name="backup_mode"]').value);
-    formData.append('retention_count', document.querySelector('input[name="retention_count"]').value);
+    // 收集备份计划配置（安全处理）
+    const backupModeEl = document.querySelector('select[name="backup_mode"]');
+    const retentionCountEl = document.querySelector('input[name="retention_count"]');
+    
+    if (backupModeEl) {
+        formData.append('backup_mode', backupModeEl.value);
+    }
+    if (retentionCountEl) {
+        formData.append('retention_count', retentionCountEl.value);
+    }
     
     // 收集加密配置
-    const encryptionEnabled = document.querySelector('input[name="encryption_enabled"]').checked;
-    if (encryptionEnabled) {
+    const encryptionEnabledEl = document.querySelector('input[name="encryption_enabled"]');
+    if (encryptionEnabledEl && encryptionEnabledEl.checked) {
         formData.append('encryption_enabled', 'on');
-        const encryptionPassword = document.querySelector('input[name="encryption_password"]').value;
-        if (encryptionPassword) {
-            formData.append('encryption_password', encryptionPassword);
+        const encryptionPasswordEl = document.querySelector('input[name="encryption_password"]');
+        if (encryptionPasswordEl && encryptionPasswordEl.value) {
+            formData.append('encryption_password', encryptionPasswordEl.value);
         }
     }
     
     // 收集通知配置
-    const notificationEnabled = document.querySelector('input[name="notification_enabled"]').checked;
-    if (notificationEnabled) {
+    const notificationEnabledEl = document.querySelector('input[name="notification_enabled"]');
+    if (notificationEnabledEl && notificationEnabledEl.checked) {
         formData.append('notification_enabled', 'on');
-        const notificationEmail = document.querySelector('input[name="notification_email"]').value;
-        if (notificationEmail) {
-            formData.append('notification_email', notificationEmail);
+        const notificationEmailEl = document.querySelector('input[name="notification_email"]');
+        if (notificationEmailEl && notificationEmailEl.value) {
+            formData.append('notification_email', notificationEmailEl.value);
         }
     }
     
     // 根据存储类型收集相应的配置
     if (storageTypes.includes('ftp')) {
-        formData.append('ftp_host', document.querySelector('input[name="ftp_host"]').value);
-        formData.append('ftp_port', document.querySelector('input[name="ftp_port"]').value);
-        formData.append('ftp_username', document.querySelector('input[name="ftp_username"]').value);
-        formData.append('ftp_password', document.querySelector('input[name="ftp_password"]').value);
-        formData.append('ftp_directory', document.querySelector('input[name="ftp_directory"]').value);
+        const ftpHostEl = document.querySelector('input[name="ftp_host"]');
+        const ftpPortEl = document.querySelector('input[name="ftp_port"]');
+        const ftpUsernameEl = document.querySelector('input[name="ftp_username"]');
+        const ftpPasswordEl = document.querySelector('input[name="ftp_password"]');
+        const ftpDirectoryEl = document.querySelector('input[name="ftp_directory"]');
+        
+        if (ftpHostEl) formData.append('ftp_host', ftpHostEl.value);
+        if (ftpPortEl) formData.append('ftp_port', ftpPortEl.value);
+        if (ftpUsernameEl) formData.append('ftp_username', ftpUsernameEl.value);
+        if (ftpPasswordEl) formData.append('ftp_password', ftpPasswordEl.value);
+        if (ftpDirectoryEl) formData.append('ftp_directory', ftpDirectoryEl.value);
     }
     if (storageTypes.includes('email')) {
-        formData.append('email_recipient', document.querySelector('input[name="email_recipient"]').value);
+        const emailRecipientEl = document.querySelector('input[name="email_recipient"]');
+        if (emailRecipientEl) formData.append('email_recipient', emailRecipientEl.value);
     }
     if (storageTypes.includes('s3')) {
-        formData.append('s3_bucket', document.querySelector('input[name="s3_bucket"]').value);
-        formData.append('s3_region', document.querySelector('input[name="s3_region"]').value);
-        formData.append('s3_access_key', document.querySelector('input[name="s3_access_key"]').value);
-        formData.append('s3_secret_key', document.querySelector('input[name="s3_secret_key"]').value);
-        formData.append('s3_endpoint', document.querySelector('input[name="s3_endpoint"]').value);
+        const s3BucketEl = document.querySelector('input[name="s3_bucket"]');
+        const s3RegionEl = document.querySelector('input[name="s3_region"]');
+        const s3AccessKeyEl = document.querySelector('input[name="s3_access_key"]');
+        const s3SecretKeyEl = document.querySelector('input[name="s3_secret_key"]');
+        const s3EndpointEl = document.querySelector('input[name="s3_endpoint"]');
+        
+        if (s3BucketEl) formData.append('s3_bucket', s3BucketEl.value);
+        if (s3RegionEl) formData.append('s3_region', s3RegionEl.value);
+        if (s3AccessKeyEl) formData.append('s3_access_key', s3AccessKeyEl.value);
+        if (s3SecretKeyEl) formData.append('s3_secret_key', s3SecretKeyEl.value);
+        if (s3EndpointEl) formData.append('s3_endpoint', s3EndpointEl.value);
     }
     
     fetch('{{ url_for("admin.admin_backup_config_test") }}', {

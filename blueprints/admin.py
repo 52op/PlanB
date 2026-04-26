@@ -1240,7 +1240,78 @@ def admin_backup_config_save():
         
         db.session.commit()
         
-        flash('备份配置已保存')
+        # 从数据库重新读取配置，生成详细的保存摘要
+        config = BackupConfig.query.first()
+        
+        # 解析存储类型
+        storage_types = json.loads(config.storage_type) if config.storage_type else []
+        storage_names = {
+            'ftp': 'FTP服务器',
+            'email': '邮件附件',
+            's3': 'S3存储'
+        }
+        storage_list = '、'.join([storage_names.get(t, t) for t in storage_types])
+        
+        # 解析调度计划
+        def parse_cron_to_chinese(cron_expr):
+            """将cron表达式转换为中文描述"""
+            if not cron_expr:
+                return '未设置'
+            
+            parts = cron_expr.strip().split()
+            if len(parts) != 5:
+                return cron_expr
+            
+            minute, hour, day, month, weekday = parts
+            
+            # 常见模式
+            if cron_expr == '0 * * * *':
+                return '每小时整点'
+            if cron_expr.startswith('0 */'):
+                interval = cron_expr.split()[1].split('/')[1]
+                return f'每{interval}小时'
+            if day == '*' and month == '*' and weekday == '*':
+                return f'每天{hour}:{minute.zfill(2)}'
+            if day == '*' and month == '*' and weekday != '*':
+                week_names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+                return f'每{week_names[int(weekday)]}{hour}:{minute.zfill(2)}'
+            if month == '*' and weekday == '*':
+                return f'每月{day}号{hour}:{minute.zfill(2)}'
+            
+            return cron_expr
+        
+        schedule_desc = parse_cron_to_chinese(config.schedule_value)
+        
+        # 构建详细消息
+        summary_parts = []
+        summary_parts.append(f"✓ 备份配置已保存")
+        summary_parts.append(f"")
+        summary_parts.append(f"【存储方式】{storage_list}")
+        summary_parts.append(f"【自动备份】{'已启用' if config.enabled else '已禁用'}")
+        if config.enabled:
+            summary_parts.append(f"【备份计划】{schedule_desc}")
+        summary_parts.append(f"【备份模式】{'完整备份' if config.backup_mode == 'full' else '增量备份'}")
+        summary_parts.append(f"【保留数量】{config.retention_count}个")
+        summary_parts.append(f"【备份加密】{'已启用' if config.encryption_enabled else '未启用'}")
+        summary_parts.append(f"【邮件通知】{'已启用' if config.notification_enabled else '未启用'}")
+        if config.notification_enabled and config.notification_email:
+            summary_parts.append(f"【通知邮箱】{config.notification_email}")
+        
+        flash('\n'.join(summary_parts))
+        
+        # 更新调度器配置
+        try:
+            scheduler = current_app.config.get('BACKUP_SCHEDULER')
+            if scheduler:
+                scheduler.update_schedule(config)
+                print(f"[Admin] 已更新调度器配置: {config.schedule_type} - {config.schedule_value}")
+            else:
+                print("[Admin] 警告：调度器未初始化")
+        except Exception as scheduler_error:
+            print(f"[Admin] 更新调度器失败: {str(scheduler_error)}")
+            import traceback
+            traceback.print_exc()
+            
     except Exception as e:
         db.session.rollback()
         flash(f'保存配置失败: {str(e)}')
