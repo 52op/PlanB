@@ -63,7 +63,7 @@ PlanB 目前同时覆盖三类使用场景：
   - 允许管理
 - 自动备份系统
   - 定时自动备份
-  - 多目标存储（FTP / S3 / 邮件）
+  - 多目标存储（FTP / [S3](https://github.com/52op/PlanB-backup-s3server "专为测试planB写的一个简易s3 server") / 邮件）
   - 备份验证与恢复
   - 存储空间监控
   - 备份通知
