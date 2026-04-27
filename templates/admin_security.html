@@ -11,19 +11,20 @@
         gap: 18px;
         padding: 24px 26px;
         border-radius: 16px;
-        background: linear-gradient(135deg, #0f172a, #1d4ed8);
-        color: #e2e8f0;
-        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        color: #0f172a;
+        box-shadow: 0 10px 25px rgba(14, 165, 233, 0.08);
+        border: 1px solid #bae6fd;
     }
     .security-hero h2 {
         margin: 0;
         font-size: 28px;
-        color: #fff;
+        color: #0c4a6e;
     }
     .security-hero p {
         margin: 0;
         line-height: 1.7;
-        color: rgba(226, 232, 240, 0.88);
+        color: #334155;
     }
     .security-status-row {
         display: flex;
@@ -36,22 +37,35 @@
         gap: 8px;
         padding: 8px 14px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
-        color: #f8fafc;
+        background: #fff;
+        color: #0284c7;
         font-size: 13px;
         font-weight: 600;
+        box-shadow: 0 2px 4px rgba(14, 165, 233, 0.05);
+        border: 1px solid #bae6fd;
     }
     .security-status-note {
         padding: 14px 16px;
         border-radius: 12px;
-        background: rgba(15, 23, 42, 0.18);
-        color: #dbeafe;
+        background: rgba(255, 255, 255, 0.6);
+        color: #0369a1;
         line-height: 1.7;
+        border: 1px solid rgba(186, 230, 253, 0.5);
     }
     .security-grid {
         display: grid;
-        grid-template-columns: 1.1fr 0.9fr;
+        grid-template-columns: 1fr;
         gap: 24px;
+    }
+    .security-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+        gap: 24px;
+    }
+    @media (max-width: 960px) {
+        .security-row {
+            grid-template-columns: 1fr;
+        }
     }
     .security-card {
         background: #fff;
@@ -190,6 +204,11 @@
         display: grid;
         gap: 8px;
     }
+    .field-inline input {
+        width: 100%;
+        box-sizing: border-box;
+        min-width: 0;
+    }
     .field-inline label {
         font-size: 13px;
         color: #475569;
@@ -254,7 +273,7 @@
     <section class="security-hero">
         <div>
             <h2>安全设置</h2>
-            <p>这里集中管理登录与验证码防暴力猜解策略。默认使用数据库持久化，适合你当前这种不想额外部署 Redis 的场景；如果以后要提速，也可以直接切换成 Redis。</p>
+            <p>这里集中管理应用的网络安全策略。包含对登录和验证码防暴力破解的限流策略，以及灵活的 IP 访问控制。默认使用数据库持久化，适合无需额外组件的情景，后续可平滑切换 Redis 加速。</p>
         </div>
         <div class="security-status-row">
             <span class="security-status-pill">偏好后端: {{ 'Redis' if rate_limit_status.preferred_backend == 'redis' else '数据库' }}</span>
@@ -264,16 +283,17 @@
         <div class="security-status-note">{{ rate_limit_status.message }}</div>
     </section>
 
-    <div class="security-grid">
-        <section class="security-card">
-            <div class="security-card-header">
-                <h3>限流策略</h3>
-                <p>同一套规则会同时作用于密码登录和验证码校验，但你可以分别关闭某一类限制。</p>
-            </div>
-            <div class="security-card-body">
-                <form method="POST" action="{{ url_for('admin.update_security_settings') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <form method="POST" action="{{ url_for('admin.update_security_settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+        <div class="security-grid">
+            <div class="security-row">
+                <section class="security-card">
+                    <div class="security-card-header">
+                        <h3>限流策略</h3>
+                        <p>同一套规则会同时作用于密码登录和验证码校验，但你可以分别关闭某一类限制。</p>
+                    </div>
+                <div class="security-card-body">
                     <div class="security-section">
                         <h4 class="security-section-title">防护开关</h4>
                         <div class="toggle-grid">
@@ -433,19 +453,15 @@
                         </div>
                     </div>
 
-                    <div class="security-actions">
-                        <button type="submit" class="btn">保存安全设置</button>
-                    </div>
-                </form>
-            </div>
-        </section>
+                </div>
+            </section>
 
-        <aside class="security-card">
-            <div class="security-card-header">
-                <h3>运行说明</h3>
-                <p>这里显示当前模式的实际行为，方便你判断是否需要进一步部署 Redis。</p>
-            </div>
-            <div class="security-card-body">
+            <aside class="security-card">
+                <div class="security-card-header">
+                    <h3>运行说明</h3>
+                    <p>这里显示当前模式的实际行为，方便你判断是否需要进一步部署 Redis。</p>
+                </div>
+                <div class="security-card-body">
                 <div class="status-list">
                     <div class="status-item is-good">
                         <strong>数据库持久化</strong>
@@ -466,7 +482,126 @@
                 </div>
             </div>
         </aside>
+        </div>
+        
+        <div class="security-row">
+            <section class="security-card">
+                <div class="security-card-header">
+                    <h3>IP 访问控制</h3>
+                    <p>配置 IP 白名单、黑名单以及共享密钥等高级网络层限制。</p>
+                </div>
+                <div class="security-card-body">
+                    <div class="security-section">
+                        <div class="toggle-grid">
+                            <div class="toggle-card">
+                                <div>
+                                    <h4>IP 白名单</h4>
+                                    <p>启用后，只允许白名单中的 IP 访问系统。支持单个 IP、CIDR 和 IP 范围。</p>
+                                </div>
+                                <label class="switch" aria-label="切换 IP 白名单">
+                                    <input type="checkbox" name="security_ip_whitelist_enabled" {% if security_settings.security_ip_whitelist_enabled == 'true' %}checked{% endif %}>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                            <div class="toggle-card">
+                                <div>
+                                    <h4>IP 黑名单</h4>
+                                    <p>启用后，黑名单中的 IP 将被拒绝访问。黑名单优先级高于白名单。</p>
+                                </div>
+                                <label class="switch" aria-label="切换 IP 黑名单">
+                                    <input type="checkbox" name="security_ip_blacklist_enabled" {% if security_settings.security_ip_blacklist_enabled == 'true' %}checked{% endif %}>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                            <div class="toggle-card">
+                                <div>
+                                    <h4>共享密钥验证</h4>
+                                    <p>要求请求头包含正确的共享密钥，适用于内部服务调用场景。</p>
+                                </div>
+                                <label class="switch" aria-label="切换共享密钥验证">
+                                    <input type="checkbox" name="security_shared_secret_enabled" {% if security_settings.security_shared_secret_enabled == 'true' %}checked{% endif %}>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="securityIpWhitelist">IP 白名单</label>
+                            <textarea id="securityIpWhitelist" name="security_ip_whitelist" rows="6" placeholder="每行一个 IP 或 IP 段&#10;192.168.1.100&#10;192.168.1.0/24&#10;192.168.1.100-192.168.1.200&#10;# 支持注释">{{ security_settings.security_ip_whitelist }}</textarea>
+                            <div class="field-help">支持格式：单个 IP (192.168.1.100)、CIDR (192.168.1.0/24)、IP 范围 (192.168.1.100-192.168.1.200)。以 # 开头的行为注释。</div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="securityIpBlacklist">IP 黑名单</label>
+                            <textarea id="securityIpBlacklist" name="security_ip_blacklist" rows="6" placeholder="每行一个 IP 或 IP 段&#10;10.0.0.100&#10;10.0.0.0/24&#10;# 支持注释">{{ security_settings.security_ip_blacklist }}</textarea>
+                            <div class="field-help">格式同白名单。黑名单优先级高于白名单，即使 IP 在白名单中，如果也在黑名单中则会被拒绝。</div>
+                        </div>
+                        
+                        <div class="form-grid" style="margin-top: 16px;">
+                            <div class="form-group">
+                                <label for="securitySharedSecret">共享密钥</label>
+                                <input id="securitySharedSecret" type="text" name="security_shared_secret" value="{{ security_settings.security_shared_secret }}" placeholder="输入共享密钥">
+                                <div class="field-help">用于验证请求的共享密钥，建议使用强随机字符串。</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="securitySharedSecretHeader">密钥请求头名称</label>
+                                <input id="securitySharedSecretHeader" type="text" name="security_shared_secret_header" value="{{ security_settings.security_shared_secret_header }}" placeholder="X-Internal-Secret">
+                                <div class="field-help">请求头中携带共享密钥的字段名称。</div>
+                            </div>
+                        </div>
+                        
+                        <div class="status-item" style="margin-top: 24px;">
+                            <strong>当前请求 IP</strong>
+                            <span>{{ request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or request.remote_addr }}</span>
+                        </div>
+                    </div>
+
+                    <div class="security-actions">
+                        <button type="submit" class="btn" id="saveSecurityBtn">保存安全设置</button>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="security-card" id="ipAccessControlGuide">
+                <div class="security-card-header">
+                    <h3>IP 访问控制说明</h3>
+                    <p>配置 Nginx 反向代理时的注意事项和配置示例。</p>
+                </div>
+                <div class="security-card-body">
+                <div class="status-list">
+                    <div class="status-item">
+                        <strong>工作原理</strong>
+                        <span>IP 访问控制在应用层生效，通过读取 X-Forwarded-For 请求头获取真实客户端 IP。如果使用 Nginx 反向代理，需要正确配置 proxy_set_header。</span>
+                    </div>
+                    
+                    <div class="status-item" id="nginxConfigGuide" style="display: none;">
+                        <strong>Nginx 配置示例</strong>
+                        <span style="display: block; margin-top: 8px;">
+                            <pre style="background: #f1f5f9; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; line-height: 1.6; margin: 0; white-space: pre-wrap; word-break: break-all;">location / {
+    proxy_pass http://127.0.0.1:5000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;<span id="nginxSharedSecretLine" style="display: none;">
+    proxy_set_header <span id="nginxSecretHeaderName">X-Internal-Secret</span> "<span id="nginxSecretValue">your-secret-here</span>";</span>
+}</pre>
+                        </span>
+                    </div>
+                    
+                    <div class="status-item is-warning">
+                        <strong>紧急恢复机制</strong>
+                        <span>如果配置错误导致无法访问，可以使用命令行参数快速恢复：<br><code style="background: #1e293b; color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; display: inline-block; margin-top: 8px;">python app.py --disable-ip-control</code></span>
+                    </div>
+                    
+                    <div class="status-item">
+                        <strong>测试建议</strong>
+                        <span>启用白名单前，建议先在黑名单模式下测试，确保配置正确。启用后，可以使用无痕模式或其他设备测试是否正常工作。</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
     </div>
+    </form>
 </div>
 {% endblock %}
 
@@ -489,6 +624,222 @@
 
         backendSelect.addEventListener('change', syncRedisPanel);
         syncRedisPanel();
+    })();
+    
+    // IP Access Control Guide
+    (function () {
+        const whitelistEnabled = document.querySelector('input[name="security_ip_whitelist_enabled"]');
+        const blacklistEnabled = document.querySelector('input[name="security_ip_blacklist_enabled"]');
+        const sharedSecretEnabled = document.querySelector('input[name="security_shared_secret_enabled"]');
+        const sharedSecretInput = document.getElementById('securitySharedSecret');
+        const sharedSecretHeaderInput = document.getElementById('securitySharedSecretHeader');
+        
+        const nginxConfigGuide = document.getElementById('nginxConfigGuide');
+        const nginxSharedSecretLine = document.getElementById('nginxSharedSecretLine');
+        const nginxSecretHeaderName = document.getElementById('nginxSecretHeaderName');
+        const nginxSecretValue = document.getElementById('nginxSecretValue');
+        
+        if (!whitelistEnabled || !blacklistEnabled || !sharedSecretEnabled || !nginxConfigGuide) {
+            return;
+        }
+        
+        function updateNginxGuide() {
+            // Show Nginx config if any IP control is enabled
+            const anyIpControlEnabled = whitelistEnabled.checked || blacklistEnabled.checked || sharedSecretEnabled.checked;
+            nginxConfigGuide.style.display = anyIpControlEnabled ? 'block' : 'none';
+            
+            // Show shared secret line if enabled
+            if (sharedSecretEnabled.checked) {
+                nginxSharedSecretLine.style.display = 'inline';
+                nginxSecretHeaderName.textContent = sharedSecretHeaderInput.value || 'X-Internal-Secret';
+                nginxSecretValue.textContent = sharedSecretInput.value || 'your-secret-here';
+            } else {
+                nginxSharedSecretLine.style.display = 'none';
+            }
+        }
+        
+        whitelistEnabled.addEventListener('change', updateNginxGuide);
+        blacklistEnabled.addEventListener('change', updateNginxGuide);
+        sharedSecretEnabled.addEventListener('change', updateNginxGuide);
+        sharedSecretInput.addEventListener('input', updateNginxGuide);
+        sharedSecretHeaderInput.addEventListener('input', updateNginxGuide);
+        
+        updateNginxGuide();
+    })();
+    
+    // 共享密钥验证和保存确认
+    (function () {
+        const form = document.querySelector('form[action="{{ url_for("admin.update_security_settings") }}"]');
+        const saveBtn = document.getElementById('saveSecurityBtn');
+        const sharedSecretEnabled = document.querySelector('input[name="security_shared_secret_enabled"]');
+        const sharedSecretInput = document.getElementById('securitySharedSecret');
+        const sharedSecretHeaderInput = document.getElementById('securitySharedSecretHeader');
+        const whitelistEnabled = document.querySelector('input[name="security_ip_whitelist_enabled"]');
+        const blacklistEnabled = document.querySelector('input[name="security_ip_blacklist_enabled"]');
+        
+        if (!form || !saveBtn) {
+            return;
+        }
+        
+        // 记录初始状态
+        const initialSharedSecretEnabled = sharedSecretEnabled ? sharedSecretEnabled.checked : false;
+        const initialSharedSecretValue = sharedSecretInput ? sharedSecretInput.value : '';
+        const initialSharedSecretHeader = sharedSecretHeaderInput ? sharedSecretHeaderInput.value : '';
+        const initialWhitelistEnabled = whitelistEnabled ? whitelistEnabled.checked : false;
+        const initialBlacklistEnabled = blacklistEnabled ? blacklistEnabled.checked : false;
+        
+        form.addEventListener('submit', function(e) {
+            // 检查是否启用了共享密钥或IP控制
+            const isSharedSecretEnabled = sharedSecretEnabled && sharedSecretEnabled.checked;
+            const isWhitelistEnabled = whitelistEnabled && whitelistEnabled.checked;
+            const isBlacklistEnabled = blacklistEnabled && blacklistEnabled.checked;
+            
+            // 检查是否是新启用（从禁用变为启用）
+            const isNewlyEnablingSharedSecret = isSharedSecretEnabled && !initialSharedSecretEnabled;
+            const isNewlyEnablingWhitelist = isWhitelistEnabled && !initialWhitelistEnabled;
+            const isNewlyEnablingBlacklist = isBlacklistEnabled && !initialBlacklistEnabled;
+            
+            // 检查共享密钥是否已启用且密钥值或密钥名称发生了变化
+            const sharedSecretValueChanged = isSharedSecretEnabled && initialSharedSecretEnabled && 
+                (sharedSecretInput.value !== initialSharedSecretValue || 
+                 sharedSecretHeaderInput.value !== initialSharedSecretHeader);
+            
+            const needsConfirmation = isNewlyEnablingSharedSecret || isNewlyEnablingWhitelist || 
+                                     isNewlyEnablingBlacklist || sharedSecretValueChanged;
+            
+            if (needsConfirmation) {
+                e.preventDefault();
+                showConfirmationModal(isNewlyEnablingSharedSecret || sharedSecretValueChanged, 
+                                     isNewlyEnablingWhitelist, isNewlyEnablingBlacklist);
+            }
+        });
+        
+        function showConfirmationModal(hasSharedSecret, hasWhitelist, hasBlacklist) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = 'background: white; border-radius: 16px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;';
+            
+            let warningHtml = '<h3 style="margin: 0 0 16px; color: #dc2626; font-size: 20px;">⚠️ 重要提醒</h3>';
+            warningHtml += '<div style="margin-bottom: 20px; line-height: 1.6; color: #475569;">';
+            
+            if (hasSharedSecret) {
+                warningHtml += '<p style="margin: 0 0 12px;"><strong>你正在启用共享密钥验证。</strong></p>';
+                warningHtml += '<p style="margin: 0 0 12px;">启用后，所有请求必须在请求头中包含正确的共享密钥，否则将被拒绝访问。</p>';
+            }
+            
+            if (hasWhitelist) {
+                warningHtml += '<p style="margin: 0 0 12px;"><strong>你正在启用 IP 白名单。</strong></p>';
+                warningHtml += '<p style="margin: 0 0 12px;">启用后，只有白名单中的 IP 才能访问系统。请确保你的当前 IP 已添加到白名单中。</p>';
+            }
+            
+            if (hasBlacklist) {
+                warningHtml += '<p style="margin: 0 0 12px;"><strong>你正在启用 IP 黑名单。</strong></p>';
+                warningHtml += '<p style="margin: 0 0 12px;">启用后，黑名单中的 IP 将被拒绝访问。</p>';
+            }
+            
+            warningHtml += '</div>';
+            
+            warningHtml += '<div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 12px; padding: 16px; margin-bottom: 20px;">';
+            warningHtml += '<p style="margin: 0 0 12px; font-weight: 600; color: #92400e;">在保存配置前，请确保：</p>';
+            warningHtml += '<ol style="margin: 0; padding-left: 20px; color: #92400e;">';
+            warningHtml += '<li style="margin-bottom: 8px;">已正确配置 Nginx 反向代理（设置 X-Forwarded-For 和共享密钥请求头）</li>';
+            warningHtml += '<li style="margin-bottom: 8px;">当前 IP 地址已添加到白名单（如果启用白名单）</li>';
+            warningHtml += '<li style="margin-bottom: 8px;">已测试 Nginx 配置是否生效</li>';
+            warningHtml += '</ol>';
+            warningHtml += '</div>';
+            
+            // Nginx 配置验证部分
+            if (hasSharedSecret) {
+                const headerName = sharedSecretHeaderInput.value || 'X-Internal-Secret';
+                const secretValue = sharedSecretInput.value || '';
+                
+                warningHtml += '<div style="background: #f1f5f9; border-radius: 12px; padding: 16px; margin-bottom: 20px;">';
+                warningHtml += '<p style="margin: 0 0 12px; font-weight: 600; color: #0f172a;">Nginx 配置验证</p>';
+                warningHtml += '<p style="margin: 0 0 12px; font-size: 13px; color: #64748b;">点击下方按钮测试 Nginx 是否正确传递了共享密钥请求头。</p>';
+                warningHtml += '<button type="button" id="testNginxBtn" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">测试 Nginx 配置</button>';
+                warningHtml += '<div id="testResult" style="margin-top: 12px; display: none;"></div>';
+                warningHtml += '</div>';
+            }
+            
+            warningHtml += '<div style="background: #fee2e2; border: 1px solid #ef4444; border-radius: 12px; padding: 16px; margin-bottom: 20px;">';
+            warningHtml += '<p style="margin: 0; font-size: 13px; color: #991b1b;"><strong>紧急恢复：</strong>如果配置错误导致无法访问，可以使用命令行参数禁用访问控制：</p>';
+            warningHtml += '<pre style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 8px; margin: 12px 0 0; overflow-x: auto; font-size: 12px;">python app.py --disable-ip-control</pre>';
+            warningHtml += '</div>';
+            
+            warningHtml += '<div style="display: flex; gap: 12px; justify-content: flex-end;">';
+            warningHtml += '<button type="button" id="cancelBtn" style="padding: 10px 20px; background: #e2e8f0; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">取消</button>';
+            warningHtml += '<button type="button" id="confirmBtn" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">我已确认，继续保存</button>';
+            warningHtml += '</div>';
+            
+            modalContent.innerHTML = warningHtml;
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+            
+            // 测试 Nginx 配置
+            const testBtn = document.getElementById('testNginxBtn');
+            if (testBtn && hasSharedSecret) {
+                testBtn.addEventListener('click', function() {
+                    testNginxConfiguration();
+                });
+            }
+            
+            // 取消按钮
+            document.getElementById('cancelBtn').addEventListener('click', function() {
+                document.body.removeChild(modal);
+            });
+            
+            // 确认按钮
+            document.getElementById('confirmBtn').addEventListener('click', function() {
+                document.body.removeChild(modal);
+                // 提交表单
+                form.submit();
+            });
+        }
+        
+        function testNginxConfiguration() {
+            const testResult = document.getElementById('testResult');
+            const testBtn = document.getElementById('testNginxBtn');
+            
+            if (!testResult || !testBtn) return;
+            
+            testBtn.disabled = true;
+            testBtn.textContent = '测试中...';
+            testResult.style.display = 'block';
+            testResult.innerHTML = '<p style="margin: 0; color: #64748b;">正在测试...</p>';
+            
+            const headerName = sharedSecretHeaderInput.value || 'X-Internal-Secret';
+            const secretValue = sharedSecretInput.value || '';
+            
+            fetch('{{ url_for("admin.test_nginx_config") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({
+                    header_name: headerName,
+                    expected_value: secretValue
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                testBtn.disabled = false;
+                testBtn.textContent = '重新测试';
+                
+                if (data.success) {
+                    testResult.innerHTML = '<div style="padding: 12px; background: #d1fae5; border: 1px solid #10b981; border-radius: 8px;"><p style="margin: 0; color: #065f46; font-weight: 600;">✓ Nginx 配置正确</p><p style="margin: 8px 0 0; font-size: 13px; color: #047857;">' + data.message + '</p></div>';
+                } else {
+                    testResult.innerHTML = '<div style="padding: 12px; background: #fee2e2; border: 1px solid #ef4444; border-radius: 8px;"><p style="margin: 0; color: #991b1b; font-weight: 600;">✗ Nginx 配置有问题</p><p style="margin: 8px 0 0; font-size: 13px; color: #991b1b;">' + data.message + '</p></div>';
+                }
+            })
+            .catch(error => {
+                testBtn.disabled = false;
+                testBtn.textContent = '重新测试';
+                testResult.innerHTML = '<div style="padding: 12px; background: #fee2e2; border: 1px solid #ef4444; border-radius: 8px;"><p style="margin: 0; color: #991b1b;">测试失败：' + error.message + '</p></div>';
+            });
+        }
     })();
 </script>
 {% endblock %}

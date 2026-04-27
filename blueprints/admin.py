@@ -45,6 +45,14 @@ SECURITY_SETTING_DEFAULTS = {
     'security_send_rate_limit_level3_attempts': '20',
     'security_send_rate_limit_level3_seconds': '86400',
     'security_rate_limit_record_ttl_seconds': '7200',
+    # IP 访问控制
+    'security_ip_whitelist_enabled': 'false',
+    'security_ip_whitelist': '',
+    'security_ip_blacklist_enabled': 'false',
+    'security_ip_blacklist': '',
+    'security_shared_secret_enabled': 'false',
+    'security_shared_secret': '',
+    'security_shared_secret_header': 'X-Internal-Secret',
 }
 
 COVER_SETTING_DEFAULTS = {
@@ -561,6 +569,9 @@ def update_security_settings():
         'security_login_rate_limit_enabled',
         'security_verification_rate_limit_enabled',
         'security_verification_send_rate_limit_enabled',
+        'security_ip_whitelist_enabled',
+        'security_ip_blacklist_enabled',
+        'security_shared_secret_enabled',
     }
 
     for key in SECURITY_SETTING_DEFAULTS:
@@ -571,6 +582,49 @@ def update_security_settings():
 
     flash('安全设置已更新')
     return redirect(url_for('admin.admin_security'))
+
+
+@admin_bp.route('/security/test-nginx', methods=['POST'])
+@login_required
+def test_nginx_config():
+    """测试 Nginx 配置是否正确传递共享密钥"""
+    _require_admin_role()
+    
+    try:
+        data = request.get_json()
+        header_name = data.get('header_name', 'X-Internal-Secret')
+        expected_value = data.get('expected_value', '')
+        
+        # 检查请求头中是否包含共享密钥
+        actual_value = request.headers.get(header_name, '')
+        
+        if not expected_value:
+            return jsonify({
+                'success': False,
+                'message': '未设置共享密钥，无法测试。'
+            })
+        
+        if actual_value == expected_value:
+            return jsonify({
+                'success': True,
+                'message': f'Nginx 正确传递了请求头 {header_name}，值匹配成功。'
+            })
+        elif actual_value:
+            return jsonify({
+                'success': False,
+                'message': f'Nginx 传递了请求头 {header_name}，但值不匹配。期望: {expected_value[:10]}..., 实际: {actual_value[:10]}...'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Nginx 未传递请求头 {header_name}。请检查 Nginx 配置中是否添加了 proxy_set_header {header_name} "your-secret"。'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'测试失败: {str(e)}'
+        })
+
 
 @admin_bp.route('/settings', methods=['POST'])
 @login_required

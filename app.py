@@ -151,6 +151,12 @@ def create_app():
             "or switch the site to HTTPS."
         )
         return None
+    
+    # IP 访问控制中间件
+    @app.before_request
+    def check_ip_access():
+        from services.ip_access_control import ip_access_control_middleware
+        return ip_access_control_middleware()
 
     # 注册蓝图
     from blueprints.main import main_bp
@@ -180,17 +186,41 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python app.py                    # 正常启动应用
-  python app.py --update-db        # 检查并同步数据库结构
-  python app.py --update-db --yes  # 自动同步（不询问确认）
+  python app.py                         # 正常启动应用
+  python app.py --update-db             # 检查并同步数据库结构
+  python app.py --update-db --yes       # 自动同步（不询问确认）
+  python app.py --disable-ip-control    # 禁用 IP 访问控制（紧急恢复）
         """
     )
     parser.add_argument('--update-db', action='store_true',
                        help='检查并同步数据库结构（对比 models.py 和现有数据库）')
     parser.add_argument('--yes', '-y', action='store_true',
                        help='自动确认所有操作（与 --update-db 配合使用）')
+    parser.add_argument('--disable-ip-control', action='store_true',
+                       help='禁用 IP 访问控制（白名单、黑名单、共享密钥），用于紧急恢复访问')
     
     args = parser.parse_args()
+    
+    # 如果指定了 --disable-ip-control，禁用 IP 访问控制
+    if args.disable_ip_control:
+        print("\n⚠️  紧急恢复模式：正在禁用 IP 访问控制...\n")
+        app, config = create_app()
+        
+        with app.app_context():
+            from models import SystemSetting
+            
+            # 禁用所有 IP 访问控制
+            SystemSetting.set('security_ip_whitelist_enabled', 'false')
+            SystemSetting.set('security_ip_blacklist_enabled', 'false')
+            SystemSetting.set('security_shared_secret_enabled', 'false')
+            
+            print("✓ 已禁用 IP 白名单")
+            print("✓ 已禁用 IP 黑名单")
+            print("✓ 已禁用共享密钥验证")
+            print("\n✅ IP 访问控制已全部禁用，现在可以正常访问系统了。")
+            print("   请访问 /admin/security 重新配置访问控制。\n")
+        
+        sys.exit(0)
     
     # 如果指定了 --update-db，执行数据库同步
     if args.update_db:
