@@ -109,6 +109,12 @@
             </section>
 
             <section class="card">
+                {% if auth_mode == 'sso' %}
+                <h2>账号管理</h2>
+                <p style="color:#6c757d; font-size:14px; margin-bottom:18px;">本站已接入统一认证，密码和邮箱由认证中心统一管理。</p>
+                <a href="{{ sso_url }}/profile" target="_blank" rel="noopener noreferrer" class="btn">前往 GoAuth 管理账号</a>
+                <hr style="margin:18px 0; border:none; border-top:1px solid #eef2f7;">
+                {% else %}
                 {% if current_user.email and not current_user.email_verified %}
                 <h2>邮箱验证</h2>
                 <p style="color:#6c757d; font-size:14px; margin-bottom:15px;">你的邮箱尚未验证，验证后才能发表评论。</p>
@@ -164,6 +170,7 @@
                 </form>
 
                 <hr style="margin:18px 0; border:none; border-top:1px solid #eef2f7;">
+                {% endif %}
                 <a href="{{ url_for('auth.logout') }}" class="btn" style="background:#dc3545;">退出登录</a>
 
                 <div style="margin-top:18px; padding:14px 16px; border-radius:10px; background:#f8fafc; border:1px solid #e5eaf0;">

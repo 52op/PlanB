@@ -26,3 +26,13 @@ secret_key: "your-secret-key-here"
 # hexo: Hexo 简洁风格
 # default: 原有的默认风格
 blog_theme: "default"
+
+# 认证模式（默认 standalone，独立用户系统）
+# 设为 sso 并填写以下三项可接入 GoAuth 统一认证
+auth_mode: "standalone"
+# sso_issuer: "https://auth.sztcrs.com"
+# sso_cookie_name: "_goauth_token"
+# sso_public_key: |
+#   -----BEGIN PUBLIC KEY-----
+#   MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+#   -----END PUBLIC KEY-----

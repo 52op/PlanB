@@ -75,6 +75,7 @@ from .rate_limit import (
 )
 from .share_links import build_share_session_key, build_share_title, generate_share_token, get_share_link_by_token, is_share_expired, resolve_shared_path
 from .urls import force_https_url, get_safe_redirect_target, normalize_local_media_references_in_text, normalize_local_media_url
+from .sso_auth import find_or_create_sso_user, get_sso_token_from_request, load_rsa_public_key, verify_sso_token
 
 __all__ = [
     'InvalidPathError',
@@ -175,4 +176,8 @@ __all__ = [
     'upload_media_file',
     'validate_registration_input',
     'verify_email_code',
+    'find_or_create_sso_user',
+    'get_sso_token_from_request',
+    'load_rsa_public_key',
+    'verify_sso_token',
 ]

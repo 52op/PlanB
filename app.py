@@ -3,7 +3,7 @@ import secrets
 import sys
 import yaml
 from flask import Flask, request
-from flask_login import LoginManager
+from flask_login import LoginManager, login_user
 from flask_wtf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
 from models import db, init_db, User
@@ -123,10 +123,30 @@ def create_app():
     init_db(app)
     CSRFProtect(app)
 
+    # SSO 配置（auth_mode = "sso" 时生效）
+    auth_mode = str(config.get('auth_mode', 'standalone')).strip().lower()
+    app.config['AUTH_MODE'] = auth_mode
+    if auth_mode == 'sso':
+        sso_issuer = str(config.get('sso_issuer', '')).strip()
+        sso_pub_pem = str(config.get('sso_public_key', '')).strip()
+        app.config['SSO_ISSUER'] = sso_issuer
+        if sso_pub_pem:
+            try:
+                from services.sso_auth import load_rsa_public_key
+                app.config['SSO_PUBLIC_KEY_OBJ'] = load_rsa_public_key(sso_pub_pem)
+                print(f'[planB] SSO 模式已启用，认证站: {sso_issuer}')
+            except Exception as e:
+                print(f'[planB] 警告: 加载 SSO 公钥失败: {e}')
+        else:
+            print('[planB] 警告: SSO 模式已启用，但 sso_public_key 未配置')
+
     # 初始化登录管理器
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'  # type: ignore[assignment]
+    if auth_mode == 'sso':
+        login_manager.login_view = 'auth.sso_login'  # type: ignore[assignment]
+    else:
+        login_manager.login_view = 'auth.login'  # type: ignore[assignment]
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -157,6 +177,51 @@ def create_app():
     def check_ip_access():
         from services.ip_access_control import ip_access_control_middleware
         return ip_access_control_middleware()
+
+    # SSO 模式：页面加载时检测 GoAuth cookie，自动登录或同步退出（跳过静态资源和 API）
+    @app.before_request
+    def sso_session_check():
+        if auth_mode != 'sso':
+            return None
+        from flask_login import current_user, logout_user
+
+        # 跳过静态资源、API 和认证相关路由
+        if request.endpoint and (
+            request.endpoint.startswith('static') or
+            request.endpoint.startswith('api.') or
+            request.endpoint.startswith('auth.')
+        ):
+            return None
+
+        from services.sso_auth import get_sso_token_from_request, verify_sso_token, find_or_create_sso_user
+        token = get_sso_token_from_request(request)
+        public_key = app.config.get('SSO_PUBLIC_KEY_OBJ')
+
+        # 验证 GoAuth cookie
+        payload = None
+        if token and public_key:
+            payload = verify_sso_token(token, public_key, issuer=app.config.get('SSO_ISSUER') or None)
+
+        # 未登录 + GoAuth 有效 → 自动登录
+        if not current_user.is_authenticated:
+            if payload:
+                user = find_or_create_sso_user(payload, db, User)
+                login_user(user, remember=True)
+            return None
+
+        # 已登录 + GoAuth 无效/不存在 → 强制退出
+        if not payload:
+            logout_user()
+            return None
+
+        # 已登录 + GoAuth 用户变了（切换账号）→ 退出旧用户，登录新用户
+        goauth_email = (payload.get('email') or '').strip().lower()
+        if goauth_email and current_user.email and goauth_email != current_user.email.lower():
+            logout_user()
+            user = find_or_create_sso_user(payload, db, User)
+            login_user(user, remember=True)
+
+        return None
 
     # 注册蓝图
     from blueprints.main import main_bp

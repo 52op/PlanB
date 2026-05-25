@@ -379,7 +379,9 @@ def account():
     return render_template('account.html',
                          comments=account_comments,
                          comments_pagination=pagination,
-                         site_settings=site_settings)
+                         site_settings=site_settings,
+                         auth_mode=current_app.config.get('AUTH_MODE', 'standalone'),
+                         sso_url=current_app.config.get('SSO_ISSUER', ''))
 
 
 @auth_bp.route('/account/profile', methods=['POST'])
@@ -619,3 +621,49 @@ def change_email():
     db.session.commit()
     flash('邮箱已更新并验证成功')
     return redirect(url_for('auth.account'))
+
+
+# ── SSO 路由（仅 auth_mode = "sso" 时实际使用） ──────────────────────────────
+
+@auth_bp.route('/sso-login')
+def sso_login():
+    """重定向到 GoAuth 登录页，携带 redirect 参数"""
+    from flask import current_app
+    sso_issuer = current_app.config.get('SSO_ISSUER', '')
+    if not sso_issuer:
+        flash('SSO 未配置，请联系管理员')
+        return redirect(url_for('auth.login'))
+    import urllib.parse
+    next_url = request.args.get('next', '/')
+    callback = urllib.parse.urljoin(request.host_url, url_for('auth.sso_callback'))
+    full_callback = callback + ('?next=' + urllib.parse.quote(next_url) if next_url != '/' else '')
+    sso_url = sso_issuer.rstrip('/') + '/login?redirect=' + urllib.parse.quote(full_callback)
+    return redirect(sso_url)
+
+
+@auth_bp.route('/sso-callback')
+def sso_callback():
+    """GoAuth 登录后回调：验证 token 并建立 Flask-Login session"""
+    from flask import current_app
+    from models import db, User
+    from services.sso_auth import verify_sso_token, find_or_create_sso_user, load_rsa_public_key
+
+    token = request.args.get('token', '')
+    next_url = request.args.get('next', '/')
+    if not token:
+        flash('缺少 token 参数')
+        return redirect(url_for('auth.login'))
+
+    public_key = current_app.config.get('SSO_PUBLIC_KEY_OBJ')
+    if not public_key:
+        flash('SSO 公钥未配置，请联系管理员')
+        return redirect(url_for('auth.login'))
+
+    payload = verify_sso_token(token, public_key, issuer=current_app.config.get('SSO_ISSUER') or None)
+    if not payload:
+        flash('Token 无效或已过期，请重新登录')
+        return redirect(url_for('auth.sso_login'))
+
+    user = find_or_create_sso_user(payload, db, User)
+    login_user(user, remember=True)
+    return redirect(get_safe_redirect_target(next_url))
