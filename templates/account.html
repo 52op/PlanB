@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ favicon_url }}">
     {% set base_site_name = site_settings.site_name if site_settings and site_settings.site_name else 'Planning' %}
     <title>{{ (page_title or '个人中心') }} - {{ base_site_name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}" />

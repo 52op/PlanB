@@ -51,6 +51,10 @@ body {
     pointer-events: none;
     transform: translateY(-8px);
     transition: opacity 0.18s ease, transform 0.18s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
 }
 
 .app-toast.show {
@@ -69,6 +73,14 @@ body {
 .app-toast.warning {
     background: rgba(154, 52, 18, 0.96);
 }
+
+.app-toast .toast-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.app-toast .toast-bar {
+    position: absolute; bottom: 0; left: 0; height: 3px;
+    background: rgba(255,255,255,.4);
+    animation: toast-shrink 4.5s linear forwards;
+}
+@keyframes toast-shrink { from { width: 100%; } to { width: 0%; } }
 
 .manage-posts-shell {
     width: min(1420px, calc(100vw - 32px));

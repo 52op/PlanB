@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="{{ favicon_url }}">
     {% set base_site_name = site_settings.site_name if site_settings and site_settings.site_name else 'Planning' %}
     <title>{{ page_title or '博客文章管理' }} - {{ base_site_name }}</title>
     <meta name="description" content="集中管理全部带头部信息的博客文章文档，支持搜索、筛选、分页和状态切换。">

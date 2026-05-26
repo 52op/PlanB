@@ -28,6 +28,16 @@ class PlanningApp {
         // 设置页面特定功能
         this.setupPageSpecificFeatures();
 
+        // 阅读进度条
+        this.initReadingProgress();
+
+        // 代码块语言标签
+        this.initCodeBlockLabels();
+        // 内容变化时重新扫描（如编辑器预览更新后）
+        const observer = new MutationObserver(() => this.initCodeBlockLabels());
+        const content = document.querySelector('.markdown-body') || document.querySelector('article') || document.querySelector('main');
+        if (content) observer.observe(content, { childList: true, subtree: true });
+
         // 启动 CSRF token 自动刷新（每30分钟刷新一次）
         this.startCSRFTokenRefresh();
 
@@ -280,6 +290,29 @@ class PlanningApp {
     onPageVisible() {
         // 可以在这里添加页面显示时的逻辑
         // 比如刷新数据等
+    }
+
+    initCodeBlockLabels() {
+        document.querySelectorAll('.markdown-body pre > code[class]').forEach((code) => {
+            const pre = code.parentElement;
+            const cls = Array.from(code.classList).find(c => c.startsWith('language-') || c === 'language');
+            if (cls) {
+                const lang = cls.replace(/^language-/, '').trim();
+                if (lang) pre.setAttribute('data-lang', lang);
+            }
+        });
+    }
+
+    initReadingProgress() {
+        const bar = document.createElement('div');
+        bar.id = 'readingProgress';
+        document.body.prepend(bar);
+        const update = () => {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            bar.style.width = docHeight > 0 ? `${Math.min(100, (scrollTop / docHeight) * 100)}%` : '0';
+        };
+        window.addEventListener('scroll', update, { passive: true });
     }
 
     handleGlobalKeyboard(event) {

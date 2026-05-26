@@ -18,6 +18,74 @@ class EditorManager {
         this.handleSlugFieldBlur = this.handleSlugFieldBlur.bind(this);
         this.handleSlugHintClick = this.handleSlugHintClick.bind(this);
         this.initializeElements();
+        this.initAutoSave();
+        this.initShortcutsPanel();
+        this.initTurndown();
+    }
+
+    initTurndown() {
+        this._turndownReady = false;
+        if (typeof TurndownService !== 'undefined') {
+            const td = new TurndownService({
+                headingStyle: 'atx',
+                codeBlockStyle: 'fenced',
+            });
+            td.addRule('table', {
+                filter: 'table',
+                replacement: function (content, node) {
+                    const rows = Array.from(node.rows);
+                    if (!rows.length) return '';
+                    const cols = rows[0].cells.length;
+                    const lines = rows.map(row => {
+                        const cells = Array.from(row.cells).map(cell => {
+                            let md = td.turndown(cell.innerHTML);
+                            md = md.replace(/\n/g, ' ').replace(/\|/g, '\\|').trim();
+                            return md;
+                        });
+                        return '| ' + cells.join(' | ') + ' |';
+                    });
+                    lines.splice(1, 0, '| ' + Array(cols).fill('---').join(' | ') + ' |');
+                    return '\n' + lines.join('\n') + '\n';
+                }
+            });
+            this._turndown = td;
+            this._turndownReady = true;
+        }
+    }
+
+    handleEditorPaste(event) {
+        const html = event.clipboardData?.getData('text/html');
+        if (!html) return;
+
+        if (!this._turndownReady) return;
+
+        event.preventDefault();
+        const md = this._turndown.turndown(html);
+        if (md && this.editorInstance) {
+            this.editorInstance.replaceSelection(md);
+        }
+    }
+
+    initAutoSave() {
+        this.autoSaveTimer = null;
+        this.AUTO_SAVE_DELAY = 4000;
+        window.addEventListener('beforeunload', () => this.saveDraft());
+    }
+
+    initShortcutsPanel() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+                const active = document.activeElement;
+                if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.contentEditable === 'true')) return;
+                e.preventDefault();
+                const panel = document.getElementById('shortcutsPanel');
+                if (panel) panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+            }
+            if (e.key === 'Escape') {
+                const panel = document.getElementById('shortcutsPanel');
+                if (panel && panel.style.display !== 'none') panel.style.display = 'none';
+            }
+        });
     }
 
     initializeElements() {
@@ -766,6 +834,7 @@ class EditorManager {
                     },
                 },
             });
+            this.setupPasteHandler();
         } else {
             this.editorInstance.setMarkdown(editorBody, false);
         }
@@ -773,6 +842,73 @@ class EditorManager {
         this.bindEditorShortcuts();
         this.bindMetaPanelStateTracking();
         this.fillMetaPanel();
+        this.setupEditorChangeTracking();
+    }
+
+    setupPasteHandler() {
+        if (!this.editorInstance) return;
+        const el = this.editorInstance.getEditorElements().mdEditor;
+        if (el) {
+            el.addEventListener('paste', (e) => this.handleEditorPaste(e));
+        }
+    }
+
+    setupEditorChangeTracking() {
+        if (!this.editorInstance) return;
+        const handler = () => {
+            this.updateWordCount();
+            this.scheduleAutoSave();
+        };
+        this.editorInstance.on('change', handler);
+    }
+
+    updateWordCount() {
+        const el = document.getElementById('wordCount');
+        if (!el || !this.editorInstance) return;
+        const text = this.editorInstance.getMarkdown();
+        const chars = text.length;
+        const cnChars = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+        const words = text.replace(/[\u4e00-\u9fff]/g, ' ').split(/\s+/).filter(Boolean).length;
+        const readTime = Math.max(1, Math.round((cnChars + words) / 300));
+        el.textContent = `${chars} 字 · 约 ${readTime} 分钟`;
+    }
+
+    scheduleAutoSave() {
+        if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
+        this.autoSaveTimer = setTimeout(() => this.saveDraft(), this.AUTO_SAVE_DELAY);
+    }
+
+    getDraftKey() {
+        return `planb_draft_${this.currentFilePath}`;
+    }
+
+    saveDraft() {
+        if (!this.editorInstance || !this.currentFilePath) return;
+        try {
+            const content = this.editorInstance.getMarkdown();
+            localStorage.setItem(this.getDraftKey(), JSON.stringify({
+                content,
+                savedAt: Date.now(),
+                path: this.currentFilePath,
+            }));
+            const el = document.getElementById('draftStatus');
+            if (el) {
+                el.textContent = '草稿已自动保存';
+                el.className = 'draft-saved';
+            }
+        } catch {}
+    }
+
+    restoreDraft() {
+        if (!this.currentFilePath) return null;
+        try {
+            const raw = localStorage.getItem(this.getDraftKey());
+            if (!raw) return null;
+            const draft = JSON.parse(raw);
+            if (draft.path !== this.currentFilePath) return null;
+            localStorage.removeItem(this.getDraftKey());
+            return draft.content;
+        } catch { return null; }
     }
 
     async handleImageUpload(blob, callback) {
@@ -988,6 +1124,9 @@ class EditorManager {
                     this.editorInstance.setMarkdown(parsed.body || '', false);
                     this.fillMetaPanel();
                 }
+                try { localStorage.removeItem(this.getDraftKey()); } catch {}
+                const el = document.getElementById('draftStatus');
+                if (el) { el.textContent = ''; el.className = ''; }
                 return true;
             }
 
@@ -1007,8 +1146,15 @@ class EditorManager {
     async openEditor() {
         const content = await this.loadFileContent();
         if (content === null) return false;
+
+        const draftContent = this.restoreDraft();
+        let editorContent = content;
+        if (draftContent) {
+            editorContent = draftContent;
+        }
+
         this.showEditor();
-        await this.initializeEditor(content);
+        await this.initializeEditor(editorContent);
         return true;
     }
 

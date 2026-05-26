@@ -1,3 +1,4 @@
+from urllib.parse import quote
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required, login_user, logout_user
 from models import Comment, SystemSetting, User, db
@@ -105,6 +106,9 @@ def _build_account_comment_items(comments):
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
+    from flask import current_app
+    if current_app.config.get('AUTH_MODE') == 'sso':
+        return redirect(url_for('auth.sso_login'))
         
     access_mode = SystemSetting.get('access_mode', 'open')
     client_ip = get_client_ip(request)
@@ -350,11 +354,17 @@ def login():
                            mailer_ready=mailer_is_configured(),
                            site_settings=site_settings,
                            form_data=form_data,
-                           login_mode=login_mode)
+                           login_mode=login_mode,
+                           auth_mode=current_app.config.get('AUTH_MODE', 'standalone'))
 
 @auth_bp.route('/logout')
 def logout():
     logout_user()
+    if current_app.config.get('AUTH_MODE') == 'sso':
+        sso_issuer = current_app.config.get('SSO_ISSUER', '').rstrip('/')
+        if sso_issuer:
+            next_url = url_for('main.index', _external=True)
+            return redirect(f'{sso_issuer}/logout?redirect={quote(next_url)}')
     return redirect(url_for('main.index'))
 
 

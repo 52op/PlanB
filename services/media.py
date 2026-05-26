@@ -101,7 +101,8 @@ def _upload_to_s3(file_storage, target_subdir=''):
         raise Exception(f'S3 上传失败: {exc}') from exc
 
     if cdn_domain:
-        url = f"https://{cdn_domain.strip('/')}/{s3_path}"
+        cdn_domain_clean = cdn_domain.strip('/').removeprefix('https://').removeprefix('http://')
+        url = f"https://{cdn_domain_clean}/{s3_path}"
     elif use_path_style:
         url = f"{(endpoint or '').strip('/')}/{bucket}/{s3_path}"
     else:
@@ -335,11 +336,17 @@ def get_all_images_with_status():
     for unique_filename, data in storage_images.items():
         if unique_filename in db_images:
             image = db_images.pop(unique_filename)
-            display_url = (
-                normalize_local_media_url(f"/media/{str(image.path or '').lstrip('/')}")
-                if image.storage_type == 'local' and image.path
-                else image.url
-            )
+            if image.storage_type == 'local' and image.path:
+                display_url = normalize_local_media_url(f"/media/{str(image.path or '').lstrip('/')}")
+            elif image.storage_type == 's3' and image.path and str(image.url or '').count('https://') > 1:
+                cdn_domain = SystemSetting.get('s3_cdn_domain')
+                if cdn_domain:
+                    cdn_domain_clean = cdn_domain.strip('/').removeprefix('https://').removeprefix('http://')
+                    display_url = f"https://{cdn_domain_clean}/{str(image.path).lstrip('/')}"
+                else:
+                    display_url = image.url
+            else:
+                display_url = image.url
             usage_items = _build_image_usage_items(image, site_logo, document_usage_map)
             combined_images.append({
                 'filename': image.filename,
@@ -414,6 +421,7 @@ def _get_s3_images():
     bucket = SystemSetting.get('s3_bucket')
     access_key = SystemSetting.get('s3_access_key')
     secret_key = SystemSetting.get('s3_secret_key')
+    cdn_domain = SystemSetting.get('s3_cdn_domain')
 
     if not all([endpoint, bucket, access_key, secret_key]):
         return images
@@ -424,9 +432,14 @@ def _get_s3_images():
         for obj in page.get('Contents', []):
             key = obj['Key']
             unique_filename = os.path.basename(key)
+            if cdn_domain:
+                cdn_domain_clean = cdn_domain.strip('/').removeprefix('https://').removeprefix('http://')
+                url = f"https://{cdn_domain_clean}/{key}"
+            else:
+                url = s3_client.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': key}, ExpiresIn=3600)
             images[unique_filename] = {
                 'filename': unique_filename,
-                'url': s3_client.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': key}, ExpiresIn=3600),
+                'url': url,
                 'created_at': _serialize_image_datetime(obj.get('LastModified')),
             }
     return images

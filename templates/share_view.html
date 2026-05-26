@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ favicon_url }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ current_title or share_link.title }} - 分享访问</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/toastui/toastui-editor.min.css') }}">

@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ favicon_url }}">
     {% set meta_title = page_meta.title if page_meta and page_meta.title else (page_title if page_title else (site_settings.site_name if site_settings else 'Planning')) %}
     {% set meta_description = page_description if page_description else (page_meta.summary if page_meta and page_meta.summary else (site_settings.site_tagline if site_settings else 'Planning')) %}
     {% set meta_image = page_meta.cover if page_meta and page_meta.cover else '' %}
@@ -43,7 +44,8 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-rotate.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lg-thumbnail.min.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals.css') }}" />
-    <script src="{{ url_for("static", filename="vendor/lucide/lucide.min.js") }}" defer"></script>
+    <script src="{{ url_for("static", filename="vendor/lucide/lucide.min.js") }}" defer></script>
+    <script src="{{ url_for("static", filename="vendor/turndown/turndown.browser.umd.js") }}" defer></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="current-file" content="{{ current_file or '' }}">
     <meta name="current-dir" content="{{ current_dir or '' }}">

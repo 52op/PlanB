@@ -6,6 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ favicon_url }}">
     {% set base_site_name = site_settings.site_name if site_settings and site_settings.site_name else 'Planning' %}
     {% set raw_title = page_meta.title if page_meta and page_meta.title else (page_title if page_title else base_site_name) %}
     {% set meta_title = raw_title ~ ' - ' ~ base_site_name if raw_title != base_site_name else base_site_name %}
@@ -62,6 +63,7 @@
       })();
     </script>
     <script src="{{ url_for('static', filename='vendor/lucide/lucide.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/turndown/turndown.browser.umd.js') }}" defer></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="current-file" content="{{ current_file or '' }}">
     <meta name="current-dir" content="{{ current_dir or '' }}">
@@ -502,6 +504,10 @@
                 </div>
             </div>
             <div id="toastEditor"></div>
+            <div id="editorStatus" class="editor-status">
+                <span id="wordCount"></span>
+                <span id="draftStatus"></span>
+            </div>
         </div>
     </div>
 
@@ -1109,6 +1115,29 @@
     
     <!-- Toast 提示层（放在最后确保不被遮挡） -->
     <div class="app-toast" id="appToast"></div>
+
+    <div id="shortcutsPanel" class="shortcuts-overlay" style="display:none">
+        <div class="shortcuts-dialog">
+            <div class="shortcuts-header">
+                <h3>快捷键参考</h3>
+                <button type="button" onclick="document.getElementById('shortcutsPanel').style.display='none'" class="action-btn">✕</button>
+            </div>
+            <div class="shortcuts-body">
+                <div class="shortcut-group">
+                    <h4>编辑</h4>
+                    <div class="shortcut-row"><span class="keys"><kbd>Ctrl</kbd>+<kbd>S</kbd></span><span>保存内容</span></div>
+                    <div class="shortcut-row"><span class="keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span><span>撤销</span></div>
+                    <div class="shortcut-row"><span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span>重做</span></div>
+                    <div class="shortcut-row"><span class="keys"><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>全局搜索</span></div>
+                </div>
+                <div class="shortcut-group">
+                    <h4>导航</h4>
+                    <div class="shortcut-row"><span class="keys"><kbd>Escape</kbd></span><span>关闭弹窗/菜单</span></div>
+                    <div class="shortcut-row"><span class="keys"><kbd>?</kbd></span><span>打开快捷键面板</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- 浮动显示按钮（PC端隐藏侧边栏后显示） -->
     <button class="floating-show-btn floating-show-sidebar" id="floatingShowSidebar" title="显示侧边栏">

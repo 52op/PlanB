@@ -615,8 +615,13 @@ def _render_markdown(content, source_filename=""):
     prepared = _prepare_markdown_for_render(content, source_filename=source_filename)
     md = markdown.Markdown(extensions=["fenced_code", "codehilite", "tables", "toc"])
     html = _sanitize_html(md.convert(prepared))
+    html = _add_img_lazy_loading(html)
     toc_html = _sanitize_html(getattr(md, "toc", ""))
     return html, toc_html
+
+
+def _add_img_lazy_loading(html):
+    return re.sub(r'<img(?=\s)', '<img loading="lazy"', html, flags=re.IGNORECASE)
 
 
 def _attach_view_counts(items):

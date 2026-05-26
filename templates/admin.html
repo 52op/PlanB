@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ favicon_url }}">
     <title>管理后台 || Markdown CMS</title>
     <style>
         body {
@@ -618,7 +619,7 @@
                 <a href="{{ url_for('admin.admin_base') }}" class="{% if request.endpoint == 'admin.admin_base' %}active{% endif %}">基础设置</a>
                 <a href="{{ url_for('admin.admin_access') }}" class="{% if request.endpoint in ['admin.admin_access', 'admin.admin_access_save_user_rule', 'admin.admin_access_delete_user_rule', 'admin.admin_access_add_password_rule', 'admin.admin_access_delete_password_rule'] %}active{% endif %}">访问管理</a>
                 <a href="{{ url_for('admin.admin_security') }}" class="{% if request.endpoint == 'admin.admin_security' %}active{% endif %}">安全设置</a>
-                <a href="{{ url_for('admin.admin_users') }}" class="{% if request.endpoint in ['admin.admin_users', 'admin.admin_user_detail_page'] %}active{% endif %}">用户管理</a>
+                {% if auth_mode != 'sso' %}<a href="{{ url_for('admin.admin_users') }}" class="{% if request.endpoint in ['admin.admin_users', 'admin.admin_user_detail_page'] %}active{% endif %}">用户管理</a>{% endif %}
                 <a href="{{ url_for('admin.image_management') }}" class="{% if request.endpoint == 'admin.image_management' %}active{% endif %}">图片管理</a>
                 <a href="{{ url_for('admin.notification_logs') }}" class="{% if request.endpoint == 'admin.notification_logs' %}active{% endif %}">通知日志</a>
                 <a href="{{ url_for('admin.admin_backup_config') }}" class="{% if request.endpoint in ['admin.admin_backup_config', 'admin.admin_backup_history', 'admin.admin_backup_restore', 'admin.admin_backup_storage'] %}active{% endif %}">备份管理</a>

@@ -2,7 +2,7 @@ import os
 import secrets
 import sys
 import yaml
-from flask import Flask, request
+from flask import Flask, request, url_for
 from flask_login import LoginManager, login_user
 from flask_wtf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -123,13 +123,24 @@ def create_app():
     init_db(app)
     CSRFProtect(app)
 
+    # 全局模板变量：favicon 默认用 site_logo
+    @app.context_processor
+    def inject_favicon():
+        from models import SystemSetting
+        from services.urls import normalize_local_media_url
+        logo = SystemSetting.get('site_logo', '')
+        favicon = normalize_local_media_url(logo) if logo else url_for('static', filename='favicon.ico')
+        return {'favicon_url': favicon}
+
     # SSO 配置（auth_mode = "sso" 时生效）
     auth_mode = str(config.get('auth_mode', 'standalone')).strip().lower()
     app.config['AUTH_MODE'] = auth_mode
     if auth_mode == 'sso':
         sso_issuer = str(config.get('sso_issuer', '')).strip()
+        sso_cookie_name = str(config.get('sso_cookie_name', '_goauth_token')).strip()
         sso_pub_pem = str(config.get('sso_public_key', '')).strip()
         app.config['SSO_ISSUER'] = sso_issuer
+        app.config['SSO_COOKIE_NAME'] = sso_cookie_name
         if sso_pub_pem:
             try:
                 from services.sso_auth import load_rsa_public_key
@@ -194,7 +205,7 @@ def create_app():
             return None
 
         from services.sso_auth import get_sso_token_from_request, verify_sso_token, find_or_create_sso_user
-        token = get_sso_token_from_request(request)
+        token = get_sso_token_from_request(request, cookie_name=app.config.get('SSO_COOKIE_NAME', '_goauth_token'))
         public_key = app.config.get('SSO_PUBLIC_KEY_OBJ')
 
         # 验证 GoAuth cookie

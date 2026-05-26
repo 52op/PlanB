@@ -22,6 +22,12 @@ from sqlalchemy import func
 
 admin_bp = Blueprint('admin', __name__, template_folder='templates', url_prefix='/admin')
 
+
+@admin_bp.context_processor
+def inject_globals():
+    return {'auth_mode': current_app.config.get('AUTH_MODE', 'standalone')}
+
+
 DELETED_USER_USERNAME = '__deleted_user__'
 DELETED_USER_NICKNAME = '已注销用户'
 
@@ -82,6 +88,15 @@ def _is_protected_system_user(user):
     if not user:
         return False
     return user.username in {'admin', DELETED_USER_USERNAME}
+
+
+def _redirect_if_sso_mode():
+    """SSO 模式下用户管理由 GoAuth 负责，重定向到 GoAuth 后台"""
+    if current_app.config.get('AUTH_MODE') == 'sso':
+        sso_issuer = current_app.config.get('SSO_ISSUER', '').rstrip('/')
+        dashboard_url = f'{sso_issuer}/dashboard' if sso_issuer else url_for('main.index')
+        return redirect(dashboard_url)
+    return None
 
 
 def _get_access_mode_label(access_mode):
@@ -678,6 +693,9 @@ def update_settings():
             # 特殊处理 checkbox
             elif key in ['s3_path_style', 'smtp_use_ssl', 'comments_enabled', 'comments_require_approval', 'allow_user_theme_override', 'blog_enabled', 'show_docs_entry_in_blog']:
                 SystemSetting.set(key, 'true' if request.form.get(key) else 'false')
+            # 标准化 CDN 域名，去掉协议前缀
+            elif key == 's3_cdn_domain':
+                SystemSetting.set(key, (value or '').strip().removeprefix('https://').removeprefix('http://'))
             # 跳过已经处理过的 target
             elif key not in ['home_default_target']:
                 SystemSetting.set(key, value)
@@ -687,8 +705,9 @@ def update_settings():
     return redirect(url_for('admin.admin_base'))
 
 @admin_bp.route('/user/add', methods=['POST'])
-@login_required
 def admin_add_user():
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     try:
         _create_user_record(
@@ -702,8 +721,9 @@ def admin_add_user():
     return redirect(url_for('admin.admin_users'))
 
 @admin_bp.route('/user/delete/<int:user_id>', methods=['POST'])
-@login_required
 def admin_delete_user(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     user = _get_or_404(User, user_id)
     try:
@@ -714,8 +734,9 @@ def admin_delete_user(user_id):
     return redirect(url_for('admin.admin_users'))
 
 @admin_bp.route('/user/update/<int:user_id>', methods=['POST'])
-@login_required
 def admin_update_user(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
@@ -860,8 +881,9 @@ def admin_hard_delete_comment(comment_id):
 
 
 @admin_bp.route('/user/verify/<int:user_id>', methods=['POST'])
-@login_required
 def admin_verify_user_email(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     user = db.session.get(User, user_id)
     if user:
@@ -877,6 +899,8 @@ def admin_verify_user_email(user_id):
 @admin_bp.route('/user/<int:user_id>')
 @login_required
 def admin_user_detail(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     return redirect(url_for('admin.admin_user_detail_page', user_id=user_id))
 
@@ -884,6 +908,8 @@ def admin_user_detail(user_id):
 @admin_bp.route('/user/detail-update/<int:user_id>', methods=['POST'])
 @login_required
 def admin_update_user_detail(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
@@ -923,6 +949,8 @@ def notification_logs():
 @admin_bp.route('/users')
 @login_required
 def admin_users():
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     
     page = request.args.get('page', 1, type=int)
@@ -971,6 +999,8 @@ def admin_users():
 @admin_bp.route('/users/add', methods=['POST'])
 @login_required
 def admin_add_user_page():
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     try:
         _create_user_record(
@@ -988,6 +1018,8 @@ def admin_add_user_page():
 @admin_bp.route('/users/<int:user_id>')
 @login_required
 def admin_user_detail_page(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     
     user = _get_or_404(User, user_id)
@@ -1002,6 +1034,8 @@ def admin_user_detail_page(user_id):
 @admin_bp.route('/users/<int:user_id>/update', methods=['POST'])
 @login_required
 def admin_update_user_info(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
@@ -1025,6 +1059,8 @@ def admin_update_user_info(user_id):
 @admin_bp.route('/users/<int:user_id>/verify-email', methods=['POST'])
 @login_required
 def admin_verify_user_email_page(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):
@@ -1040,6 +1076,8 @@ def admin_verify_user_email_page(user_id):
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 def admin_delete_user_page(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     user = _get_or_404(User, user_id)
     try:
@@ -1054,6 +1092,8 @@ def admin_delete_user_page(user_id):
 @admin_bp.route('/users/<int:user_id>/toggle-comment', methods=['POST'])
 @login_required
 def admin_toggle_comment_permission(user_id):
+    resp = _redirect_if_sso_mode()
+    if resp: return resp
     _require_admin_role()
     user = _get_or_404(User, user_id)
     if _is_protected_system_user(user):

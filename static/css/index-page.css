@@ -3483,4 +3483,88 @@
                 flex-basis: 6px;
             }
         }
+
+        /* ── 编辑器状态栏 ── */
+        .editor-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: var(--color-text-muted);
+            border-top: 1px solid var(--color-border);
+            background: var(--color-surface);
+            gap: 12px;
+        }
+        .editor-status .draft-saved { color: var(--color-success, #16a34a); }
+        .editor-status .draft-unsaved { color: var(--color-warning, #d97706); }
+
+        /* ── 快捷键面板 ── */
+        .shortcuts-overlay {
+            position: fixed; inset: 0; z-index: 10000;
+            background: rgba(0,0,0,.4);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .shortcuts-dialog {
+            background: var(--color-surface);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.25);
+            max-width: 480px; width: 90%; max-height: 80vh;
+            overflow-y: auto;
+        }
+        .shortcuts-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .shortcuts-header h3 { margin: 0; font-size: 16px; }
+        .shortcuts-body { padding: 12px 20px 20px; }
+        .shortcut-group { margin-top: 12px; }
+        .shortcut-group h4 { margin: 0 0 6px; font-size: 13px; color: var(--color-text-muted); }
+        .shortcut-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 0; font-size: 13px;
+        }
+        .shortcut-row .keys { display: flex; gap: 4px; align-items: center; }
+        .shortcut-row kbd {
+            padding: 2px 6px; border-radius: 4px;
+            background: var(--color-surface-2);
+            border: 1px solid var(--color-border);
+            font-size: 11px; font-family: inherit;
+        }
+
+        /* ── 代码块语言标签 ── */
+        .markdown-body pre {
+            position: relative;
+            padding-top: 36px;
+        }
+        .markdown-body pre::before {
+            content: attr(data-lang);
+            position: absolute; top: 0; left: 0;
+            padding: 4px 12px;
+            font-size: 11px; font-weight: 600;
+            color: var(--color-text-muted);
+            background: var(--color-surface-2);
+            border-bottom: 1px solid var(--color-border);
+            border-right: 1px solid var(--color-border);
+            border-radius: 0 0 6px 0;
+            text-transform: lowercase;
+        }
+
+        /* ── 阅读进度条 ── */
+        #readingProgress {
+            position: fixed; top: 0; left: 0; height: 3px; z-index: 9999;
+            background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+            transition: width .1s linear;
+            width: 0;
+        }
+
+        /* ── Toast 改进 ── */
+        .app-toast .toast-icon { width: 18px; height: 18px; flex-shrink: 0; }
+        .app-toast .toast-bar {
+            position: absolute; bottom: 0; left: 0; height: 3px;
+            background: rgba(255,255,255,.4);
+            animation: toast-shrink 4.5s linear forwards;
+        }
+        @keyframes toast-shrink { from { width: 100%; } to { width: 0%; } }
     

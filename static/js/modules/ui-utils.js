@@ -65,12 +65,16 @@ class UIUtils {
 
     showToast(message, type = 'success') {
         if (!this.appToast) return;
-        this.appToast.textContent = message;
+        const icons = { success: 'check-circle', error: 'x-circle', warning: 'alert-triangle', info: 'info' };
+        const iconName = icons[type] || 'info';
+        const svg = window.lucide?.icons?.[iconName];
+        const iconHtml = svg ? svg.toSvg({ class: 'toast-icon', width: 18, height: 18 }) : '';
+        this.appToast.innerHTML = `${iconHtml}<span style="flex:1">${message}</span><div class="toast-bar"></div>`;
         this.appToast.className = `app-toast show ${type}`;
         window.clearTimeout(this.showToast._timer);
         this.showToast._timer = window.setTimeout(() => {
             this.appToast.className = 'app-toast';
-        }, 5000); // 延长到 5 秒
+        }, 5000);
     }
 
     showAlertDialog(title, message) {

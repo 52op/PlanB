@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ favicon_url }}">
     <title>登录 - {{ site_settings.site_name if site_settings else 'Planning' }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}" />
 
@@ -254,7 +255,7 @@
                 <button type="button" class="tab-button {% if default_tab == 'visitor' %}active{% endif %}" data-tab="visitor">访客访问</button>
                 {% endif %}
                 <button type="button" class="tab-button {% if default_tab == 'login' %}active{% endif %}" data-tab="login">登录</button>
-                <button type="button" class="tab-button {% if default_tab == 'register' %}active{% endif %}" data-tab="register">注册</button>
+                {% if auth_mode != 'sso' %}<button type="button" class="tab-button {% if default_tab == 'register' %}active{% endif %}" data-tab="register">注册</button>{% endif %}
             </div>
 
             {% if from_docs %}
@@ -339,7 +340,7 @@
                 </form>
             </div>
 
-            <div class="tab-panel {% if default_tab == 'register' %}active{% endif %}" id="tab-register">
+            {% if auth_mode != 'sso' %}<div class="tab-panel {% if default_tab == 'register' %}active{% endif %}" id="tab-register">
                 <h3 class="tab-title">注册账号</h3>
                 <p class="tab-desc">注册后默认进入访客组，需完成邮箱验证后才可发表评论。</p>
                 <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="registerForm">
@@ -376,12 +377,12 @@
                         <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn" style="flex: 1; background: #6c757d; text-align: center; line-height: 1; display: flex; align-items: center; justify-content: center; text-decoration: none;">取消</a>
                     </div>
                 </form>
-            </div>
+            </div>{% endif %}
         {% else %}
             {# 其他模式 #}
             <div class="tab-header">
                 <button type="button" class="tab-button {% if default_tab not in ['register'] %}active{% endif %}" data-tab="login-plain">登录</button>
-                <button type="button" class="tab-button {% if default_tab == 'register' %}active{% endif %}" data-tab="register-plain">注册</button>
+                {% if auth_mode != 'sso' %}<button type="button" class="tab-button {% if default_tab == 'register' %}active{% endif %}" data-tab="register-plain">注册</button>{% endif %}
             </div>
 
             <div class="tab-panel {% if default_tab not in ['register'] %}active{% endif %}" id="tab-login-plain">
@@ -439,7 +440,7 @@
                 </form>
             </div>
 
-            <div class="tab-panel {% if default_tab == 'register' %}active{% endif %}" id="tab-register-plain">
+            {% if auth_mode != 'sso' %}<div class="tab-panel {% if default_tab == 'register' %}active{% endif %}" id="tab-register-plain">
                 <h3 class="tab-title">注册账号</h3>
                 <p class="tab-desc">注册后默认进入访客组，需完成邮箱验证后才可发表评论。</p>
                 <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}" id="registerFormPlain">
@@ -476,7 +477,7 @@
                         <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn" style="flex: 1; background: #6c757d; text-align: center; line-height: 1; display: flex; align-items: center; justify-content: center; text-decoration: none;">取消</a>
                     </div>
                 </form>
-            </div>
+            </div>{% endif %}
         {% endif %}
         
         <div class="public-entry">

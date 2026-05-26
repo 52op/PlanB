@@ -32,6 +32,9 @@ RESOURCES = {
 
     # Chart.js
     'chartjs/chart.min.js': 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+
+    # Turndown.js (HTML→Markdown)
+    'turndown/turndown.browser.umd.js': 'https://unpkg.com/turndown@7.2.4/lib/turndown.browser.umd.js',
 }
 
 def download_file(url, dest_path):
