@@ -102,11 +102,7 @@
         {% if current_user.is_authenticated %}
         <div class="header-user-dropdown">
             <button class="header-user-btn" onclick="toggleUserMenu(event)">
-                {% if current_user.avatar_url %}
-                <img src="{{ current_user.avatar_url }}" alt="{{ current_user.username }}" class="user-avatar">
-                {% else %}
-                <div class="user-avatar-fallback">{{ (current_user.username[:1] or 'U')|upper }}</div>
-                {% endif %}
+                <img src="{{ get_avatar_url(current_user.avatar_url, current_user.email, 32) }}" alt="avatar" class="user-avatar" onerror="this.onerror=null;var u='{{ get_avatar_url('', current_user.email, 32) }}';if(this.src.indexOf('monsterid')===-1)this.src=u;else this.src='{{ avatar_fallback_svg(current_user.nickname or current_user.username, 32) }}'">
                 <span class="user-name">{{ current_user.nickname or current_user.username }}</span>
                 <i data-lucide="chevron-down" class="dropdown-icon"></i>
             </button>

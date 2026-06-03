@@ -386,6 +386,27 @@ def account():
     site_settings = _get_site_settings()
     account_comments = _build_account_comment_items(pagination.items)
 
+    # 访问用户中心时同步 GoAuth 头像（SSO 模式）
+    if current_app.config.get('AUTH_MODE') == 'sso':
+        from urllib.request import Request, urlopen
+        import json
+        try:
+            sso_issuer = current_app.config.get('SSO_ISSUER', '').rstrip('/')
+            cookie_name = current_app.config.get('SSO_COOKIE_NAME', '_goauth_token')
+            from services.sso_auth import get_sso_token_from_request
+            token = get_sso_token_from_request(request, cookie_name=cookie_name)
+            if token:
+                req = Request(f'{sso_issuer}/api/auth/me',
+                              headers={'Authorization': f'Bearer {token}'})
+                with urlopen(req, timeout=5) as resp:
+                    body = json.loads(resp.read().decode())
+                    ga_avatar = body.get('data', {}).get('avatar_url', '')
+                    if ga_avatar and current_user.avatar_url != ga_avatar:
+                        current_user.avatar_url = ga_avatar
+                        db.session.commit()
+        except Exception:
+            pass
+
     return render_template('account.html',
                          comments=account_comments,
                          comments_pagination=pagination,
@@ -676,4 +697,21 @@ def sso_callback():
 
     user = find_or_create_sso_user(payload, db, User)
     login_user(user, remember=True)
+
+    # SSO 回调后同步 GoAuth 头像
+    from urllib.request import Request, urlopen
+    import json
+    try:
+        sso_issuer = current_app.config.get('SSO_ISSUER', '').rstrip('/')
+        req = Request(f'{sso_issuer}/api/auth/me',
+                      headers={'Authorization': f'Bearer {token}'})
+        with urlopen(req, timeout=5) as resp:
+            body = json.loads(resp.read().decode())
+            ga_avatar = body.get('data', {}).get('avatar_url', '')
+            if ga_avatar and user.avatar_url != ga_avatar:
+                user.avatar_url = ga_avatar
+                db.session.commit()
+    except Exception:
+        pass
+
     return redirect(get_safe_redirect_target(next_url))

@@ -103,10 +103,10 @@
 <div class="comment-item" style="margin-left: {{ depth * 20 }}px;">
     {% if is_deleted_placeholder %}
     <div class="comment-avatar-fallback">删</div>
-    {% elif comment.user and comment.user.avatar_url %}
-    <img src="{{ comment.user.avatar_url }}" alt="Avatar" class="comment-avatar">
+    {% elif comment.user %}
+    <img src="{{ get_avatar_url(comment.user.avatar_url, comment.user.email, 32) }}" alt="avatar" class="comment-avatar" onerror="this.onerror=null;var u='{{ get_avatar_url('', comment.user.email, 32) }}';if(this.src.indexOf('monsterid')===-1)this.src=u;else this.src='{{ avatar_fallback_svg(comment.user.nickname or comment.user.username, 32) }}'">
     {% else %}
-    <div class="comment-avatar-fallback">{{ ((comment.user.nickname or comment.user.username)[:1])|upper if comment.user else '?' }}</div>
+    <div class="comment-avatar-fallback">?</div>
     {% endif %}
     <div class="comment-content-wrapper">
         <div class="comment-header">

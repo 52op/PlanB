@@ -245,6 +245,30 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_bp)
 
+    # 头像相关 Jinja2 全局函数
+    import hashlib, urllib.parse
+
+    def get_avatar_url(avatar_url, email, size=80):
+        if avatar_url:
+            return avatar_url
+        h = hashlib.md5((email or '').strip().lower().encode(),
+                        usedforsecurity=False).hexdigest()
+        return f'https://cn.cravatar.com/avatar/{h}?s={size}&d=monsterid'
+
+    def avatar_fallback_svg(display_name, size=80):
+        initial = (display_name or '?')[0].upper()
+        svg = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'width="{size}" height="{size}" viewBox="0 0 100 100">'
+            f'<rect fill="#e5e7eb" width="100" height="100" rx="50"/>'
+            f'<text fill="#9ca3af" font-size="45" font-family="sans-serif" '
+            f'x="50" y="58" text-anchor="middle">{initial}</text></svg>'
+        )
+        return 'data:image/svg+xml,' + urllib.parse.quote(svg)
+
+    app.jinja_env.globals['get_avatar_url'] = get_avatar_url
+    app.jinja_env.globals['avatar_fallback_svg'] = avatar_fallback_svg
+
     # 初始化备份调度器
     from services.backup_scheduler import BackupScheduler
     backup_scheduler = BackupScheduler(app)
