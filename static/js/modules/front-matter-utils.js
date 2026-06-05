@@ -192,7 +192,10 @@ class FrontMatterUtils {
         const hints = this.extractFrontMatterHints(bodyContent);
         const fileBaseName = (String(currentFilePath || '').split('/').pop() || 'post').replace(/\.md$/i, '');
         const existingSlug = this.unwrapFrontMatterValue(metadata.slug);
-        const titleValue = this.unwrapFrontMatterValue(metadata.title) || hints.title || '';
+        const metadataKeys = Object.keys(metadata);
+        const titleValue = metadataKeys.includes('title')
+            ? this.unwrapFrontMatterValue(metadata.title)
+            : (fileBaseName || hints.title || '');
         const slugFallback = existingSlug || titleValue || fileBaseName;
 
         if (this.metaTitleInput) {
@@ -218,10 +221,14 @@ class FrontMatterUtils {
                 .replace(/\s*,\s*/g, ', ');
         }
         if (this.metaSummaryInput) {
-            this.metaSummaryInput.value = this.unwrapFrontMatterValue(metadata.summary) || hints.summary || '';
+            this.metaSummaryInput.value = metadataKeys.includes('summary')
+                ? this.unwrapFrontMatterValue(metadata.summary)
+                : (hints.summary || '');
         }
         if (this.metaCoverInput) {
-            this.metaCoverInput.value = this.normalizeCoverFieldValue(metadata.cover) || hints.cover || '';
+            this.metaCoverInput.value = metadataKeys.includes('cover')
+                ? this.normalizeCoverFieldValue(metadata.cover)
+                : (hints.cover || '');
         }
         if (this.metaPublicCheck) {
             this.metaPublicCheck.checked = this.parseFrontMatterBoolean(metadata.public);

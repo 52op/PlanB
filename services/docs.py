@@ -753,7 +753,7 @@ def _build_front_matter(raw_metadata, body_content, filename):
 
     metadata = dict(raw_metadata)
     metadata["title"] = str(
-        raw_metadata.get("title") or heading_title or file_basename
+        raw_metadata.get("title") or file_basename or heading_title
     ).strip()
     metadata["summary"] = summary
 
